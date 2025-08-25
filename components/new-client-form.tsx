@@ -519,10 +519,18 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
 
           {/* Form Actions */}
           <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-200">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="px-6 py-2 hover:bg-gray-50 transition-colors duration-200 bg-transparent"
+            >
               Cancel
             </Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button
+              type="submit"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+            >
               <Save className="w-4 h-4 mr-2" />
               Create Client
             </Button>

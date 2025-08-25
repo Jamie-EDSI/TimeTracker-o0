@@ -31,6 +31,8 @@ import {
 import Link from "next/link"
 import { NewClientForm } from "./new-client-form"
 import { ClientManagement } from "./client-management"
+import { NavigationCard } from "./navigation-card"
+import { InteractiveButton } from "./interactive-button"
 
 export function Dashboard() {
   const [searchForm, setSearchForm] = useState({
@@ -224,64 +226,31 @@ export function Dashboard() {
         {/* Left Sidebar - Reports */}
         <div className="w-80 space-y-4">
           {/* Unapproved Terminations */}
-          <Card className="border-orange-200 bg-orange-50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-orange-800 bg-orange-200 px-3 py-1 rounded">
-                Unapproved Terminations
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-orange-600" />
-                <span className="text-sm">
-                  There are <span className="font-bold">36</span> unapproved terminations.
-                </span>
-              </div>
-              <Button variant="link" className="p-0 h-auto text-blue-600 underline text-sm">
-                Launch Report
-              </Button>
-            </CardContent>
-          </Card>
+          <NavigationCard
+            title="Unapproved Terminations"
+            description="36 unapproved terminations need review"
+            icon={AlertTriangle}
+            variant="warning"
+            onClick={() => console.log("Navigate to Unapproved Terminations Report")}
+          />
 
           {/* Zero Hours Report */}
-          <Card className="border-blue-200 bg-blue-50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-blue-800 bg-blue-200 px-3 py-1 rounded">
-                Zero Hours Report
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-blue-600" />
-                <span className="text-sm">
-                  There are <span className="font-bold">377</span> zero hour clients.
-                </span>
-              </div>
-              <Button variant="link" className="p-0 h-auto text-blue-600 underline text-sm">
-                Click here to view the clients.
-              </Button>
-            </CardContent>
-          </Card>
+          <NavigationCard
+            title="Zero Hours Report"
+            description="377 clients with zero hours"
+            icon={Clock}
+            variant="primary"
+            onClick={() => console.log("Navigate to Zero Hours Report")}
+          />
 
           {/* TANF Days Report */}
-          <Card className="border-blue-200 bg-blue-50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-blue-800 bg-blue-200 px-3 py-1 rounded">
-                TANF Days Report
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-blue-600" />
-                <span className="text-sm">
-                  There are <span className="font-bold">7</span> clients over 1800 days.
-                </span>
-              </div>
-              <Button variant="link" className="p-0 h-auto text-blue-600 underline text-sm">
-                Click here to view clients.
-              </Button>
-            </CardContent>
-          </Card>
+          <NavigationCard
+            title="TANF Days Report"
+            description="7 clients over 1800 days"
+            icon={FileText}
+            variant="primary"
+            onClick={() => console.log("Navigate to TANF Days Report")}
+          />
         </div>
 
         {/* Center Content */}
@@ -296,7 +265,11 @@ export function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-gray-700">There are no clients that are currently clocked-in.</p>
-              <Button variant="link" className="p-0 h-auto text-blue-600 underline text-sm">
+              <Button
+                variant="link"
+                className="p-0 h-auto text-blue-600 underline text-sm hover:text-blue-800 transition-colors duration-200"
+                onClick={() => console.log("Navigate to Clocked-In Clients View")}
+              >
                 Click here to view all of the clocked-in clients for today.
               </Button>
             </CardContent>
@@ -304,21 +277,23 @@ export function Dashboard() {
 
           {/* Prominent Create New Client Button */}
           <div className="flex justify-center">
-            <Button
+            <InteractiveButton
+              variant="primary"
               size="lg"
-              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 focus:bg-blue-800 text-white px-8 py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-              onClick={() => {
-                setShowNewClientForm(true)
-              }}
+              icon={UserPlus}
+              onClick={() => setShowNewClientForm(true)}
+              className="px-8 py-4"
             >
-              <UserPlus className="w-5 h-5 mr-3" />
               Create New Client
-            </Button>
+            </InteractiveButton>
           </div>
 
           {/* Quick Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
+            <Card
+              className="hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+              onClick={() => console.log("Navigate to Total Clients")}
+            >
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-100 rounded-lg">
@@ -332,7 +307,10 @@ export function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card
+              className="hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+              onClick={() => console.log("Navigate to Active Today")}
+            >
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-green-100 rounded-lg">
@@ -346,7 +324,10 @@ export function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card
+              className="hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+              onClick={() => console.log("Navigate to Pending Actions")}
+            >
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-orange-100 rounded-lg">
@@ -372,17 +353,22 @@ export function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Action Buttons */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-4">
+                <Button
+                  size="lg"
+                  className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 font-semibold"
+                  onClick={() => setShowClientManagement(true)}
+                >
+                  <Users className="w-5 h-5" />
+                  View My Clients
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="flex items-center gap-2 bg-transparent"
-                  onClick={() => setShowClientManagement(true)}
+                  className="flex items-center gap-2 bg-white hover:bg-gray-50 border-2 border-blue-200 hover:border-blue-300 transition-all duration-200"
+                  onClick={() => setShowNewClientForm(true)}
                 >
-                  <Users className="w-4 h-4" />
-                  My Clients
-                </Button>
-                <Button size="sm" variant="outline" className="flex items-center gap-2 bg-transparent">
                   <UserPlus className="w-4 h-4" />
                   New Client
                 </Button>

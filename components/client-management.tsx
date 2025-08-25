@@ -223,11 +223,33 @@ export function ClientManagement({ onBack }: ClientManagementProps) {
         onClick: () => setSelectedClient(null),
         isActive: !selectedClient,
         dropdownItems: [
-          { label: "All Clients", icon: Users, action: () => setSelectedClient(null) },
-          { label: "Active Clients", icon: Users, action: () => console.log("Show active clients") },
-          { label: "Inactive Clients", icon: Users, action: () => console.log("Show inactive clients") },
-          { label: "Client Reports", icon: BarChart3, action: () => console.log("Show client reports") },
-          { label: "Bulk Operations", icon: Settings, action: () => console.log("Bulk operations") },
+          {
+            label: "All Clients",
+            icon: Users,
+            action: () => {
+              setSelectedClient(null)
+              setFilterStatus("all")
+              setSearchTerm("")
+            },
+          },
+          {
+            label: "Active Clients",
+            icon: Users,
+            action: () => {
+              setSelectedClient(null)
+              setFilterStatus("active")
+            },
+          },
+          {
+            label: "Inactive Clients",
+            icon: Users,
+            action: () => {
+              setSelectedClient(null)
+              setFilterStatus("inactive")
+            },
+          },
+          { label: "Client Reports", icon: BarChart3, action: () => console.log("Navigate to client reports") },
+          { label: "Bulk Operations", icon: Settings, action: () => console.log("Navigate to bulk operations") },
         ],
       },
     ]
@@ -273,15 +295,25 @@ export function ClientManagement({ onBack }: ClientManagementProps) {
             </div>
 
             {/* Navigation between clients */}
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigateToClient("prev")}>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateToClient("prev")}
+                className="hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
+              >
                 <ChevronLeft className="w-4 h-4" />
                 Previous
               </Button>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
                 {filteredClients.findIndex((c) => c.id === selectedClient) + 1} of {filteredClients.length}
               </span>
-              <Button variant="outline" size="sm" onClick={() => navigateToClient("next")}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateToClient("next")}
+                className="hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
+              >
                 Next
                 <ChevronRight className="w-4 h-4" />
               </Button>
@@ -794,7 +826,11 @@ export function ClientManagement({ onBack }: ClientManagementProps) {
               </TableHeader>
               <TableBody>
                 {filteredClients.map((client) => (
-                  <TableRow key={client.id}>
+                  <TableRow
+                    key={client.id}
+                    className="hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
+                    onClick={() => setSelectedClient(client.id)}
+                  >
                     <TableCell className="font-medium">
                       {client.firstName} {client.lastName}
                     </TableCell>
@@ -806,7 +842,11 @@ export function ClientManagement({ onBack }: ClientManagementProps) {
                     <TableCell>{client.caseManager}</TableCell>
                     <TableCell>{client.lastActivity}</TableCell>
                     <TableCell>
-                      <Button size="sm" onClick={() => setSelectedClient(client.id)}>
+                      <Button
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                        onClick={() => setSelectedClient(client.id)}
+                      >
                         <FileText className="w-4 h-4 mr-2" />
                         View Record
                       </Button>
