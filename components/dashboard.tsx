@@ -104,16 +104,11 @@ export function Dashboard() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
+        {/* Top row with logo and navigation */}
         <div className="flex items-center justify-between px-6 py-3">
-          {/* Left side - EDSI Logo */}
-          <div className="flex items-center gap-6">
-            <div className="flex items-center">
-              <img src="/images/edsi-logo.png" alt="EDSI Logo" className="h-10 w-auto" />
-            </div>
-            <Button variant="ghost" size="sm" className="flex items-center gap-2">
-              <Home className="w-4 h-4" />
-              Show the Desktop
-            </Button>
+          {/* Left side - New EDSI Logo */}
+          <div className="flex items-center">
+            <img src="/images/edsi-new-logo.jpg" alt="EDSI Logo" className="h-12 w-auto" />
           </div>
 
           {/* Center - Application Selector */}
@@ -149,6 +144,16 @@ export function Dashboard() {
                 About
               </Link>
             </div>
+          </div>
+        </div>
+
+        {/* Second row with Show Desktop button aligned to left */}
+        <div className="px-6 py-2 bg-gray-50 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" size="sm" className="flex items-center gap-2">
+              <Home className="w-4 h-4" />
+              Show the Desktop
+            </Button>
           </div>
         </div>
 

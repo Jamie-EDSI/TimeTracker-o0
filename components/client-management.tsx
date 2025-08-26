@@ -278,16 +278,25 @@ export function ClientManagement({ onBack }: ClientManagementProps) {
       <div className="min-h-screen bg-gray-50">
         {/* Client Record Header */}
         <div className="bg-white border-b border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between px-6 py-4">
+          {/* Top row with logo */}
+          <div className="flex items-center justify-between px-6 py-3">
+            <div className="flex items-center">
+              <img src="/images/edsi-new-logo.jpg" alt="EDSI Logo" className="h-12 w-auto" />
+            </div>
+            <h1 className="text-xl font-semibold text-gray-800">Data Staff Desktop</h1>
+          </div>
+
+          {/* Second row with client info and navigation */}
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
             <div className="flex items-center gap-4">
               <Button variant="outline" onClick={() => setSelectedClient(null)}>
                 <ChevronLeft className="w-4 h-4 mr-2" />
                 Back to Client List
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold text-gray-900">
                   {currentClient.firstName} {currentClient.lastName}
-                </h1>
+                </h2>
                 <p className="text-sm text-gray-600">
                   PID: {currentClient.participantId} | {currentClient.program}
                 </p>
@@ -700,13 +709,22 @@ export function ClientManagement({ onBack }: ClientManagementProps) {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between px-6 py-4">
+        {/* Top row with logo */}
+        <div className="flex items-center justify-between px-6 py-3">
+          <div className="flex items-center">
+            <img src="/images/edsi-new-logo.jpg" alt="EDSI Logo" className="h-12 w-auto" />
+          </div>
+          <h1 className="text-xl font-semibold text-gray-800">Data Staff Desktop</h1>
+        </div>
+
+        {/* Second row with navigation and actions */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
           <div className="flex items-center gap-4">
             <Button variant="outline" onClick={onBack}>
               <ChevronLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
             </Button>
-            <h1 className="text-2xl font-bold text-gray-900">Client Management</h1>
+            <h2 className="text-2xl font-bold text-gray-900">Client Management</h2>
           </div>
         </div>
 
