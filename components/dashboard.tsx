@@ -357,21 +357,21 @@ export function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 mb-4">
+              {/* Action Buttons - Stacked vertically */}
+              <div className="space-y-3 mb-4">
                 <Button
                   size="lg"
-                  className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 font-semibold"
+                  className="w-full flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 font-semibold"
                   onClick={() => setShowClientManagement(true)}
                 >
                   <Users className="w-5 h-5" />
                   View My Clients
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-4 h-4 ml-auto" />
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="flex items-center gap-2 bg-white hover:bg-gray-50 border-2 border-blue-200 hover:border-blue-300 transition-all duration-200"
+                  className="w-full flex items-center gap-2 bg-white hover:bg-gray-50 border-2 border-blue-200 hover:border-blue-300 transition-all duration-200"
                   onClick={() => setShowNewClientForm(true)}
                 >
                   <UserPlus className="w-4 h-4" />
