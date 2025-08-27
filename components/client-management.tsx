@@ -87,7 +87,7 @@ const mockClients = [
 ]
 
 // Mock notes and activities
-const mockClientData = {
+const initialMockClientData = {
   "1": {
     notes: [
       {
@@ -154,6 +154,7 @@ export function ClientManagement({ onBack }: ClientManagementProps) {
     duration: "",
     outcome: "",
   })
+  const [clientData, setClientData] = useState(initialMockClientData)
 
   // Filter clients based on search and status
   const filteredClients = mockClients.filter((client) => {
@@ -169,21 +170,69 @@ export function ClientManagement({ onBack }: ClientManagementProps) {
   })
 
   const currentClient = selectedClient ? mockClients.find((c) => c.id === selectedClient) : null
-  const currentClientData = selectedClient ? mockClientData[selectedClient as keyof typeof mockClientData] : null
+  const currentClientData = selectedClient ? clientData[selectedClient as keyof typeof clientData] : null
 
   const handleAddNote = () => {
-    if (newNote.content.trim()) {
-      console.log("Adding note:", newNote)
-      // In real app, save to database
+    if (newNote.content.trim() && selectedClient) {
+      const newNoteEntry = {
+        id: `n${Date.now()}`, // Generate unique ID
+        content: newNote.content,
+        author: "Current User", // In real app, get from auth context
+        timestamp: new Date().toLocaleString("en-US", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        }),
+        type: newNote.type,
+      }
+
+      // Update the client data state
+      setClientData((prev) => ({
+        ...prev,
+        [selectedClient]: {
+          ...prev[selectedClient as keyof typeof prev],
+          notes: [newNoteEntry, ...(prev[selectedClient as keyof typeof prev]?.notes || [])],
+        },
+      }))
+
+      // Reset form and close
       setNewNote({ content: "", type: "General Note" })
       setShowAddNote(false)
     }
   }
 
   const handleAddActivity = () => {
-    if (newActivity.description.trim()) {
-      console.log("Adding activity:", newActivity)
-      // In real app, save to database
+    if (newActivity.description.trim() && selectedClient) {
+      const newActivityEntry = {
+        id: `a${Date.now()}`, // Generate unique ID
+        type: newActivity.type,
+        description: newActivity.description,
+        duration: newActivity.duration,
+        author: "Current User", // In real app, get from auth context
+        timestamp: new Date().toLocaleString("en-US", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        }),
+        outcome: newActivity.outcome,
+      }
+
+      // Update the client data state
+      setClientData((prev) => ({
+        ...prev,
+        [selectedClient]: {
+          ...prev[selectedClient as keyof typeof prev],
+          activities: [newActivityEntry, ...(prev[selectedClient as keyof typeof prev]?.activities || [])],
+        },
+      }))
+
+      // Reset form and close
       setNewActivity({ type: "Phone Call", description: "", duration: "", outcome: "" })
       setShowAddActivity(false)
     }
