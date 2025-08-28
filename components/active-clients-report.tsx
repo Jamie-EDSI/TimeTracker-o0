@@ -278,6 +278,17 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
     return sortDirection === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
   }
 
+  const downloadFile = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  }
+
   const exportToXLSX = async () => {
     setIsExporting(true)
     try {
@@ -331,9 +342,18 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, "Active Clients")
 
-      XLSX.writeFile(workbook, `active-clients-report-${new Date().toISOString().split("T")[0]}.xlsx`)
+      // Generate buffer and create blob
+      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
+      const blob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      })
+
+      downloadFile(blob, `active-clients-report-${new Date().toISOString().split("T")[0]}.xlsx`)
+    } catch (error) {
+      console.error("Error exporting to XLSX:", error)
+      alert("Error exporting to Excel. Please try again.")
     } finally {
-      setTimeout(() => setIsExporting(false), 1000) // Brief delay to show completion
+      setTimeout(() => setIsExporting(false), 1000)
     }
   }
 
@@ -384,14 +404,12 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
       ].join("\n")
 
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `active-clients-report-${new Date().toISOString().split("T")[0]}.csv`
-      a.click()
-      window.URL.revokeObjectURL(url)
+      downloadFile(blob, `active-clients-report-${new Date().toISOString().split("T")[0]}.csv`)
+    } catch (error) {
+      console.error("Error exporting to CSV:", error)
+      alert("Error exporting to CSV. Please try again.")
     } finally {
-      setTimeout(() => setIsExporting(false), 1000) // Brief delay to show completion
+      setTimeout(() => setIsExporting(false), 1000)
     }
   }
 
@@ -436,14 +454,12 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
       ].join("\n")
 
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `active-clients-current-view-${new Date().toISOString().split("T")[0]}.csv`
-      a.click()
-      window.URL.revokeObjectURL(url)
+      downloadFile(blob, `active-clients-current-view-${new Date().toISOString().split("T")[0]}.csv`)
+    } catch (error) {
+      console.error("Error exporting current view to CSV:", error)
+      alert("Error exporting current view. Please try again.")
     } finally {
-      setTimeout(() => setIsExporting(false), 1000) // Brief delay to show completion
+      setTimeout(() => setIsExporting(false), 1000)
     }
   }
 
@@ -493,23 +509,21 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
       })
       worksheet["!cols"] = colWidths
 
-      // Add some styling
-      const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1")
-      for (let C = range.s.c; C <= range.e.c; ++C) {
-        const address = XLSX.utils.encode_col(C) + "1"
-        if (!worksheet[address]) continue
-        worksheet[address].s = {
-          font: { bold: true },
-          fill: { fgColor: { rgb: "E5E7EB" } },
-        }
-      }
-
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, `Page ${currentPage}`)
 
-      XLSX.writeFile(workbook, `active-clients-page-${currentPage}-${new Date().toISOString().split("T")[0]}.xlsx`)
+      // Generate buffer and create blob
+      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
+      const blob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      })
+
+      downloadFile(blob, `active-clients-page-${currentPage}-${new Date().toISOString().split("T")[0]}.xlsx`)
+    } catch (error) {
+      console.error("Error exporting current view to XLSX:", error)
+      alert("Error exporting current view to Excel. Please try again.")
     } finally {
-      setTimeout(() => setIsExporting(false), 1000) // Brief delay to show completion
+      setTimeout(() => setIsExporting(false), 1000)
     }
   }
 
@@ -567,9 +581,12 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+                <Button
+                  className="bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                  disabled={isExporting}
+                >
                   <Download className="w-4 h-4 mr-2" />
-                  Export Client Data
+                  {isExporting ? "Exporting..." : "Export Client Data"}
                   <ChevronDown className="w-4 h-4 ml-2" />
                 </Button>
               </DropdownMenuTrigger>
@@ -582,7 +599,7 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Complete Dataset</p>
                 </div>
 
-                <DropdownMenuItem onClick={exportToXLSX} className="cursor-pointer py-3">
+                <DropdownMenuItem onClick={exportToXLSX} className="cursor-pointer py-3" disabled={isExporting}>
                   <div className="flex items-center w-full">
                     <div className="flex items-center justify-center w-8 h-8 bg-green-100 rounded-lg mr-3">
                       <FileText className="w-4 h-4 text-green-600" />
@@ -597,7 +614,7 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
                   </div>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem onClick={exportToCSV} className="cursor-pointer py-3">
+                <DropdownMenuItem onClick={exportToCSV} className="cursor-pointer py-3" disabled={isExporting}>
                   <div className="flex items-center w-full">
                     <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-lg mr-3">
                       <FileText className="w-4 h-4 text-blue-600" />
@@ -619,7 +636,11 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Current Page Only</p>
                 </div>
 
-                <DropdownMenuItem onClick={exportCurrentViewXLSX} className="cursor-pointer py-3">
+                <DropdownMenuItem
+                  onClick={exportCurrentViewXLSX}
+                  className="cursor-pointer py-3"
+                  disabled={isExporting}
+                >
                   <div className="flex items-center w-full">
                     <div className="flex items-center justify-center w-8 h-8 bg-orange-100 rounded-lg mr-3">
                       <Eye className="w-4 h-4 text-orange-600" />
@@ -634,7 +655,7 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
                   </div>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem onClick={exportCurrentView} className="cursor-pointer py-3">
+                <DropdownMenuItem onClick={exportCurrentView} className="cursor-pointer py-3" disabled={isExporting}>
                   <div className="flex items-center w-full">
                     <div className="flex items-center justify-center w-8 h-8 bg-purple-100 rounded-lg mr-3">
                       <Eye className="w-4 h-4 text-purple-600" />
@@ -664,6 +685,7 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
               variant="outline"
               size="sm"
               onClick={exportToXLSX}
+              disabled={isExporting}
               className="hidden md:flex items-center gap-2 hover:bg-green-50 hover:border-green-300 transition-colors bg-transparent"
               title="Quick export to Excel"
             >
@@ -675,6 +697,7 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
               variant="outline"
               size="sm"
               onClick={exportToCSV}
+              disabled={isExporting}
               className="hidden md:flex items-center gap-2 hover:bg-blue-50 hover:border-blue-300 transition-colors bg-transparent"
               title="Quick export to CSV"
             >
@@ -726,66 +749,6 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
 
       {/* Main Content */}
       <div className="p-6">
-        {/* Export Summary Card */}
-        {filteredAndSortedClients.length > 0 && (
-          <Card className="mb-4 bg-gradient-to-r from-blue-50 to-green-50 border-blue-200">
-            <CardContent className="py-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
-                    <Download className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Ready to Export</p>
-                    <p className="text-sm text-gray-600">
-                      {filteredAndSortedClients.length} clients match your current filters
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    onClick={exportToXLSX}
-                    disabled={isExporting}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    {isExporting ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                        Exporting...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="w-4 h-4 mr-2" />
-                        Quick Export (XLSX)
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={exportToCSV}
-                    disabled={isExporting}
-                    className="hover:bg-blue-50 hover:border-blue-300 bg-transparent"
-                  >
-                    {isExporting ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2" />
-                        Exporting...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="w-4 h-4 mr-2" />
-                        Quick Export (CSV)
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Filters and Search */}
         <Card className="mb-6">
           <CardHeader>
@@ -860,6 +823,66 @@ export function ActiveClientsReport({ onBack, onViewClient }: ActiveClientsRepor
               </div>
             </div>
           </CardContent>
+
+          {/* Export with Filters Section */}
+          {filteredAndSortedClients.length > 0 && (
+            <>
+              <div className="px-6 py-3 border-t border-gray-200 bg-gradient-to-r from-blue-50 to-green-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full">
+                      <Download className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Export with Filters</p>
+                      <p className="text-sm text-gray-600">
+                        {filteredAndSortedClients.length} clients match your current filters
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={exportToXLSX}
+                      disabled={isExporting}
+                      className="bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+                    >
+                      {isExporting ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Exporting...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Quick Export (XLSX)
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={exportToCSV}
+                      disabled={isExporting}
+                      className="hover:bg-blue-50 hover:border-blue-300 bg-white shadow-sm hover:shadow-md transition-all duration-200"
+                    >
+                      {isExporting ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2" />
+                          Exporting...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Quick Export (CSV)
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </Card>
 
         {/* Results Summary */}
