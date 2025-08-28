@@ -14,7 +14,7 @@ Any changes you make to your deployed app will be automatically pushed to this r
 
 Your project is live at:
 
-**[https://vercel.com/jamie-edsis-projects/v0-edsi-job-application-form](https://vercel.com/jamie-edsis-projects/v0-edsi-job-application-form)**
+**[https://v0-edsi-time-tracker.vercel.app/](https://v0-edsi-time-tracker.vercel.app/)**
 
 ## Build your app
 
