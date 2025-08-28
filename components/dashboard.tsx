@@ -31,6 +31,7 @@ import {
 import Link from "next/link"
 import { NewClientForm } from "./new-client-form"
 import { ClientManagement } from "./client-management"
+import { ActiveClientsReport } from "./active-clients-report"
 import { NavigationCard } from "./navigation-card"
 import { InteractiveButton } from "./interactive-button"
 
@@ -44,10 +45,16 @@ export function Dashboard() {
 
   const [showNewClientForm, setShowNewClientForm] = useState(false)
   const [showClientManagement, setShowClientManagement] = useState(false)
+  const [showActiveClientsReport, setShowActiveClientsReport] = useState(false)
 
   const handleSearch = () => {
     console.log("Searching with:", searchForm)
     // Implement search functionality
+  }
+
+  const handleViewClient = (clientId: string) => {
+    console.log("Viewing client:", clientId)
+    // Navigate to client profile
   }
 
   // Breadcrumb logic with dropdown options
@@ -60,6 +67,7 @@ export function Dashboard() {
         dropdownItems: [
           { label: "Overview", icon: Home, action: () => console.log("Navigate to overview") },
           { label: "Reports", icon: BarChart3, action: () => console.log("Navigate to reports") },
+          { label: "Active Clients Report", icon: Users, action: () => setShowActiveClientsReport(true) },
           { label: "Recent Activities", icon: Activity, action: () => console.log("Navigate to activities") },
           { label: "System Settings", icon: Settings, action: () => console.log("Navigate to settings") },
         ],
@@ -89,6 +97,17 @@ export function Dashboard() {
           { label: "Client Templates", icon: FileText, action: () => console.log("Client templates") },
         ],
       })
+    } else if (showActiveClientsReport) {
+      breadcrumbs.push({
+        label: "Active Clients Report",
+        href: "#",
+        isActive: true,
+        dropdownItems: [
+          { label: "Export Report", icon: FileText, action: () => console.log("Export report") },
+          { label: "Print Report", icon: FileText, action: () => console.log("Print report") },
+          { label: "Report Settings", icon: Settings, action: () => console.log("Report settings") },
+        ],
+      })
     } else {
       breadcrumbs[0].isActive = true
     }
@@ -98,6 +117,10 @@ export function Dashboard() {
 
   if (showClientManagement) {
     return <ClientManagement onBack={() => setShowClientManagement(false)} />
+  }
+
+  if (showActiveClientsReport) {
+    return <ActiveClientsReport onBack={() => setShowActiveClientsReport(false)} onViewClient={handleViewClient} />
   }
 
   return (
@@ -193,6 +216,7 @@ export function Dashboard() {
                         if (breadcrumb.label === "Dashboard") {
                           setShowClientManagement(false)
                           setShowNewClientForm(false)
+                          setShowActiveClientsReport(false)
                         }
                       }}
                       className="text-blue-600 hover:text-blue-800 hover:underline"
@@ -255,6 +279,15 @@ export function Dashboard() {
             icon={FileText}
             variant="primary"
             onClick={() => console.log("Navigate to TANF Days Report")}
+          />
+
+          {/* Active Clients Report */}
+          <NavigationCard
+            title="Active Clients Report"
+            description="View comprehensive client data"
+            icon={Users}
+            variant="success"
+            onClick={() => setShowActiveClientsReport(true)}
           />
         </div>
 
