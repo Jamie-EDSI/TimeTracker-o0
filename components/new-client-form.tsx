@@ -127,11 +127,8 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
       newErrors.email = "Please enter a valid email address"
     }
 
-    // Emergency Contact validation
-    if (!formData.emergencyFirstName.trim()) newErrors.emergencyFirstName = "Emergency contact first name is required"
-    if (!formData.emergencyLastName.trim()) newErrors.emergencyLastName = "Emergency contact last name is required"
-    if (!formData.emergencyPhone.trim()) newErrors.emergencyPhone = "Emergency contact phone is required"
-    else if (!/^\d{3}-\d{3}-\d{4}$/.test(formData.emergencyPhone)) {
+    // Emergency Contact validation (optional)
+    if (formData.emergencyPhone && !/^\d{3}-\d{3}-\d{4}$/.test(formData.emergencyPhone)) {
       newErrors.emergencyPhone = "Phone must be in format: xxx-xxx-xxxx"
     }
 
@@ -568,9 +565,57 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                         <SelectValue placeholder="Select state" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Pennsylvania, PA">Pennsylvania, PA</SelectItem>
-                        <SelectItem value="New Jersey, NJ">New Jersey, NJ</SelectItem>
-                        <SelectItem value="Delaware, DE">Delaware, DE</SelectItem>
+                        <SelectItem value="Alabama - AL">Alabama - AL</SelectItem>
+                        <SelectItem value="Alaska - AK">Alaska - AK</SelectItem>
+                        <SelectItem value="Arizona - AZ">Arizona - AZ</SelectItem>
+                        <SelectItem value="Arkansas - AR">Arkansas - AR</SelectItem>
+                        <SelectItem value="California - CA">California - CA</SelectItem>
+                        <SelectItem value="Colorado - CO">Colorado - CO</SelectItem>
+                        <SelectItem value="Connecticut - CT">Connecticut - CT</SelectItem>
+                        <SelectItem value="Delaware - DE">Delaware - DE</SelectItem>
+                        <SelectItem value="Florida - FL">Florida - FL</SelectItem>
+                        <SelectItem value="Georgia - GA">Georgia - GA</SelectItem>
+                        <SelectItem value="Hawaii - HI">Hawaii - HI</SelectItem>
+                        <SelectItem value="Idaho - ID">Idaho - ID</SelectItem>
+                        <SelectItem value="Illinois - IL">Illinois - IL</SelectItem>
+                        <SelectItem value="Indiana - IN">Indiana - IN</SelectItem>
+                        <SelectItem value="Iowa - IA">Iowa - IA</SelectItem>
+                        <SelectItem value="Kansas - KS">Kansas - KS</SelectItem>
+                        <SelectItem value="Kentucky - KY">Kentucky - KY</SelectItem>
+                        <SelectItem value="Louisiana - LA">Louisiana - LA</SelectItem>
+                        <SelectItem value="Maine - ME">Maine - ME</SelectItem>
+                        <SelectItem value="Maryland - MD">Maryland - MD</SelectItem>
+                        <SelectItem value="Massachusetts - MA">Massachusetts - MA</SelectItem>
+                        <SelectItem value="Michigan - MI">Michigan - MI</SelectItem>
+                        <SelectItem value="Minnesota - MN">Minnesota - MN</SelectItem>
+                        <SelectItem value="Mississippi - MS">Mississippi - MS</SelectItem>
+                        <SelectItem value="Missouri - MO">Missouri - MO</SelectItem>
+                        <SelectItem value="Montana - MT">Montana - MT</SelectItem>
+                        <SelectItem value="Nebraska - NE">Nebraska - NE</SelectItem>
+                        <SelectItem value="Nevada - NV">Nevada - NV</SelectItem>
+                        <SelectItem value="New Hampshire - NH">New Hampshire - NH</SelectItem>
+                        <SelectItem value="New Jersey - NJ">New Jersey - NJ</SelectItem>
+                        <SelectItem value="New Mexico - NM">New Mexico - NM</SelectItem>
+                        <SelectItem value="New York - NY">New York - NY</SelectItem>
+                        <SelectItem value="North Carolina - NC">North Carolina - NC</SelectItem>
+                        <SelectItem value="North Dakota - ND">North Dakota - ND</SelectItem>
+                        <SelectItem value="Ohio - OH">Ohio - OH</SelectItem>
+                        <SelectItem value="Oklahoma - OK">Oklahoma - OK</SelectItem>
+                        <SelectItem value="Oregon - OR">Oregon - OR</SelectItem>
+                        <SelectItem value="Pennsylvania - PA">Pennsylvania - PA</SelectItem>
+                        <SelectItem value="Rhode Island - RI">Rhode Island - RI</SelectItem>
+                        <SelectItem value="South Carolina - SC">South Carolina - SC</SelectItem>
+                        <SelectItem value="South Dakota - SD">South Dakota - SD</SelectItem>
+                        <SelectItem value="Tennessee - TN">Tennessee - TN</SelectItem>
+                        <SelectItem value="Texas - TX">Texas - TX</SelectItem>
+                        <SelectItem value="Utah - UT">Utah - UT</SelectItem>
+                        <SelectItem value="Vermont - VT">Vermont - VT</SelectItem>
+                        <SelectItem value="Virginia - VA">Virginia - VA</SelectItem>
+                        <SelectItem value="Washington - WA">Washington - WA</SelectItem>
+                        <SelectItem value="West Virginia - WV">West Virginia - WV</SelectItem>
+                        <SelectItem value="Wisconsin - WI">Wisconsin - WI</SelectItem>
+                        <SelectItem value="Wyoming - WY">Wyoming - WY</SelectItem>
+                        <SelectItem value="District of Columbia - DC">District of Columbia - DC</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
@@ -633,18 +678,17 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Phone className="w-5 h-5 text-red-500" />
-                  Emergency Contact
+                  Emergency Contact (Optional)
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="emergencyFirstName">First Name *</Label>
+                    <Label htmlFor="emergencyFirstName">First Name</Label>
                     <Input
                       id="emergencyFirstName"
                       value={formData.emergencyFirstName}
                       onChange={(e) => handleInputChange("emergencyFirstName", e.target.value)}
-                      required
                       className={errors.emergencyFirstName ? "border-red-500 focus:border-red-500" : ""}
                     />
                     {errors.emergencyFirstName && (
@@ -652,12 +696,11 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                     )}
                   </div>
                   <div>
-                    <Label htmlFor="emergencyLastName">Last Name *</Label>
+                    <Label htmlFor="emergencyLastName">Last Name</Label>
                     <Input
                       id="emergencyLastName"
                       value={formData.emergencyLastName}
                       onChange={(e) => handleInputChange("emergencyLastName", e.target.value)}
-                      required
                       className={errors.emergencyLastName ? "border-red-500 focus:border-red-500" : ""}
                     />
                     {errors.emergencyLastName && (
@@ -667,13 +710,12 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                 </div>
 
                 <div>
-                  <Label htmlFor="emergencyPhone">Phone Number *</Label>
+                  <Label htmlFor="emergencyPhone">Phone Number</Label>
                   <Input
                     id="emergencyPhone"
                     value={formData.emergencyPhone}
                     onChange={(e) => handlePhoneChange("emergencyPhone", e.target.value)}
                     placeholder="xxx-xxx-xxxx"
-                    required
                     className={errors.emergencyPhone ? "border-red-500 focus:border-red-500" : ""}
                   />
                   {errors.emergencyPhone && <p className="text-red-500 text-sm mt-1">{errors.emergencyPhone}</p>}
