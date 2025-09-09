@@ -154,6 +154,7 @@ export function Dashboard() {
   const [recentlyCreatedClient, setRecentlyCreatedClient] = useState<any>(null)
   const [showClientCreatedNotification, setShowClientCreatedNotification] = useState(false)
   const [globalClientDatabase, setGlobalClientDatabase] = useState(initialMockClientDatabase)
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
 
   // Real-time search results based on form inputs
   const searchResults = useMemo(() => {
@@ -198,11 +199,12 @@ export function Dashboard() {
     })
     setShowSearchResults(false)
     setSearchPerformed(false)
+    setSelectedClientId(null) // Reset selected client
   }
 
   const handleViewClient = (clientId: string) => {
     console.log("Viewing client:", clientId)
-    // Navigate to client profile - in a real app, this would route to the client detail page
+    setSelectedClientId(clientId) // Set the specific client to view
     setShowClientManagement(true)
   }
 
@@ -297,9 +299,13 @@ export function Dashboard() {
   if (showClientManagement) {
     return (
       <ClientManagement
-        onBack={() => setShowClientManagement(false)}
+        onBack={() => {
+          setShowClientManagement(false)
+          setSelectedClientId(null) // Reset selected client
+        }}
         clients={globalClientDatabase}
         onUpdateClients={setGlobalClientDatabase}
+        selectedClientId={selectedClientId}
       />
     )
   }
@@ -432,6 +438,7 @@ export function Dashboard() {
                           setShowClientManagement(false)
                           setShowNewClientForm(false)
                           setShowActiveClientsReport(false)
+                          setSelectedClientId(null) // Reset selected client
                         }
                       }}
                       className="text-blue-600 hover:text-blue-800 hover:underline"
@@ -555,7 +562,14 @@ export function Dashboard() {
                         <TableBody>
                           {paginatedResults.map((client) => (
                             <TableRow key={client.id} className="hover:bg-gray-50">
-                              <TableCell className="font-medium">{client.fullName}</TableCell>
+                              <TableCell className="font-medium">
+                                <button
+                                  onClick={() => handleViewClient(client.id)}
+                                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                >
+                                  {client.fullName}
+                                </button>
+                              </TableCell>
                               <TableCell>{client.participantId}</TableCell>
                               <TableCell>{client.program}</TableCell>
                               <TableCell>

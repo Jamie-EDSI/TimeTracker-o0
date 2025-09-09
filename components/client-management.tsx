@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -154,10 +154,11 @@ interface ClientManagementProps {
   onBack: () => void
   clients?: any[]
   onUpdateClients?: (clients: any[]) => void
+  selectedClientId?: string | null // Add this prop
 }
 
-export function ClientManagement({ onBack, clients = [], onUpdateClients }: ClientManagementProps) {
-  const [selectedClient, setSelectedClient] = useState<string | null>(null)
+export function ClientManagement({ onBack, clients = [], onUpdateClients, selectedClientId }: ClientManagementProps) {
+  const [selectedClient, setSelectedClient] = useState<string | null>(selectedClientId || null)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
   const [showAddActivity, setShowAddActivity] = useState(false)
@@ -186,6 +187,13 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients }: Clie
     fileSize: "",
   })
   const [clientData, setClientData] = useState(initialMockClientData)
+
+  // Add this useEffect after the state declarations
+  useEffect(() => {
+    if (selectedClientId) {
+      setSelectedClient(selectedClientId)
+    }
+  }, [selectedClientId])
 
   // Replace the mockClients usage with the passed clients data
   const mockClients =
@@ -299,7 +307,6 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients }: Clie
         addedDate: new Date().toLocaleString("en-US", {
           year: "numeric",
           month: "2-digit",
-          day: "2-digit",
           hour: "2-digit",
           minute: "2-digit",
           hour12: true,
