@@ -37,28 +37,11 @@ import {
   Settings,
   Home,
   Clock,
-  MessageSquare,
 } from "lucide-react"
 
 // Mock notes and activities
 const initialMockClientData = {
   "1": {
-    notes: [
-      {
-        id: "n1",
-        content: "Client showed great improvement in interview skills during today's session.",
-        author: "Chester, District - 01",
-        timestamp: "2024-01-15 10:30 AM",
-        type: "General Note",
-      },
-      {
-        id: "n2",
-        content: "Discussed job placement opportunities. Client expressed interest in retail positions.",
-        author: "Chester, District - 01",
-        timestamp: "2024-01-12 2:15 PM",
-        type: "Career Planning",
-      },
-    ],
     activities: [
       {
         id: "a1",
@@ -101,9 +84,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients }: Clie
   const [selectedClient, setSelectedClient] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
-  const [showAddNote, setShowAddNote] = useState(false)
   const [showAddActivity, setShowAddActivity] = useState(false)
-  const [newNote, setNewNote] = useState({ content: "", type: "General Note" })
   const [newActivity, setNewActivity] = useState({
     type: "Phone Call",
     description: "",
@@ -176,38 +157,6 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients }: Clie
 
   const currentClient = selectedClient ? mockClients.find((c) => c.id === selectedClient) : null
   const currentClientData = selectedClient ? clientData[selectedClient as keyof typeof clientData] : null
-
-  const handleAddNote = () => {
-    if (newNote.content.trim() && selectedClient) {
-      const newNoteEntry = {
-        id: `n${Date.now()}`, // Generate unique ID
-        content: newNote.content,
-        author: "Current User", // In real app, get from auth context
-        timestamp: new Date().toLocaleString("en-US", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        }),
-        type: newNote.type,
-      }
-
-      // Update the client data state
-      setClientData((prev) => ({
-        ...prev,
-        [selectedClient]: {
-          ...prev[selectedClient as keyof typeof prev],
-          notes: [newNoteEntry, ...(prev[selectedClient as keyof typeof prev]?.notes || [])],
-        },
-      }))
-
-      // Reset form and close
-      setNewNote({ content: "", type: "General Note" })
-      setShowAddNote(false)
-    }
-  }
 
   const handleAddActivity = () => {
     if (newActivity.description.trim() && selectedClient) {
@@ -315,7 +264,6 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients }: Clie
         isActive: true,
         dropdownItems: [
           { label: "Overview", icon: User, action: () => console.log("Client overview") },
-          { label: "Notes & Comments", icon: MessageSquare, action: () => console.log("Client notes") },
           { label: "Activities", icon: Activity, action: () => console.log("Client activities") },
           { label: "Full Profile", icon: FileText, action: () => console.log("Full profile") },
           { label: "Edit Client", icon: Edit, action: () => console.log("Edit client") },
@@ -450,9 +398,8 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients }: Clie
         {/* Client Record Content */}
         <div className="p-6">
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="notes">Notes & Comments</TabsTrigger>
               <TabsTrigger value="activities">Activities</TabsTrigger>
               <TabsTrigger value="profile">Full Profile</TabsTrigger>
             </TabsList>
@@ -532,85 +479,6 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients }: Clie
                     ))}
                   </CardContent>
                 </Card>
-              </div>
-            </TabsContent>
-
-            {/* Notes Tab */}
-            <TabsContent value="notes" className="mt-6">
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold">Notes & Comments</h3>
-                  <Button onClick={() => setShowAddNote(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Note
-                  </Button>
-                </div>
-
-                {/* Add Note Form */}
-                {showAddNote && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center justify-between">
-                        <span>Add New Note</span>
-                        <Button variant="ghost" size="sm" onClick={() => setShowAddNote(false)}>
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <Label htmlFor="noteType">Note Type</Label>
-                        <Select value={newNote.type} onValueChange={(value) => setNewNote({ ...newNote, type: value })}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="General Note">General Note</SelectItem>
-                            <SelectItem value="Career Planning">Career Planning</SelectItem>
-                            <SelectItem value="Progress Update">Progress Update</SelectItem>
-                            <SelectItem value="Issue/Concern">Issue/Concern</SelectItem>
-                            <SelectItem value="Achievement">Achievement</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="noteContent">Note Content</Label>
-                        <Textarea
-                          id="noteContent"
-                          value={newNote.content}
-                          onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
-                          placeholder="Enter your note here..."
-                          rows={4}
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button onClick={handleAddNote}>
-                          <Save className="w-4 h-4 mr-2" />
-                          Save Note
-                        </Button>
-                        <Button variant="outline" onClick={() => setShowAddNote(false)}>
-                          Cancel
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Notes List */}
-                <div className="space-y-4">
-                  {currentClientData?.notes.map((note) => (
-                    <Card key={note.id}>
-                      <CardContent className="pt-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge variant="outline">{note.type}</Badge>
-                          <span className="text-sm text-gray-500">{note.timestamp}</span>
-                        </div>
-                        <p className="text-gray-700 mb-2">{note.content}</p>
-                        <p className="text-sm text-gray-500">By: {note.author}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
               </div>
             </TabsContent>
 
