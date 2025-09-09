@@ -33,6 +33,7 @@ import {
   X,
   Loader2,
   AlertCircle,
+  CheckCircle,
 } from "lucide-react"
 import Link from "next/link"
 import { NewClientForm } from "./new-client-form"
@@ -42,7 +43,7 @@ import { NavigationCard } from "./navigation-card"
 import { InteractiveButton } from "./interactive-button"
 
 // Mock client data for search functionality
-const mockClientDatabase = [
+const initialMockClientDatabase = [
   {
     id: "1",
     participantId: "2965142",
@@ -149,6 +150,9 @@ export function Dashboard() {
   const [isSearching, setIsSearching] = useState(false)
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [searchPerformed, setSearchPerformed] = useState(false)
+  const [mockClientDatabase, setMockClientDatabase] = useState(initialMockClientDatabase)
+  const [recentlyCreatedClient, setRecentlyCreatedClient] = useState<any>(null)
+  const [showClientCreatedNotification, setShowClientCreatedNotification] = useState(false)
 
   // Real-time search results based on form inputs
   const searchResults = useMemo(() => {
@@ -171,7 +175,7 @@ export function Dashboard() {
 
       return nameMatch && pidMatch && ssnMatch
     })
-  }, [searchForm.name, searchForm.participantId, searchForm.ssn])
+  }, [searchForm.name, searchForm.participantId, searchForm.ssn, mockClientDatabase])
 
   const handleSearch = async () => {
     setIsSearching(true)
@@ -199,6 +203,26 @@ export function Dashboard() {
     console.log("Viewing client:", clientId)
     // Navigate to client profile - in a real app, this would route to the client detail page
     setShowClientManagement(true)
+  }
+
+  const handleNewClientSave = (clientData: any) => {
+    console.log("New client created:", clientData)
+
+    // Add the new client to our mock database
+    setMockClientDatabase((prev) => [clientData, ...prev])
+
+    // Set recently created client for notification
+    setRecentlyCreatedClient(clientData)
+    setShowClientCreatedNotification(true)
+
+    // Close the form
+    setShowNewClientForm(false)
+
+    // Hide notification after 5 seconds
+    setTimeout(() => {
+      setShowClientCreatedNotification(false)
+      setRecentlyCreatedClient(null)
+    }, 5000)
   }
 
   // Check if search has any terms
@@ -276,6 +300,30 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Client Created Notification */}
+      {showClientCreatedNotification && recentlyCreatedClient && (
+        <div className="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 max-w-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-green-900">Client Created Successfully!</h4>
+              <p className="text-sm text-green-700 mt-1">
+                {recentlyCreatedClient.firstName} {recentlyCreatedClient.lastName} has been added to the system.
+              </p>
+              <p className="text-xs text-green-600 mt-1">PID: {recentlyCreatedClient.participantId}</p>
+            </div>
+            <button
+              onClick={() => setShowClientCreatedNotification(false)}
+              className="flex-shrink-0 text-green-400 hover:text-green-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
         {/* Top row with logo and navigation */}
@@ -533,7 +581,7 @@ export function Dashboard() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Total Clients</p>
-                    <p className="text-2xl font-bold">1,247</p>
+                    <p className="text-2xl font-bold">{mockClientDatabase.length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -719,16 +767,7 @@ export function Dashboard() {
           </Card>
         </div>
       </div>
-      {showNewClientForm && (
-        <NewClientForm
-          onClose={() => setShowNewClientForm(false)}
-          onSave={(clientData) => {
-            console.log("New client created:", clientData)
-            setShowNewClientForm(false)
-            // Here you would typically save to database
-          }}
-        />
-      )}
+      {showNewClientForm && <NewClientForm onClose={() => setShowNewClientForm(false)} onSave={handleNewClientSave} />}
     </div>
   )
 }

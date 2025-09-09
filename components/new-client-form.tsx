@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { X, Save, User, MapPin, Phone, FileText } from "lucide-react"
+import { X, Save, User, MapPin, Phone, FileText, AlertTriangle } from "lucide-react"
 
 interface NewClientFormProps {
   onClose: () => void
@@ -76,16 +76,16 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
     emergencyPhone: "",
   })
 
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [submissionError, setSubmissionError] = useState("")
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }))
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(formData)
   }
 
   const handleGenerateNewPID = () => {
@@ -95,8 +95,131 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
     }))
   }
 
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    // Personal Information validation
+    if (!formData.firstName.trim()) newErrors.firstName = "First name is required"
+    if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
+    if (!formData.ssn.trim()) newErrors.ssn = "SSN (last 4 digits) is required"
+    else if (!/^\d{4}$/.test(formData.ssn)) newErrors.ssn = "SSN must be exactly 4 digits"
+    if (!formData.dateOfBirth) newErrors.dateOfBirth = "Date of birth is required"
+    if (!formData.gender) newErrors.gender = "Gender is required"
+
+    // Program Information validation
+    if (!formData.enrollmentDate) newErrors.enrollmentDate = "Enrollment date is required"
+    if (!formData.county) newErrors.county = "County is required"
+    if (!formData.program) newErrors.program = "Program is required"
+
+    // Contact Information validation
+    if (!formData.addressLine1.trim()) newErrors.addressLine1 = "Address is required"
+    if (!formData.city.trim()) newErrors.city = "City is required"
+    if (!formData.state) newErrors.state = "State is required"
+    if (!formData.zip.trim()) newErrors.zip = "ZIP code is required"
+    else if (!/^\d{5}$/.test(formData.zip)) newErrors.zip = "ZIP code must be 5 digits"
+    if (!formData.cellPhone.trim()) newErrors.cellPhone = "Cell phone is required"
+    else if (!/^\d{3}-\d{3}-\d{4}$/.test(formData.cellPhone)) {
+      newErrors.cellPhone = "Phone must be in format: xxx-xxx-xxxx"
+    }
+
+    // Email validation (if provided)
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address"
+    }
+
+    // Emergency Contact validation
+    if (!formData.emergencyFirstName.trim()) newErrors.emergencyFirstName = "Emergency contact first name is required"
+    if (!formData.emergencyLastName.trim()) newErrors.emergencyLastName = "Emergency contact last name is required"
+    if (!formData.emergencyPhone.trim()) newErrors.emergencyPhone = "Emergency contact phone is required"
+    else if (!/^\d{3}-\d{3}-\d{4}$/.test(formData.emergencyPhone)) {
+      newErrors.emergencyPhone = "Phone must be in format: xxx-xxx-xxxx"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const formatPhoneNumber = (value: string) => {
+    const numbers = value.replace(/\D/g, "")
+    if (numbers.length <= 3) return numbers
+    if (numbers.length <= 6) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`
+  }
+
+  const handlePhoneChange = (field: string, value: string) => {
+    const formatted = formatPhoneNumber(value)
+    setFormData((prev) => ({ ...prev, [field]: formatted }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmissionError("")
+
+    if (!validateForm()) {
+      // Scroll to first error
+      const firstErrorField = Object.keys(errors)[0]
+      const element = document.getElementById(firstErrorField)
+      element?.scrollIntoView({ behavior: "smooth", block: "center" })
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      // Create client object with proper structure
+      const newClient = {
+        id: Date.now().toString(),
+        participantId: formData.participantId,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        fullName: `${formData.lastName}, ${formData.firstName}`,
+        ssn: formData.ssn,
+        phone: formData.cellPhone,
+        email: formData.email,
+        program: formData.program,
+        status: "Active",
+        lastActivity: new Date().toISOString().split("T")[0],
+        enrollmentDate: formData.enrollmentDate,
+        caseManager: formData.caseManager,
+        // Include all form data
+        ...formData,
+      }
+
+      // Show success message
+      setShowSuccessMessage(true)
+
+      // Call onSave after a brief delay to show success message
+      setTimeout(() => {
+        onSave(newClient)
+      }, 1500)
+    } catch (error) {
+      setSubmissionError("Failed to create client. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      {showSuccessMessage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md mx-4 text-center shadow-2xl">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Client Created Successfully!</h3>
+            <p className="text-gray-600 mb-4">
+              {formData.firstName} {formData.lastName} has been added to the system.
+            </p>
+            <div className="text-sm text-gray-500">Participant ID: {formData.participantId}</div>
+          </div>
+        </div>
+      )}
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-blue-50">
@@ -110,6 +233,14 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6">
+          {submissionError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <p className="text-red-800 font-medium">{submissionError}</p>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Personal Information */}
             <Card>
@@ -139,7 +270,9 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                       value={formData.firstName}
                       onChange={(e) => handleInputChange("firstName", e.target.value)}
                       required
+                      className={errors.firstName ? "border-red-500 focus:border-red-500" : ""}
                     />
+                    {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName}</p>}
                   </div>
                   <div>
                     <Label htmlFor="middleInitial">Middle Initial</Label>
@@ -157,7 +290,9 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                       value={formData.lastName}
                       onChange={(e) => handleInputChange("lastName", e.target.value)}
                       required
+                      className={errors.lastName ? "border-red-500 focus:border-red-500" : ""}
                     />
+                    {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName}</p>}
                   </div>
                 </div>
 
@@ -171,7 +306,9 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                       maxLength={4}
                       pattern="[0-9]{4}"
                       required
+                      className={errors.ssn ? "border-red-500 focus:border-red-500" : ""}
                     />
+                    {errors.ssn && <p className="text-red-500 text-sm mt-1">{errors.ssn}</p>}
                   </div>
                   <div>
                     <Label htmlFor="dateOfBirth">Date of Birth *</Label>
@@ -181,7 +318,9 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                       value={formData.dateOfBirth}
                       onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
                       required
+                      className={errors.dateOfBirth ? "border-red-500 focus:border-red-500" : ""}
                     />
+                    {errors.dateOfBirth && <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth}</p>}
                   </div>
                 </div>
 
@@ -199,6 +338,7 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                         <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
                       </SelectContent>
                     </Select>
+                    {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender}</p>}
                   </div>
                   <div>
                     <Label htmlFor="ethnicity">Ethnicity</Label>
@@ -287,7 +427,9 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                       value={formData.enrollmentDate}
                       onChange={(e) => handleInputChange("enrollmentDate", e.target.value)}
                       required
+                      className={errors.enrollmentDate ? "border-red-500 focus:border-red-500" : ""}
                     />
+                    {errors.enrollmentDate && <p className="text-red-500 text-sm mt-1">{errors.enrollmentDate}</p>}
                   </div>
                   <div>
                     <Label htmlFor="eligibilityDate">Eligibility Date</Label>
@@ -314,6 +456,7 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                         <SelectItem value="Philadelphia County">Philadelphia County</SelectItem>
                       </SelectContent>
                     </Select>
+                    {errors.county && <p className="text-red-500 text-sm mt-1">{errors.county}</p>}
                   </div>
                   <div>
                     <Label htmlFor="program">Program *</Label>
@@ -328,6 +471,7 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                         <SelectItem value="Skills Training">Skills Training</SelectItem>
                       </SelectContent>
                     </Select>
+                    {errors.program && <p className="text-red-500 text-sm mt-1">{errors.program}</p>}
                   </div>
                 </div>
 
@@ -391,7 +535,9 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                     value={formData.addressLine1}
                     onChange={(e) => handleInputChange("addressLine1", e.target.value)}
                     required
+                    className={errors.addressLine1 ? "border-red-500 focus:border-red-500" : ""}
                   />
+                  {errors.addressLine1 && <p className="text-red-500 text-sm mt-1">{errors.addressLine1}</p>}
                 </div>
 
                 <div>
@@ -411,7 +557,9 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                       value={formData.city}
                       onChange={(e) => handleInputChange("city", e.target.value)}
                       required
+                      className={errors.city ? "border-red-500 focus:border-red-500" : ""}
                     />
+                    {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
                   </div>
                   <div>
                     <Label htmlFor="state">State *</Label>
@@ -425,6 +573,7 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                         <SelectItem value="Delaware, DE">Delaware, DE</SelectItem>
                       </SelectContent>
                     </Select>
+                    {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
                   </div>
                   <div>
                     <Label htmlFor="zip">ZIP Code *</Label>
@@ -434,7 +583,9 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                       onChange={(e) => handleInputChange("zip", e.target.value)}
                       pattern="[0-9]{5}"
                       required
+                      className={errors.zip ? "border-red-500 focus:border-red-500" : ""}
                     />
+                    {errors.zip && <p className="text-red-500 text-sm mt-1">{errors.zip}</p>}
                   </div>
                 </div>
 
@@ -453,10 +604,12 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                     <Input
                       id="cellPhone"
                       value={formData.cellPhone}
-                      onChange={(e) => handleInputChange("cellPhone", e.target.value)}
+                      onChange={(e) => handlePhoneChange("cellPhone", e.target.value)}
                       placeholder="xxx-xxx-xxxx"
                       required
+                      className={errors.cellPhone ? "border-red-500 focus:border-red-500" : ""}
                     />
+                    {errors.cellPhone && <p className="text-red-500 text-sm mt-1">{errors.cellPhone}</p>}
                   </div>
                 </div>
 
@@ -468,7 +621,9 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
                     placeholder="example@email.com"
+                    className={errors.email ? "border-red-500 focus:border-red-500" : ""}
                   />
+                  {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
                 </div>
               </CardContent>
             </Card>
@@ -490,7 +645,11 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                       value={formData.emergencyFirstName}
                       onChange={(e) => handleInputChange("emergencyFirstName", e.target.value)}
                       required
+                      className={errors.emergencyFirstName ? "border-red-500 focus:border-red-500" : ""}
                     />
+                    {errors.emergencyFirstName && (
+                      <p className="text-red-500 text-sm mt-1">{errors.emergencyFirstName}</p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="emergencyLastName">Last Name *</Label>
@@ -499,7 +658,11 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                       value={formData.emergencyLastName}
                       onChange={(e) => handleInputChange("emergencyLastName", e.target.value)}
                       required
+                      className={errors.emergencyLastName ? "border-red-500 focus:border-red-500" : ""}
                     />
+                    {errors.emergencyLastName && (
+                      <p className="text-red-500 text-sm mt-1">{errors.emergencyLastName}</p>
+                    )}
                   </div>
                 </div>
 
@@ -508,10 +671,12 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
                   <Input
                     id="emergencyPhone"
                     value={formData.emergencyPhone}
-                    onChange={(e) => handleInputChange("emergencyPhone", e.target.value)}
+                    onChange={(e) => handlePhoneChange("emergencyPhone", e.target.value)}
                     placeholder="xxx-xxx-xxxx"
                     required
+                    className={errors.emergencyPhone ? "border-red-500 focus:border-red-500" : ""}
                   />
+                  {errors.emergencyPhone && <p className="text-red-500 text-sm mt-1">{errors.emergencyPhone}</p>}
                 </div>
               </CardContent>
             </Card>
@@ -529,10 +694,20 @@ export function NewClientForm({ onClose, onSave }: NewClientFormProps) {
             </Button>
             <Button
               type="submit"
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+              disabled={isSubmitting}
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-2 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              <Save className="w-4 h-4 mr-2" />
-              Create Client
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Creating Client...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Create Client
+                </>
+              )}
             </Button>
           </div>
         </form>
