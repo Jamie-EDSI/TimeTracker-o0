@@ -153,6 +153,7 @@ export function Dashboard() {
   const [mockClientDatabase, setMockClientDatabase] = useState(initialMockClientDatabase)
   const [recentlyCreatedClient, setRecentlyCreatedClient] = useState<any>(null)
   const [showClientCreatedNotification, setShowClientCreatedNotification] = useState(false)
+  const [globalClientDatabase, setGlobalClientDatabase] = useState(initialMockClientDatabase)
 
   // Real-time search results based on form inputs
   const searchResults = useMemo(() => {
@@ -208,7 +209,10 @@ export function Dashboard() {
   const handleNewClientSave = (clientData: any) => {
     console.log("New client created:", clientData)
 
-    // Add the new client to our mock database
+    // Add the new client to our global database
+    setGlobalClientDatabase((prev) => [clientData, ...prev])
+
+    // Also update the local mock database for search functionality
     setMockClientDatabase((prev) => [clientData, ...prev])
 
     // Set recently created client for notification
@@ -291,11 +295,23 @@ export function Dashboard() {
   }
 
   if (showClientManagement) {
-    return <ClientManagement onBack={() => setShowClientManagement(false)} />
+    return (
+      <ClientManagement
+        onBack={() => setShowClientManagement(false)}
+        clients={globalClientDatabase}
+        onUpdateClients={setGlobalClientDatabase}
+      />
+    )
   }
 
   if (showActiveClientsReport) {
-    return <ActiveClientsReport onBack={() => setShowActiveClientsReport(false)} onViewClient={handleViewClient} />
+    return (
+      <ActiveClientsReport
+        onBack={() => setShowActiveClientsReport(false)}
+        onViewClient={handleViewClient}
+        clients={globalClientDatabase}
+      />
+    )
   }
 
   return (

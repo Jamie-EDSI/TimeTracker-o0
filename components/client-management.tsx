@@ -40,52 +40,6 @@ import {
   MessageSquare,
 } from "lucide-react"
 
-// Mock client data - in real app this would come from database
-const mockClients = [
-  {
-    id: "1",
-    participantId: "2965142",
-    firstName: "Brian",
-    lastName: "Allen",
-    ssn: "1293",
-    phone: "215-207-4497",
-    email: "brianallen0488@gmail.com",
-    program: "Next Step Program",
-    status: "Active",
-    lastActivity: "2024-01-15",
-    enrollmentDate: "2023-08-27",
-    caseManager: "Chester, District - 01",
-  },
-  {
-    id: "2",
-    participantId: "2965143",
-    firstName: "Sarah",
-    lastName: "Johnson",
-    ssn: "4567",
-    phone: "484-555-0123",
-    email: "sarah.johnson@email.com",
-    program: "Career Development",
-    status: "Active",
-    lastActivity: "2024-01-14",
-    enrollmentDate: "2023-09-15",
-    caseManager: "Smith, District - 02",
-  },
-  {
-    id: "3",
-    participantId: "2965144",
-    firstName: "Michael",
-    lastName: "Davis",
-    ssn: "7890",
-    phone: "610-555-0456",
-    email: "m.davis@email.com",
-    program: "Job Readiness",
-    status: "Inactive",
-    lastActivity: "2024-01-10",
-    enrollmentDate: "2023-07-20",
-    caseManager: "Johnson, District - 01",
-  },
-]
-
 // Mock notes and activities
 const initialMockClientData = {
   "1": {
@@ -139,9 +93,11 @@ const initialMockClientData = {
 
 interface ClientManagementProps {
   onBack: () => void
+  clients?: any[]
+  onUpdateClients?: (clients: any[]) => void
 }
 
-export function ClientManagement({ onBack }: ClientManagementProps) {
+export function ClientManagement({ onBack, clients = [], onUpdateClients }: ClientManagementProps) {
   const [selectedClient, setSelectedClient] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
@@ -155,6 +111,55 @@ export function ClientManagement({ onBack }: ClientManagementProps) {
     outcome: "",
   })
   const [clientData, setClientData] = useState(initialMockClientData)
+
+  // Replace the mockClients usage with the passed clients data
+  const mockClients =
+    clients.length > 0
+      ? clients
+      : [
+          {
+            id: "1",
+            participantId: "2965142",
+            firstName: "Brian",
+            lastName: "Allen",
+            ssn: "1293",
+            phone: "215-207-4497",
+            email: "brianallen0488@gmail.com",
+            program: "Next Step Program",
+            status: "Active",
+            lastActivity: "2024-01-15",
+            enrollmentDate: "2023-08-27",
+            caseManager: "Chester, District - 01",
+          },
+          {
+            id: "2",
+            participantId: "2965143",
+            firstName: "Sarah",
+            lastName: "Johnson",
+            ssn: "4567",
+            phone: "484-555-0123",
+            email: "sarah.johnson@email.com",
+            program: "Career Development",
+            status: "Active",
+            lastActivity: "2024-01-14",
+            enrollmentDate: "2023-09-15",
+            caseManager: "Smith, District - 02",
+          },
+          {
+            id: "3",
+            participantId: "2965144",
+            firstName: "Michael",
+            lastName: "Davis",
+            ssn: "7890",
+            phone: "610-555-0456",
+            email: "m.davis@email.com",
+            program: "Job Readiness",
+            status: "Inactive",
+            lastActivity: "2024-01-10",
+            enrollmentDate: "2023-07-20",
+            caseManager: "Johnson, District - 01",
+          },
+        ]
 
   // Filter clients based on search and status
   const filteredClients = mockClients.filter((client) => {
