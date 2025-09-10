@@ -7,15 +7,19 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { X, User, AlertCircle, CheckCircle } from "lucide-react"
+import { X, User, AlertCircle, CheckCircle, Loader2 } from "lucide-react"
 
 interface NewClientFormProps {
   onClose: () => void
   onSubmit?: (clientData: any) => void
+  onClientCreated?: (client: any) => void
 }
 
-export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
+export function NewClientForm({ onClose, onSubmit, onClientCreated }: NewClientFormProps) {
   const [activeTab, setActiveTab] = useState("personal")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
   const [formData, setFormData] = useState({
     personal: {
       firstName: "",
@@ -95,6 +99,11 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
         [section]: prev[section]?.filter((f) => f !== field) || [],
       }))
     }
+
+    // Clear submit error when user starts typing
+    if (submitError) {
+      setSubmitError(null)
+    }
   }
 
   const validateSection = (section: string) => {
@@ -114,18 +123,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
     return errors
   }
 
-  const getSectionStatus = (section: string) => {
-    const errors = validateSection(section)
-    return errors.length === 0 ? "complete" : "incomplete"
-  }
-
-  const getIncompleteSections = () => {
-    const sections = ["personal", "contact", "program"]
-    return sections.filter((section) => getSectionStatus(section) === "incomplete")
-  }
-
-  const handleSubmit = () => {
-    // Validate all required sections
+  const validateAllSections = () => {
     const allErrors: Record<string, string[]> = {}
     let hasErrors = false
 
@@ -137,27 +135,113 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
       }
     })
 
-    if (hasErrors) {
-      setValidationErrors(allErrors)
-      // Focus on first section with errors
-      const firstErrorSection = Object.keys(allErrors)[0]
-      setActiveTab(firstErrorSection)
-      return
+    return { allErrors, hasErrors }
+  }
+
+  const getSectionStatus = (section: string) => {
+    const errors = validateSection(section)
+    return errors.length === 0 ? "complete" : "incomplete"
+  }
+
+  const getIncompleteSections = () => {
+    const sections = ["personal", "contact", "program"]
+    return sections.filter((section) => getSectionStatus(section) === "incomplete")
+  }
+
+  const generateParticipantId = () => {
+    // Generate a unique participant ID (in real app, this would come from backend)
+    return `PID${Date.now().toString().slice(-6)}`
+  }
+
+  const createClientRecord = async (clientData: any) => {
+    // Simulate API call delay
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+
+    // In a real application, this would be an actual API call
+    // For now, we'll simulate success/failure
+    const shouldFail = Math.random() < 0.1 // 10% chance of failure for demo
+
+    if (shouldFail) {
+      throw new Error("Failed to create client record. Please try again.")
     }
 
-    // Submit the form
-    if (onSubmit) {
-      onSubmit(formData)
+    // Create the client record with generated ID and metadata
+    const newClient = {
+      id: `client_${Date.now()}`,
+      participantId: generateParticipantId(),
+      ...clientData.personal,
+      ...clientData.contact,
+      ...clientData.program,
+      employment: clientData.employment,
+      additional: clientData.additional,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: "Current User", // In real app, this would be the logged-in user
     }
-    onClose()
+
+    return newClient
+  }
+
+  const handleSubmit = async () => {
+    setSubmitError(null)
+    setIsSubmitting(true)
+
+    try {
+      // Validate all required sections
+      const { allErrors, hasErrors } = validateAllSections()
+
+      if (hasErrors) {
+        setValidationErrors(allErrors)
+        // Focus on first section with errors
+        const firstErrorSection = Object.keys(allErrors)[0]
+        setActiveTab(firstErrorSection)
+        setIsSubmitting(false)
+        return
+      }
+
+      // Clear any existing validation errors
+      setValidationErrors({})
+
+      // Create the client record
+      const newClient = await createClientRecord(formData)
+
+      // Show success state
+      setSubmitSuccess(true)
+
+      // Call the onSubmit callback if provided
+      if (onSubmit) {
+        onSubmit(newClient)
+      }
+
+      // Call the onClientCreated callback if provided
+      if (onClientCreated) {
+        onClientCreated(newClient)
+      }
+
+      // Wait a moment to show success message, then close
+      setTimeout(() => {
+        if (onClose) {
+          onClose()
+        }
+      }, 2000)
+    } catch (error) {
+      console.error("Error creating client:", error)
+      setSubmitError(error instanceof Error ? error.message : "An unexpected error occurred")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleClose = () => {
+    if (isSubmitting) {
+      return // Prevent closing while submitting
+    }
+
     const hasData = Object.values(formData).some((section) =>
       Object.values(section).some((value) => value.trim() !== ""),
     )
 
-    if (hasData) {
+    if (hasData && !submitSuccess) {
       const confirmClose = window.confirm("You have unsaved changes. Are you sure you want to close without saving?")
       if (!confirmClose) return
     }
@@ -181,6 +265,29 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
 
   const incompleteSections = getIncompleteSections()
 
+  // Success state overlay
+  if (submitSuccess) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-8 text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Client Created Successfully!</h2>
+          <p className="text-gray-600 mb-4">
+            {formData.personal.firstName} {formData.personal.lastName} has been added to the system.
+          </p>
+          <div className="bg-gray-50 rounded-lg p-3 mb-4">
+            <p className="text-sm text-gray-600">
+              Participant ID: <span className="font-mono font-semibold">{generateParticipantId()}</span>
+            </p>
+          </div>
+          <p className="text-sm text-gray-500">Redirecting to dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
@@ -190,32 +297,43 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
             <User className="w-6 h-6 text-blue-600" />
             <h2 className="text-2xl font-bold text-gray-900">Client Information</h2>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleClose}>
+          <Button variant="ghost" size="sm" onClick={handleClose} disabled={isSubmitting}>
             <X className="w-5 h-5" />
           </Button>
         </div>
+
+        {/* Error Message */}
+        {submitError && (
+          <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              <p className="text-red-800 font-medium">Error Creating Client</p>
+            </div>
+            <p className="text-red-700 mt-1">{submitError}</p>
+          </div>
+        )}
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-5 bg-gray-50 p-1 m-6 mb-0">
-              <TabsTrigger value="personal" className="flex items-center">
+              <TabsTrigger value="personal" className="flex items-center" disabled={isSubmitting}>
                 Personal
                 {getTabIndicator("personal")}
               </TabsTrigger>
-              <TabsTrigger value="contact" className="flex items-center">
+              <TabsTrigger value="contact" className="flex items-center" disabled={isSubmitting}>
                 Contact
                 {getTabIndicator("contact")}
               </TabsTrigger>
-              <TabsTrigger value="program" className="flex items-center">
+              <TabsTrigger value="program" className="flex items-center" disabled={isSubmitting}>
                 Program
                 {getTabIndicator("program")}
               </TabsTrigger>
-              <TabsTrigger value="employment" className="flex items-center">
+              <TabsTrigger value="employment" className="flex items-center" disabled={isSubmitting}>
                 Employment
                 {getTabIndicator("employment")}
               </TabsTrigger>
-              <TabsTrigger value="additional" className="flex items-center">
+              <TabsTrigger value="additional" className="flex items-center" disabled={isSubmitting}>
                 Additional
                 {getTabIndicator("additional")}
               </TabsTrigger>
@@ -232,6 +350,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       value={formData.personal.firstName}
                       onChange={(e) => handleInputChange("personal", "firstName", e.target.value)}
                       className={validationErrors.personal?.includes("firstName") ? "border-red-500" : ""}
+                      disabled={isSubmitting}
                     />
                     {validationErrors.personal?.includes("firstName") && (
                       <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
@@ -246,6 +365,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       id="middleName"
                       value={formData.personal.middleName}
                       onChange={(e) => handleInputChange("personal", "middleName", e.target.value)}
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div>
@@ -255,6 +375,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       value={formData.personal.lastName}
                       onChange={(e) => handleInputChange("personal", "lastName", e.target.value)}
                       className={validationErrors.personal?.includes("lastName") ? "border-red-500" : ""}
+                      disabled={isSubmitting}
                     />
                     {validationErrors.personal?.includes("lastName") && (
                       <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
@@ -274,6 +395,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       value={formData.personal.dateOfBirth}
                       onChange={(e) => handleInputChange("personal", "dateOfBirth", e.target.value)}
                       className={validationErrors.personal?.includes("dateOfBirth") ? "border-red-500" : ""}
+                      disabled={isSubmitting}
                     />
                     {validationErrors.personal?.includes("dateOfBirth") && (
                       <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
@@ -290,6 +412,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       onChange={(e) => handleInputChange("personal", "ssn", e.target.value)}
                       placeholder="XXX-XX-XXXX"
                       className={validationErrors.personal?.includes("ssn") ? "border-red-500" : ""}
+                      disabled={isSubmitting}
                     />
                     {validationErrors.personal?.includes("ssn") && (
                       <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
@@ -303,6 +426,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     <Select
                       value={formData.personal.gender}
                       onValueChange={(value) => handleInputChange("personal", "gender", value)}
+                      disabled={isSubmitting}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select gender" />
@@ -323,6 +447,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     <Select
                       value={formData.personal.ethnicity}
                       onValueChange={(value) => handleInputChange("personal", "ethnicity", value)}
+                      disabled={isSubmitting}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select ethnicity" />
@@ -338,6 +463,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     <Select
                       value={formData.personal.race}
                       onValueChange={(value) => handleInputChange("personal", "race", value)}
+                      disabled={isSubmitting}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select race" />
@@ -364,6 +490,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     <Select
                       value={formData.personal.veteranStatus}
                       onValueChange={(value) => handleInputChange("personal", "veteranStatus", value)}
+                      disabled={isSubmitting}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select veteran status" />
@@ -379,6 +506,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     <Select
                       value={formData.personal.disabilityStatus}
                       onValueChange={(value) => handleInputChange("personal", "disabilityStatus", value)}
+                      disabled={isSubmitting}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select disability status" />
@@ -406,6 +534,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       onChange={(e) => handleInputChange("contact", "phone", e.target.value)}
                       placeholder="(555) 123-4567"
                       className={validationErrors.contact?.includes("phone") ? "border-red-500" : ""}
+                      disabled={isSubmitting}
                     />
                     {validationErrors.contact?.includes("phone") && (
                       <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
@@ -423,6 +552,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       onChange={(e) => handleInputChange("contact", "email", e.target.value)}
                       placeholder="john.doe@example.com"
                       className={validationErrors.contact?.includes("email") ? "border-red-500" : ""}
+                      disabled={isSubmitting}
                     />
                     {validationErrors.contact?.includes("email") && (
                       <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
@@ -440,6 +570,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     value={formData.contact.address}
                     onChange={(e) => handleInputChange("contact", "address", e.target.value)}
                     placeholder="123 Main Street"
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -451,6 +582,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       value={formData.contact.city}
                       onChange={(e) => handleInputChange("contact", "city", e.target.value)}
                       placeholder="Philadelphia"
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div>
@@ -460,6 +592,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       value={formData.contact.state}
                       onChange={(e) => handleInputChange("contact", "state", e.target.value)}
                       placeholder="PA"
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div>
@@ -469,6 +602,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       value={formData.contact.zipCode}
                       onChange={(e) => handleInputChange("contact", "zipCode", e.target.value)}
                       placeholder="19101"
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -483,6 +617,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                         value={formData.contact.emergencyContactName}
                         onChange={(e) => handleInputChange("contact", "emergencyContactName", e.target.value)}
                         placeholder="Jane Doe"
+                        disabled={isSubmitting}
                       />
                     </div>
                     <div>
@@ -493,6 +628,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                         value={formData.contact.emergencyContactPhone}
                         onChange={(e) => handleInputChange("contact", "emergencyContactPhone", e.target.value)}
                         placeholder="(555) 987-6543"
+                        disabled={isSubmitting}
                       />
                     </div>
                   </div>
@@ -509,6 +645,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     <Select
                       value={formData.program.program}
                       onValueChange={(value) => handleInputChange("program", "program", value)}
+                      disabled={isSubmitting}
                     >
                       <SelectTrigger className={validationErrors.program?.includes("program") ? "border-red-500" : ""}>
                         <SelectValue placeholder="Select program" />
@@ -535,6 +672,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       onChange={(e) => handleInputChange("program", "caseManager", e.target.value)}
                       placeholder="Smith, John"
                       className={validationErrors.program?.includes("caseManager") ? "border-red-500" : ""}
+                      disabled={isSubmitting}
                     />
                     {validationErrors.program?.includes("caseManager") && (
                       <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
@@ -554,6 +692,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       value={formData.program.enrollmentDate}
                       onChange={(e) => handleInputChange("program", "enrollmentDate", e.target.value)}
                       className={validationErrors.program?.includes("enrollmentDate") ? "border-red-500" : ""}
+                      disabled={isSubmitting}
                     />
                     {validationErrors.program?.includes("enrollmentDate") && (
                       <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
@@ -569,6 +708,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       value={formData.program.county}
                       onChange={(e) => handleInputChange("program", "county", e.target.value)}
                       placeholder="Delaware County"
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div>
@@ -578,6 +718,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       value={formData.program.location}
                       onChange={(e) => handleInputChange("program", "location", e.target.value)}
                       placeholder="Delaware County 001, PA"
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -590,6 +731,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     onChange={(e) => handleInputChange("program", "notes", e.target.value)}
                     placeholder="Additional program information or notes..."
                     rows={3}
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -603,6 +745,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                   <Select
                     value={formData.employment.currentlyEmployed}
                     onValueChange={(value) => handleInputChange("employment", "currentlyEmployed", value)}
+                    disabled={isSubmitting}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select employment status" />
@@ -624,6 +767,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                           value={formData.employment.jobTitle}
                           onChange={(e) => handleInputChange("employment", "jobTitle", e.target.value)}
                           placeholder="Sales Associate"
+                          disabled={isSubmitting}
                         />
                       </div>
                       <div>
@@ -633,6 +777,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                           value={formData.employment.companyName}
                           onChange={(e) => handleInputChange("employment", "companyName", e.target.value)}
                           placeholder="ABC Corporation"
+                          disabled={isSubmitting}
                         />
                       </div>
                     </div>
@@ -645,6 +790,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                           type="date"
                           value={formData.employment.startDate}
                           onChange={(e) => handleInputChange("employment", "startDate", e.target.value)}
+                          disabled={isSubmitting}
                         />
                       </div>
                       <div>
@@ -656,6 +802,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                           value={formData.employment.hourlyWage}
                           onChange={(e) => handleInputChange("employment", "hourlyWage", e.target.value)}
                           placeholder="15.00"
+                          disabled={isSubmitting}
                         />
                       </div>
                       <div>
@@ -666,6 +813,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                           value={formData.employment.hoursPerWeek}
                           onChange={(e) => handleInputChange("employment", "hoursPerWeek", e.target.value)}
                           placeholder="40"
+                          disabled={isSubmitting}
                         />
                       </div>
                     </div>
@@ -683,6 +831,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     <Select
                       value={formData.additional.education}
                       onValueChange={(value) => handleInputChange("additional", "education", value)}
+                      disabled={isSubmitting}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select education level" />
@@ -704,6 +853,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     <Select
                       value={formData.additional.driversLicense}
                       onValueChange={(value) => handleInputChange("additional", "driversLicense", value)}
+                      disabled={isSubmitting}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
@@ -724,6 +874,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     <Select
                       value={formData.additional.criminalRecord}
                       onValueChange={(value) => handleInputChange("additional", "criminalRecord", value)}
+                      disabled={isSubmitting}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
@@ -740,6 +891,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     <Select
                       value={formData.additional.childrenUnderAge6}
                       onValueChange={(value) => handleInputChange("additional", "childrenUnderAge6", value)}
+                      disabled={isSubmitting}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
@@ -758,6 +910,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     <Select
                       value={formData.additional.snap}
                       onValueChange={(value) => handleInputChange("additional", "snap", value)}
+                      disabled={isSubmitting}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
@@ -773,6 +926,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     <Select
                       value={formData.additional.tanf}
                       onValueChange={(value) => handleInputChange("additional", "tanf", value)}
+                      disabled={isSubmitting}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
@@ -788,6 +942,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                     <Select
                       value={formData.additional.housingIssue}
                       onValueChange={(value) => handleInputChange("additional", "housingIssue", value)}
+                      disabled={isSubmitting}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
@@ -811,7 +966,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span>* Required fields</span>
-              {incompleteSections.length > 0 && (
+              {incompleteSections.length > 0 && !isSubmitting && (
                 <div className="flex items-center gap-2 ml-4">
                   <AlertCircle className="w-4 h-4 text-orange-500" />
                   <span className="text-orange-700">
@@ -820,14 +975,29 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                   </span>
                 </div>
               )}
+              {isSubmitting && (
+                <div className="flex items-center gap-2 ml-4">
+                  <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                  <span className="text-blue-700">Creating client record...</span>
+                </div>
+              )}
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={handleClose}>
+              <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700">
-                <User className="w-4 h-4 mr-2" />
-                Create Client
+              <Button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <User className="w-4 h-4 mr-2" />
+                    Create Client
+                  </>
+                )}
               </Button>
             </div>
           </div>

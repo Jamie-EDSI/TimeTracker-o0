@@ -192,6 +192,7 @@ export function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("")
   const [searchResults, setSearchResults] = useState<typeof mockClients>([])
   const [showSearchResults, setShowSearchResults] = useState(false)
+  const [clients, setClients] = useState(mockClients)
 
   const handleSearch = () => {
     if (!searchTerm.trim()) {
@@ -200,7 +201,7 @@ export function Dashboard() {
       return
     }
 
-    const results = mockClients.filter(
+    const results = clients.filter(
       (client) =>
         client.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -229,6 +230,18 @@ export function Dashboard() {
     clearSearch()
   }
 
+  const handleClientCreated = (newClient: any) => {
+    // Add the new client to the clients list
+    setClients((prev) => [newClient, ...prev])
+
+    // Show success message or redirect
+    console.log("New client created:", newClient)
+
+    // Optionally navigate to the new client's record
+    setSelectedClientId(newClient.id)
+    setCurrentView("clientManagement")
+  }
+
   const getStatusBadge = (status: string) => {
     if (status === "Active") {
       return <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">Active</Badge>
@@ -238,23 +251,23 @@ export function Dashboard() {
   }
 
   if (currentView === "newClient") {
-    return <NewClientForm onBack={handleBackToDashboard} />
+    return <NewClientForm onClose={handleBackToDashboard} onClientCreated={handleClientCreated} />
   }
 
   if (currentView === "clientManagement") {
-    return <ClientManagement onBack={handleBackToDashboard} clients={mockClients} selectedClientId={selectedClientId} />
+    return <ClientManagement onBack={handleBackToDashboard} clients={clients} selectedClientId={selectedClientId} />
   }
 
   if (currentView === "activeClientsReport") {
-    return <ActiveClientsReport onBack={handleBackToDashboard} onViewClient={handleViewClient} clients={mockClients} />
+    return <ActiveClientsReport onBack={handleBackToDashboard} onViewClient={handleViewClient} clients={clients} />
   }
 
   if (currentView === "callLogReport") {
-    return <CallLogReport onBack={handleBackToDashboard} onViewClient={handleViewClient} clients={mockClients} />
+    return <CallLogReport onBack={handleBackToDashboard} onViewClient={handleViewClient} clients={clients} />
   }
 
   if (currentView === "jobsPlacementsReport") {
-    return <JobsPlacementsReport onBack={handleBackToDashboard} onViewClient={handleViewClient} clients={mockClients} />
+    return <JobsPlacementsReport onBack={handleBackToDashboard} onViewClient={handleViewClient} clients={clients} />
   }
 
   return (
@@ -389,7 +402,9 @@ export function Dashboard() {
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xl font-bold text-blue-600">89</p>
+                      <p className="text-xl font-bold text-blue-600">
+                        {clients.filter((c) => c.status === "Active").length}
+                      </p>
                       <p className="text-xs text-blue-600">Active Today</p>
                     </div>
                     <Clock className="h-6 w-6 text-blue-600" />
@@ -486,7 +501,7 @@ export function Dashboard() {
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-600">Total Clients</span>
                     <Badge variant="secondary" className="text-xs">
-                      247
+                      {clients.length}
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
@@ -517,7 +532,7 @@ export function Dashboard() {
                   <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mx-auto mb-2">
                     <Users className="w-6 h-6 text-blue-600" />
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">6</div>
+                  <div className="text-2xl font-bold text-gray-900">{clients.length}</div>
                   <div className="text-sm text-gray-600">Total Clients</div>
                 </CardContent>
               </Card>
@@ -526,7 +541,9 @@ export function Dashboard() {
                   <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mx-auto mb-2">
                     <Clock className="w-6 h-6 text-green-600" />
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">89</div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {clients.filter((c) => c.status === "Active").length}
+                  </div>
                   <div className="text-sm text-gray-600">Active Today</div>
                 </CardContent>
               </Card>
