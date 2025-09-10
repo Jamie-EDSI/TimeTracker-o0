@@ -11,7 +11,7 @@ import { X, User, Phone, GraduationCap, Briefcase, FileText, AlertCircle, CheckC
 
 interface NewClientFormProps {
   onClose: () => void
-  onSubmit: (clientData: any) => void
+  onClientCreated: (clientData: any) => void
 }
 
 // Generate unique 7-digit PID
@@ -23,7 +23,7 @@ const generateUniquePID = (): string => {
   return timestamp + random
 }
 
-export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
+export function NewClientForm({ onClose, onClientCreated }: NewClientFormProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [formData, setFormData] = useState({
     // Personal Information
@@ -207,7 +207,7 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
       },
     }
 
-    onSubmit(clientData)
+    onClientCreated(clientData)
   }
 
   const getIncompleteSteps = () => {
@@ -218,6 +218,13 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
   }
 
   const incompleteSteps = getIncompleteSteps()
+
+  const isFieldIncomplete = (field: string, stepIndex: number) => {
+    const step = steps[stepIndex]
+    const isRequired = step.required.includes(field)
+    const isEmpty = !formData[field as keyof typeof formData]?.trim()
+    return isRequired && isEmpty
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -293,12 +300,15 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="firstName">First Name *</Label>
+                  <Label htmlFor="firstName" className={isFieldIncomplete("firstName", 0) ? "text-red-600" : ""}>
+                    First Name <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="firstName"
                     value={formData.firstName}
                     onChange={(e) => handleInputChange("firstName", e.target.value)}
                     placeholder="Enter first name"
+                    className={isFieldIncomplete("firstName", 0) ? "border-red-500 bg-red-50" : ""}
                   />
                 </div>
                 <div>
@@ -311,28 +321,36 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Label htmlFor="lastName" className={isFieldIncomplete("lastName", 0) ? "text-red-600" : ""}>
+                    Last Name <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="lastName"
                     value={formData.lastName}
                     onChange={(e) => handleInputChange("lastName", e.target.value)}
                     placeholder="Enter last name"
+                    className={isFieldIncomplete("lastName", 0) ? "border-red-500 bg-red-50" : ""}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+                  <Label htmlFor="dateOfBirth" className={isFieldIncomplete("dateOfBirth", 0) ? "text-red-600" : ""}>
+                    Date of Birth <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="dateOfBirth"
                     type="date"
                     value={formData.dateOfBirth}
                     onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                    className={isFieldIncomplete("dateOfBirth", 0) ? "border-red-500 bg-red-50" : ""}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="pid">Participant ID (PID) *</Label>
+                  <Label htmlFor="pid" className={isFieldIncomplete("pid", 0) ? "text-red-600" : ""}>
+                    Participant ID (PID) <span className="text-red-500">*</span>
+                  </Label>
                   <div className="relative">
                     <Input
                       id="pid"
@@ -442,34 +460,43 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="phone">Phone Number *</Label>
+                  <Label htmlFor="phone" className={isFieldIncomplete("phone", 1) ? "text-red-600" : ""}>
+                    Phone Number <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="phone"
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
                     placeholder="(555) 123-4567"
+                    className={isFieldIncomplete("phone", 1) ? "border-red-500 bg-red-50" : ""}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="email">Email Address *</Label>
+                  <Label htmlFor="email" className={isFieldIncomplete("email", 1) ? "text-red-600" : ""}>
+                    Email Address <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
                     placeholder="john.doe@example.com"
+                    className={isFieldIncomplete("email", 1) ? "border-red-500 bg-red-50" : ""}
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="address">Street Address *</Label>
+                <Label htmlFor="address" className={isFieldIncomplete("address", 1) ? "text-red-600" : ""}>
+                  Street Address <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="address"
                   value={formData.address}
                   onChange={(e) => handleInputChange("address", e.target.value)}
                   placeholder="123 Main Street"
+                  className={isFieldIncomplete("address", 1) ? "border-red-500 bg-red-50" : ""}
                 />
               </div>
 
@@ -490,10 +517,57 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                       <SelectValue placeholder="Select state" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Pennsylvania">Pennsylvania</SelectItem>
-                      <SelectItem value="New Jersey">New Jersey</SelectItem>
+                      <SelectItem value="Alabama">Alabama</SelectItem>
+                      <SelectItem value="Alaska">Alaska</SelectItem>
+                      <SelectItem value="Arizona">Arizona</SelectItem>
+                      <SelectItem value="Arkansas">Arkansas</SelectItem>
+                      <SelectItem value="California">California</SelectItem>
+                      <SelectItem value="Colorado">Colorado</SelectItem>
+                      <SelectItem value="Connecticut">Connecticut</SelectItem>
                       <SelectItem value="Delaware">Delaware</SelectItem>
+                      <SelectItem value="Florida">Florida</SelectItem>
+                      <SelectItem value="Georgia">Georgia</SelectItem>
+                      <SelectItem value="Hawaii">Hawaii</SelectItem>
+                      <SelectItem value="Idaho">Idaho</SelectItem>
+                      <SelectItem value="Illinois">Illinois</SelectItem>
+                      <SelectItem value="Indiana">Indiana</SelectItem>
+                      <SelectItem value="Iowa">Iowa</SelectItem>
+                      <SelectItem value="Kansas">Kansas</SelectItem>
+                      <SelectItem value="Kentucky">Kentucky</SelectItem>
+                      <SelectItem value="Louisiana">Louisiana</SelectItem>
+                      <SelectItem value="Maine">Maine</SelectItem>
                       <SelectItem value="Maryland">Maryland</SelectItem>
+                      <SelectItem value="Massachusetts">Massachusetts</SelectItem>
+                      <SelectItem value="Michigan">Michigan</SelectItem>
+                      <SelectItem value="Minnesota">Minnesota</SelectItem>
+                      <SelectItem value="Mississippi">Mississippi</SelectItem>
+                      <SelectItem value="Missouri">Missouri</SelectItem>
+                      <SelectItem value="Montana">Montana</SelectItem>
+                      <SelectItem value="Nebraska">Nebraska</SelectItem>
+                      <SelectItem value="Nevada">Nevada</SelectItem>
+                      <SelectItem value="New Hampshire">New Hampshire</SelectItem>
+                      <SelectItem value="New Jersey">New Jersey</SelectItem>
+                      <SelectItem value="New Mexico">New Mexico</SelectItem>
+                      <SelectItem value="New York">New York</SelectItem>
+                      <SelectItem value="North Carolina">North Carolina</SelectItem>
+                      <SelectItem value="North Dakota">North Dakota</SelectItem>
+                      <SelectItem value="Ohio">Ohio</SelectItem>
+                      <SelectItem value="Oklahoma">Oklahoma</SelectItem>
+                      <SelectItem value="Oregon">Oregon</SelectItem>
+                      <SelectItem value="Pennsylvania">Pennsylvania</SelectItem>
+                      <SelectItem value="Rhode Island">Rhode Island</SelectItem>
+                      <SelectItem value="South Carolina">South Carolina</SelectItem>
+                      <SelectItem value="South Dakota">South Dakota</SelectItem>
+                      <SelectItem value="Tennessee">Tennessee</SelectItem>
+                      <SelectItem value="Texas">Texas</SelectItem>
+                      <SelectItem value="Utah">Utah</SelectItem>
+                      <SelectItem value="Vermont">Vermont</SelectItem>
+                      <SelectItem value="Virginia">Virginia</SelectItem>
+                      <SelectItem value="Washington">Washington</SelectItem>
+                      <SelectItem value="West Virginia">West Virginia</SelectItem>
+                      <SelectItem value="Wisconsin">Wisconsin</SelectItem>
+                      <SelectItem value="Wyoming">Wyoming</SelectItem>
+                      <SelectItem value="District of Columbia">District of Columbia</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -542,7 +616,9 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="program">Program *</Label>
+                  <Label htmlFor="program" className={isFieldIncomplete("program", 2) ? "text-red-600" : ""}>
+                    Program <span className="text-red-500">*</span>
+                  </Label>
                   <Select value={formData.program} onValueChange={(value) => handleInputChange("program", value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select program" />
@@ -559,24 +635,33 @@ export function NewClientForm({ onClose, onSubmit }: NewClientFormProps) {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="caseManager">Case Manager *</Label>
+                  <Label htmlFor="caseManager" className={isFieldIncomplete("caseManager", 2) ? "text-red-600" : ""}>
+                    Case Manager <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="caseManager"
                     value={formData.caseManager}
                     onChange={(e) => handleInputChange("caseManager", e.target.value)}
                     placeholder="Case manager name"
+                    className={isFieldIncomplete("caseManager", 2) ? "border-red-500 bg-red-50" : ""}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="enrollmentDate">Enrollment Date *</Label>
+                  <Label
+                    htmlFor="enrollmentDate"
+                    className={isFieldIncomplete("enrollmentDate", 2) ? "text-red-600" : ""}
+                  >
+                    Enrollment Date <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="enrollmentDate"
                     type="date"
                     value={formData.enrollmentDate}
                     onChange={(e) => handleInputChange("enrollmentDate", e.target.value)}
+                    className={isFieldIncomplete("enrollmentDate", 2) ? "border-red-500 bg-red-50" : ""}
                   />
                 </div>
                 <div>
