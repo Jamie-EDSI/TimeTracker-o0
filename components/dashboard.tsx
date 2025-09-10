@@ -1,13 +1,11 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,787 +15,659 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-  AlertTriangle,
-  Home,
   Users,
-  UserPlus,
-  Search,
   Clock,
   FileText,
-  ChevronRight,
+  Search,
   ChevronDown,
-  BarChart3,
-  Settings,
-  Activity,
   Eye,
-  X,
-  Loader2,
-  AlertCircle,
+  UserPlus,
+  BarChart3,
+  Phone,
+  Briefcase,
+  Activity,
+  Calendar,
   CheckCircle,
 } from "lucide-react"
-import Link from "next/link"
 import { NewClientForm } from "./new-client-form"
 import { ClientManagement } from "./client-management"
 import { ActiveClientsReport } from "./active-clients-report"
-import { NavigationCard } from "./navigation-card"
-import { InteractiveButton } from "./interactive-button"
+import { CallLogReport } from "./call-log-report"
+import { JobsPlacementsReport } from "./jobs-placements-report"
 
-// Mock client data for search functionality
-const initialMockClientDatabase = [
+// Mock data for clients
+const mockClients = [
   {
     id: "1",
-    participantId: "2965142",
-    firstName: "Brian",
-    lastName: "Allen",
-    fullName: "Allen, Brian",
-    ssn: "1293",
-    phone: "215-207-4497",
-    email: "brianallen0488@gmail.com",
-    program: "Next Step Program",
-    status: "Active",
-    lastActivity: "2024-01-15",
-    enrollmentDate: "2023-08-27",
-    caseManager: "Chester, District - 01",
+    firstName: "Michael",
+    lastName: "Davis",
+    participantId: "2965144",
+    program: "Job Readiness",
+    status: "Inactive",
+    enrollmentDate: "2023-01-15",
+    phone: "484-555-0101",
+    cellPhone: "484-555-0102",
+    email: "michael.davis@email.com",
+    address: "123 Main St",
+    city: "Philadelphia",
+    state: "PA",
+    zipCode: "19101",
+    dateOfBirth: "1985-03-20",
+    ssn: "***-**-1234",
+    emergencyContact: "Jane Davis",
+    emergencyPhone: "484-555-0103",
+    caseManager: "Smith, John",
+    responsibleEC: "Johnson, Sarah",
+    requiredHours: "40",
+    caoNumber: "CAO123456",
   },
   {
     id: "2",
-    participantId: "2965143",
     firstName: "Sarah",
     lastName: "Johnson",
-    fullName: "Johnson, Sarah",
-    ssn: "4567",
-    phone: "484-555-0123",
-    email: "sarah.johnson@email.com",
-    program: "Career Development",
+    participantId: "2965145",
+    program: "EARN",
     status: "Active",
-    lastActivity: "2024-01-14",
-    enrollmentDate: "2023-09-15",
-    caseManager: "Smith, District - 02",
+    enrollmentDate: "2023-02-20",
+    phone: "484-555-0201",
+    cellPhone: "484-555-0202",
+    email: "sarah.johnson@email.com",
+    address: "456 Oak Ave",
+    city: "Philadelphia",
+    state: "PA",
+    zipCode: "19102",
+    dateOfBirth: "1990-07-15",
+    ssn: "***-**-5678",
+    emergencyContact: "Mike Johnson",
+    emergencyPhone: "484-555-0203",
+    caseManager: "Brown, Lisa",
+    responsibleEC: "Wilson, David",
+    requiredHours: "35",
+    caoNumber: "CAO123457",
   },
   {
     id: "3",
-    participantId: "2965144",
-    firstName: "Michael",
-    lastName: "Davis",
-    fullName: "Davis, Michael",
-    ssn: "7890",
-    phone: "610-555-0456",
-    email: "m.davis@email.com",
-    program: "Job Readiness",
-    status: "Inactive",
-    lastActivity: "2024-01-10",
-    enrollmentDate: "2023-07-20",
-    caseManager: "Johnson, District - 01",
+    firstName: "Robert",
+    lastName: "Wilson",
+    participantId: "2965146",
+    program: "Ex-Offender",
+    status: "Active",
+    enrollmentDate: "2023-03-10",
+    phone: "484-555-0301",
+    cellPhone: "484-555-0302",
+    email: "robert.wilson@email.com",
+    address: "789 Pine St",
+    city: "Philadelphia",
+    state: "PA",
+    zipCode: "19103",
+    dateOfBirth: "1988-11-30",
+    ssn: "***-**-9012",
+    emergencyContact: "Mary Wilson",
+    emergencyPhone: "484-555-0303",
+    caseManager: "Davis, Jennifer",
+    responsibleEC: "Taylor, Michael",
+    requiredHours: "30",
+    caoNumber: "CAO123458",
   },
   {
     id: "4",
-    participantId: "2753853",
-    firstName: "Eric",
-    lastName: "Alexander",
-    fullName: "Alexander, Eric",
-    ssn: "5678",
-    phone: "484-555-0101",
-    email: "eric.alexander@email.com",
-    program: "Ex-Offender",
+    firstName: "Emily",
+    lastName: "Brown",
+    participantId: "2965147",
+    program: "YOUTH",
     status: "Active",
-    lastActivity: "2024-01-16",
-    enrollmentDate: "2023-02-15",
-    caseManager: "Lewis, Jillian",
+    enrollmentDate: "2023-04-05",
+    phone: "484-555-0401",
+    cellPhone: "484-555-0402",
+    email: "emily.brown@email.com",
+    address: "321 Elm Dr",
+    city: "Philadelphia",
+    state: "PA",
+    zipCode: "19104",
+    dateOfBirth: "2001-05-12",
+    ssn: "***-**-3456",
+    emergencyContact: "Tom Brown",
+    emergencyPhone: "484-555-0403",
+    caseManager: "Miller, Robert",
+    responsibleEC: "Anderson, Lisa",
+    requiredHours: "25",
+    caoNumber: "CAO123459",
   },
   {
     id: "5",
-    participantId: "6429415",
-    firstName: "Heavyn",
-    lastName: "Anderson",
-    fullName: "Anderson, Heavyn",
-    ssn: "9012",
-    phone: "484-555-0103",
-    email: "heavyn.anderson@email.com",
-    program: "EARN",
+    firstName: "James",
+    lastName: "Miller",
+    participantId: "2965148",
+    program: "Job Readiness",
     status: "Active",
-    lastActivity: "2024-01-17",
-    enrollmentDate: "2024-09-17",
-    caseManager: "Chester, District",
+    enrollmentDate: "2023-05-15",
+    phone: "484-555-0501",
+    cellPhone: "484-555-0502",
+    email: "james.miller@email.com",
+    address: "654 Maple Ave",
+    city: "Philadelphia",
+    state: "PA",
+    zipCode: "19105",
+    dateOfBirth: "1992-09-08",
+    ssn: "***-**-7890",
+    emergencyContact: "Susan Miller",
+    emergencyPhone: "484-555-0503",
+    caseManager: "Garcia, Maria",
+    responsibleEC: "Thompson, James",
+    requiredHours: "40",
+    caoNumber: "CAO123460",
   },
   {
     id: "6",
-    participantId: "2643103",
-    firstName: "Dayshon",
-    lastName: "Andrews",
-    fullName: "Andrews, Dayshon",
-    ssn: "3456",
-    phone: "484-555-0105",
-    email: "dayshon.andrews@email.com",
+    firstName: "Lisa",
+    lastName: "Garcia",
+    participantId: "2965149",
     program: "EARN",
     status: "Active",
-    lastActivity: "2024-01-18",
-    enrollmentDate: "2024-07-18",
-    caseManager: "Chester, District",
+    enrollmentDate: "2023-06-01",
+    phone: "484-555-0601",
+    cellPhone: "484-555-0602",
+    email: "lisa.garcia@email.com",
+    address: "987 Cedar St",
+    city: "Philadelphia",
+    state: "PA",
+    zipCode: "19106",
+    dateOfBirth: "1987-12-25",
+    ssn: "***-**-2468",
+    emergencyContact: "Carlos Garcia",
+    emergencyPhone: "484-555-0603",
+    caseManager: "White, Kevin",
+    responsibleEC: "Martinez, Ana",
+    requiredHours: "35",
+    caoNumber: "CAO123461",
   },
 ]
 
 export function Dashboard() {
-  const [searchForm, setSearchForm] = useState({
-    name: "",
-    participantId: "",
-    ssn: "",
-    recordsPerPage: "10",
-  })
-
-  const [showNewClientForm, setShowNewClientForm] = useState(false)
-  const [showClientManagement, setShowClientManagement] = useState(false)
-  const [showActiveClientsReport, setShowActiveClientsReport] = useState(false)
-  const [isSearching, setIsSearching] = useState(false)
-  const [showSearchResults, setShowSearchResults] = useState(false)
-  const [searchPerformed, setSearchPerformed] = useState(false)
-  const [mockClientDatabase, setMockClientDatabase] = useState(initialMockClientDatabase)
-  const [recentlyCreatedClient, setRecentlyCreatedClient] = useState<any>(null)
-  const [showClientCreatedNotification, setShowClientCreatedNotification] = useState(false)
-  const [globalClientDatabase, setGlobalClientDatabase] = useState(initialMockClientDatabase)
+  const [currentView, setCurrentView] = useState<
+    "dashboard" | "newClient" | "clientManagement" | "activeClientsReport" | "callLogReport" | "jobsPlacementsReport"
+  >("dashboard")
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [searchResults, setSearchResults] = useState<typeof mockClients>([])
+  const [showSearchResults, setShowSearchResults] = useState(false)
 
-  // Real-time search results based on form inputs
-  const searchResults = useMemo(() => {
-    const hasSearchTerms = searchForm.name.trim() || searchForm.participantId.trim() || searchForm.ssn.trim()
-
-    if (!hasSearchTerms) {
-      return []
+  const handleSearch = () => {
+    if (!searchTerm.trim()) {
+      setSearchResults([])
+      setShowSearchResults(false)
+      return
     }
 
-    return mockClientDatabase.filter((client) => {
-      const nameMatch = searchForm.name.trim()
-        ? client.fullName.toLowerCase().includes(searchForm.name.toLowerCase()) ||
-          client.firstName.toLowerCase().includes(searchForm.name.toLowerCase()) ||
-          client.lastName.toLowerCase().includes(searchForm.name.toLowerCase())
-        : true
+    const results = mockClients.filter(
+      (client) =>
+        client.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.participantId.includes(searchTerm) ||
+        client.program.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
 
-      const pidMatch = searchForm.participantId.trim() ? client.participantId.includes(searchForm.participantId) : true
-
-      const ssnMatch = searchForm.ssn.trim() ? client.ssn.includes(searchForm.ssn) : true
-
-      return nameMatch && pidMatch && ssnMatch
-    })
-  }, [searchForm.name, searchForm.participantId, searchForm.ssn, mockClientDatabase])
-
-  const handleSearch = async () => {
-    setIsSearching(true)
-    setSearchPerformed(true)
-
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 800))
-
-    setIsSearching(false)
+    setSearchResults(results)
     setShowSearchResults(true)
   }
 
-  const handleClearSearch = () => {
-    setSearchForm({
-      name: "",
-      participantId: "",
-      ssn: "",
-      recordsPerPage: searchForm.recordsPerPage,
-    })
-    setShowSearchResults(false)
-    setSearchPerformed(false)
-    setSelectedClientId(null) // Reset selected client
-  }
-
   const handleViewClient = (clientId: string) => {
-    console.log("Viewing client:", clientId)
-    setSelectedClientId(clientId) // Set the specific client to view
-    setShowClientManagement(true)
+    setSelectedClientId(clientId)
+    setCurrentView("clientManagement")
   }
 
-  const handleNewClientSave = (clientData: any) => {
-    console.log("New client created:", clientData)
-
-    // Add the new client to our global database
-    setGlobalClientDatabase((prev) => [clientData, ...prev])
-
-    // Also update the local mock database for search functionality
-    setMockClientDatabase((prev) => [clientData, ...prev])
-
-    // Set recently created client for notification
-    setRecentlyCreatedClient(clientData)
-    setShowClientCreatedNotification(true)
-
-    // Close the form
-    setShowNewClientForm(false)
-
-    // Hide notification after 5 seconds
-    setTimeout(() => {
-      setShowClientCreatedNotification(false)
-      setRecentlyCreatedClient(null)
-    }, 5000)
+  const clearSearch = () => {
+    setSearchTerm("")
+    setSearchResults([])
+    setShowSearchResults(false)
   }
 
-  // Check if search has any terms
-  const hasSearchTerms = searchForm.name.trim() || searchForm.participantId.trim() || searchForm.ssn.trim()
-
-  // Paginate results
-  const recordsPerPage = Number.parseInt(searchForm.recordsPerPage)
-  const paginatedResults = searchResults.slice(0, recordsPerPage)
-
-  // Breadcrumb logic with dropdown options
-  const getBreadcrumbs = () => {
-    const breadcrumbs = [
-      {
-        label: "Dashboard",
-        href: "#",
-        isActive: false,
-        dropdownItems: [
-          { label: "Overview", icon: Home, action: () => console.log("Navigate to overview") },
-          { label: "Reports", icon: BarChart3, action: () => console.log("Navigate to reports") },
-          { label: "Active Clients Report", icon: Users, action: () => setShowActiveClientsReport(true) },
-          { label: "Recent Activities", icon: Activity, action: () => console.log("Navigate to activities") },
-          { label: "System Settings", icon: Settings, action: () => console.log("Navigate to settings") },
-        ],
-      },
-    ]
-
-    if (showClientManagement) {
-      breadcrumbs.push({
-        label: "Client Management",
-        href: "#",
-        isActive: true,
-        dropdownItems: [
-          { label: "All Clients", icon: Users, action: () => console.log("Show all clients") },
-          { label: "Active Clients", icon: Users, action: () => console.log("Show active clients") },
-          { label: "Inactive Clients", icon: Users, action: () => console.log("Show inactive clients") },
-          { label: "Client Reports", icon: BarChart3, action: () => console.log("Show client reports") },
-        ],
-      })
-    } else if (showNewClientForm) {
-      breadcrumbs.push({
-        label: "Create New Client",
-        href: "#",
-        isActive: true,
-        dropdownItems: [
-          { label: "Client Form", icon: UserPlus, action: () => console.log("Client form") },
-          { label: "Import Clients", icon: FileText, action: () => console.log("Import clients") },
-          { label: "Client Templates", icon: FileText, action: () => console.log("Client templates") },
-        ],
-      })
-    } else if (showActiveClientsReport) {
-      breadcrumbs.push({
-        label: "Active Clients Report",
-        href: "#",
-        isActive: true,
-        dropdownItems: [
-          { label: "Export Report", icon: FileText, action: () => console.log("Export report") },
-          { label: "Print Report", icon: FileText, action: () => console.log("Print report") },
-          { label: "Report Settings", icon: Settings, action: () => console.log("Report settings") },
-        ],
-      })
-    } else {
-      breadcrumbs[0].isActive = true
-    }
-
-    return breadcrumbs
+  const handleBackToDashboard = () => {
+    setCurrentView("dashboard")
+    setSelectedClientId(null)
+    clearSearch()
   }
 
-  if (showClientManagement) {
-    return (
-      <ClientManagement
-        onBack={() => {
-          setShowClientManagement(false)
-          setSelectedClientId(null) // Reset selected client
-        }}
-        clients={globalClientDatabase}
-        onUpdateClients={setGlobalClientDatabase}
-        selectedClientId={selectedClientId}
-      />
-    )
+  if (currentView === "newClient") {
+    return <NewClientForm onBack={handleBackToDashboard} />
   }
 
-  if (showActiveClientsReport) {
-    return (
-      <ActiveClientsReport
-        onBack={() => setShowActiveClientsReport(false)}
-        onViewClient={handleViewClient}
-        clients={globalClientDatabase}
-      />
-    )
+  if (currentView === "clientManagement") {
+    return <ClientManagement onBack={handleBackToDashboard} clients={mockClients} selectedClientId={selectedClientId} />
+  }
+
+  if (currentView === "activeClientsReport") {
+    return <ActiveClientsReport onBack={handleBackToDashboard} onViewClient={handleViewClient} clients={mockClients} />
+  }
+
+  if (currentView === "callLogReport") {
+    return <CallLogReport onBack={handleBackToDashboard} onViewClient={handleViewClient} clients={mockClients} />
+  }
+
+  if (currentView === "jobsPlacementsReport") {
+    return <JobsPlacementsReport onBack={handleBackToDashboard} onViewClient={handleViewClient} clients={mockClients} />
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Client Created Notification */}
-      {showClientCreatedNotification && recentlyCreatedClient && (
-        <div className="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 max-w-sm">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            </div>
-            <div className="flex-1">
-              <h4 className="text-sm font-semibold text-green-900">Client Created Successfully!</h4>
-              <p className="text-sm text-green-700 mt-1">
-                {recentlyCreatedClient.firstName} {recentlyCreatedClient.lastName} has been added to the system.
-              </p>
-              <p className="text-xs text-green-600 mt-1">PID: {recentlyCreatedClient.participantId}</p>
-            </div>
-            <button
-              onClick={() => setShowClientCreatedNotification(false)}
-              className="flex-shrink-0 text-green-400 hover:text-green-600"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        {/* Top row with logo and navigation */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        {/* Top row with logo and applications dropdown */}
         <div className="flex items-center justify-between px-6 py-3">
-          {/* Left side - New EDSI Logo */}
           <div className="flex items-center">
             <img src="/images/edsi-new-logo.jpg" alt="EDSI Logo" className="h-12 w-auto" />
           </div>
+          <div className="flex items-center gap-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+                  TimeTracker
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel className="text-base font-semibold">Applications</DropdownMenuLabel>
+                <DropdownMenuSeparator />
 
-          {/* Center - Application Selector */}
-          <div className="flex-1 max-w-xs mx-8">
-            <Select defaultValue="timetracker">
-              <SelectTrigger>
-                <SelectValue placeholder="Jump to Applications..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="timetracker">TimeTracker</SelectItem>
-                <SelectItem value="other">Other Applications...</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+                <DropdownMenuItem className="cursor-pointer py-3">
+                  <div className="flex items-center w-full">
+                    <CheckCircle className="w-4 h-4 mr-3 text-green-600" />
+                    <div className="flex-1">
+                      <div className="font-medium">TimeTracker</div>
+                      <div className="text-xs text-gray-500">Current Application</div>
+                    </div>
+                  </div>
+                </DropdownMenuItem>
 
-          {/* Right side - Title and Navigation */}
-          <div className="flex items-center gap-6">
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-sm font-medium text-gray-600">Reports</DropdownMenuLabel>
+
+                <DropdownMenuItem onClick={() => setCurrentView("activeClientsReport")} className="cursor-pointer py-2">
+                  <div className="flex items-center w-full">
+                    <div className="flex items-center justify-center w-6 h-6 bg-blue-100 rounded-lg mr-2">
+                      <BarChart3 className="w-3 h-3 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">Active Client Report</div>
+                      <div className="text-xs text-gray-500">Comprehensive overview of active clients</div>
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => setCurrentView("callLogReport")} className="cursor-pointer py-2">
+                  <div className="flex items-center w-full">
+                    <div className="flex items-center justify-center w-6 h-6 bg-green-100 rounded-lg mr-2">
+                      <Phone className="w-3 h-3 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">Call Log Report</div>
+                      <div className="text-xs text-gray-500">Recent case notes for each client</div>
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => setCurrentView("jobsPlacementsReport")}
+                  className="cursor-pointer py-2"
+                >
+                  <div className="flex items-center w-full">
+                    <div className="flex items-center justify-center w-6 h-6 bg-purple-100 rounded-lg mr-2">
+                      <Briefcase className="w-3 h-3 text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">Jobs/Placements Report</div>
+                      <div className="text-xs text-gray-500">Employment placements and EVF data</div>
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="cursor-pointer py-2 text-gray-600">
+                  <Activity className="w-4 h-4 mr-3" />
+                  <span>Other Applications...</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <h1 className="text-xl font-semibold text-gray-800">Data Staff Desktop</h1>
-            <div className="flex items-center gap-4 text-sm">
-              <Link href="/manage-account" className="text-blue-600 hover:underline">
-                Manage Account
-              </Link>
-              <span className="text-gray-300">|</span>
-              <Link href="/logout" className="text-blue-600 hover:underline">
-                Log Out
-              </Link>
-              <span className="text-gray-300">|</span>
-              <Link href="/help" className="text-blue-600 hover:underline">
-                Help
-              </Link>
-              <span className="text-gray-300">|</span>
-              <Link href="/about" className="text-blue-600 hover:underline">
-                About
-              </Link>
-            </div>
           </div>
         </div>
 
-        {/* Second row with Show Desktop button aligned to left */}
-        <div className="px-6 py-2 bg-gray-50 border-t border-gray-100">
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" size="sm" className="flex items-center gap-2">
-              <Home className="w-4 h-4" />
-              Show the Desktop
+        {/* Second row with main navigation */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50">
+              🏠 Show the Desktop
             </Button>
-          </div>
-        </div>
-
-        {/* Breadcrumb Navigation with Dropdowns */}
-        <div className="px-6 py-2 bg-gray-50 border-t border-gray-100">
-          <nav className="flex items-center space-x-2 text-sm">
-            {getBreadcrumbs().map((breadcrumb, index) => (
-              <div key={index} className="flex items-center">
-                {index > 0 && <ChevronRight className="w-4 h-4 text-gray-400 mx-2" />}
-                {breadcrumb.isActive ? (
-                  <div className="flex items-center">
-                    <span className="text-gray-900 font-medium">{breadcrumb.label}</span>
-                    {breadcrumb.dropdownItems && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="ml-1 h-6 w-6 p-0">
-                            <ChevronDown className="w-3 h-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-48">
-                          <DropdownMenuLabel>Quick Access</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {breadcrumb.dropdownItems.map((item, itemIndex) => (
-                            <DropdownMenuItem key={itemIndex} onClick={item.action} className="cursor-pointer">
-                              <item.icon className="w-4 h-4 mr-2" />
-                              {item.label}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <button
-                      onClick={() => {
-                        if (breadcrumb.label === "Dashboard") {
-                          setShowClientManagement(false)
-                          setShowNewClientForm(false)
-                          setShowActiveClientsReport(false)
-                          setSelectedClientId(null) // Reset selected client
-                        }
-                      }}
-                      className="text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      {breadcrumb.label}
-                    </button>
-                    {breadcrumb.dropdownItems && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="ml-1 h-6 w-6 p-0">
-                            <ChevronDown className="w-3 h-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-48">
-                          <DropdownMenuLabel>Quick Access</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {breadcrumb.dropdownItems.map((item, itemIndex) => (
-                            <DropdownMenuItem key={itemIndex} onClick={item.action} className="cursor-pointer">
-                              <item.icon className="w-4 h-4 mr-2" />
-                              {item.label}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </nav>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <div className="flex gap-6 p-6">
-        {/* Left Sidebar - Reports */}
-        <div className="w-80 space-y-4">
-          {/* Unapproved Terminations */}
-          <NavigationCard
-            title="Unapproved Terminations"
-            description="36 unapproved terminations need review"
-            icon={AlertTriangle}
-            variant="warning"
-            onClick={() => console.log("Navigate to Unapproved Terminations Report")}
-          />
-
-          {/* Active Clients Report */}
-          <NavigationCard
-            title="Active Clients Report"
-            description="View comprehensive client data"
-            icon={Users}
-            variant="success"
-            onClick={() => setShowActiveClientsReport(true)}
-          />
-        </div>
-
-        {/* Center Content */}
-        <div className="flex-1 space-y-6">
-          {/* Prominent Create New Client Button */}
-          <div className="flex justify-center">
-            <InteractiveButton
-              variant="primary"
-              size="lg"
-              icon={UserPlus}
-              onClick={() => setShowNewClientForm(true)}
-              className="px-8 py-4"
-            >
-              Create New Client
-            </InteractiveButton>
-          </div>
-
-          {/* Search Results Section */}
-          {(showSearchResults || (hasSearchTerms && searchResults.length > 0)) && (
-            <Card className="border-blue-200 bg-blue-50">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-semibold text-blue-900 flex items-center gap-2">
-                    <Search className="w-5 h-5" />
-                    Search Results
-                  </CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleClearSearch}
-                    className="text-blue-700 hover:text-blue-900 hover:bg-blue-100"
-                  >
-                    <X className="w-4 h-4 mr-1" />
-                    Clear
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {searchResults.length === 0 ? (
-                  <div className="text-center py-8">
-                    <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 mb-2">No clients found matching your search criteria.</p>
-                    <p className="text-sm text-gray-500">
-                      Try adjusting your search terms or clearing the search to start over.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="mb-4">
-                      <p className="text-sm text-blue-800">
-                        Found {searchResults.length} client{searchResults.length !== 1 ? "s" : ""}
-                        {paginatedResults.length < searchResults.length &&
-                          ` (showing first ${paginatedResults.length})`}
-                      </p>
-                    </div>
-                    <div className="bg-white rounded-lg overflow-hidden shadow-sm">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-gray-50">
-                            <TableHead className="font-semibold">Name</TableHead>
-                            <TableHead className="font-semibold">PID</TableHead>
-                            <TableHead className="font-semibold">Program</TableHead>
-                            <TableHead className="font-semibold">Status</TableHead>
-                            <TableHead className="font-semibold">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {paginatedResults.map((client) => (
-                            <TableRow key={client.id} className="hover:bg-gray-50">
-                              <TableCell className="font-medium">
-                                <button
-                                  onClick={() => handleViewClient(client.id)}
-                                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                                >
-                                  {client.fullName}
-                                </button>
-                              </TableCell>
-                              <TableCell>{client.participantId}</TableCell>
-                              <TableCell>{client.program}</TableCell>
-                              <TableCell>
-                                <Badge variant={client.status === "Active" ? "default" : "secondary"}>
-                                  {client.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleViewClient(client.id)}
-                                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                                >
-                                  <Eye className="w-4 h-4 mr-1" />
-                                  View
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Quick Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card
-              className="hover:shadow-lg transition-shadow duration-200 cursor-pointer"
-              onClick={() => console.log("Navigate to Total Clients")}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Users className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Total Clients</p>
-                    <p className="text-2xl font-bold">{mockClientDatabase.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="hover:shadow-lg transition-shadow duration-200 cursor-pointer"
-              onClick={() => console.log("Navigate to Active Today")}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Clock className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Active Today</p>
-                    <p className="text-2xl font-bold">89</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="hover:shadow-lg transition-shadow duration-200 cursor-pointer"
-              onClick={() => console.log("Navigate to Pending Actions")}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <FileText className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Pending Actions</p>
-                    <p className="text-2xl font-bold">43</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Right Sidebar - Client Directory */}
-        <div className="w-80">
-          <Card className="border-gray-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-800 bg-gray-200 px-3 py-1 rounded">
-                Client Directory
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Action Buttons - Stacked vertically */}
-              <div className="space-y-3 mb-4">
-                <Button
-                  size="lg"
-                  className="w-full flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 font-semibold"
-                  onClick={() => setShowClientManagement(true)}
-                >
-                  <Users className="w-5 h-5" />
-                  View My Clients
-                  <ChevronRight className="w-4 h-4 ml-auto" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-1">
+                  Dashboard
+                  <ChevronDown className="w-4 h-4" />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full flex items-center gap-2 bg-white hover:bg-gray-50 border-2 border-blue-200 hover:border-blue-300 transition-all duration-200"
-                  onClick={() => setShowNewClientForm(true)}
-                >
-                  <UserPlus className="w-4 h-4" />
-                  New Client
-                </Button>
-              </div>
-
-              {/* Search Form */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-gray-900">Search Client Directory</h3>
-                  {hasSearchTerms && (
-                    <div className="flex items-center gap-1 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                      <Search className="w-3 h-3" />
-                      {searchResults.length} found
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="name" className="text-sm font-medium">
-                      Name:
-                    </Label>
-                    <Input
-                      id="name"
-                      value={searchForm.name}
-                      onChange={(e) => setSearchForm({ ...searchForm, name: e.target.value })}
-                      className="mt-1"
-                      placeholder="Enter first or last name"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="participantId" className="text-sm font-medium">
-                      Participant Id:
-                    </Label>
-                    <Input
-                      id="participantId"
-                      value={searchForm.participantId}
-                      onChange={(e) => setSearchForm({ ...searchForm, participantId: e.target.value })}
-                      className="mt-1"
-                      placeholder="Enter participant ID"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="ssn" className="text-sm font-medium">
-                      SSN (Last 4):
-                    </Label>
-                    <Input
-                      id="ssn"
-                      value={searchForm.ssn}
-                      onChange={(e) => setSearchForm({ ...searchForm, ssn: e.target.value })}
-                      maxLength={4}
-                      className="mt-1"
-                      placeholder="Last 4 digits"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="records" className="text-sm font-medium">
-                      Records/Page:
-                    </Label>
-                    <Select
-                      value={searchForm.recordsPerPage}
-                      onValueChange={(value) => setSearchForm({ ...searchForm, recordsPerPage: value })}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="25">25</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button onClick={handleSearch} className="flex-1" disabled={!hasSearchTerms || isSearching}>
-                      {isSearching ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Searching...
-                        </>
-                      ) : (
-                        <>
-                          <Search className="w-4 h-4 mr-2" />
-                          Search
-                        </>
-                      )}
-                    </Button>
-                    {hasSearchTerms && (
-                      <Button variant="outline" size="sm" onClick={handleClearSearch} className="px-3 bg-transparent">
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Real-time search feedback */}
-                  {hasSearchTerms && !isSearching && (
-                    <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                      {searchResults.length === 0 ? (
-                        <span className="text-orange-600">No matches found</span>
-                      ) : (
-                        <span className="text-green-600">
-                          {searchResults.length} client{searchResults.length !== 1 ? "s" : ""} match
-                          {searchResults.length === 1 ? "es" : ""} your criteria
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setCurrentView("dashboard")}>
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Main Dashboard
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCurrentView("activeClientsReport")}>
+                  <Users className="w-4 h-4 mr-2" />
+                  Active Clients Report
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCurrentView("callLogReport")}>
+                  <Phone className="w-4 h-4 mr-2" />
+                  Call Log Report
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCurrentView("jobsPlacementsReport")}>
+                  <Briefcase className="w-4 h-4 mr-2" />
+                  Jobs/Placements Report
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <Button
+            onClick={() => setCurrentView("newClient")}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+          >
+            ✨ Create New Client
+          </Button>
         </div>
       </div>
-      {showNewClientForm && <NewClientForm onClose={() => setShowNewClientForm(false)} onSave={handleNewClientSave} />}
+
+      {/* Main Content */}
+      <div className="p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Smaller Report Cards */}
+          <div className="space-y-4">
+            {/* Active Clients Report - Smaller */}
+            <Card className="border-l-4 border-l-green-500 bg-green-50 hover:shadow-md transition-shadow cursor-pointer">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-green-800 text-base">
+                  <Users className="w-4 h-4" />
+                  Active Clients Report
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <p className="text-green-700 mb-2 text-sm">View comprehensive client data</p>
+                <Button
+                  onClick={() => setCurrentView("activeClientsReport")}
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-green-300 text-green-700 hover:bg-green-100"
+                >
+                  View Report →
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Call Log Report - Smaller */}
+            <Card className="border-l-4 border-l-blue-500 bg-blue-50 hover:shadow-md transition-shadow cursor-pointer">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-blue-800 text-base">
+                  <Phone className="w-4 h-4" />
+                  Call Log Report
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <p className="text-blue-700 mb-2 text-sm">Recent case notes and communications</p>
+                <Button
+                  onClick={() => setCurrentView("callLogReport")}
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
+                >
+                  View Report →
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Jobs/Placements Report - Smaller */}
+            <Card className="border-l-4 border-l-purple-500 bg-purple-50 hover:shadow-md transition-shadow cursor-pointer">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-purple-800 text-base">
+                  <Briefcase className="w-4 h-4" />
+                  Jobs/Placements Report
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <p className="text-purple-700 mb-2 text-sm">Employment placements and EVF tracking</p>
+                <Button
+                  onClick={() => setCurrentView("jobsPlacementsReport")}
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-purple-300 text-purple-700 hover:bg-purple-100"
+                >
+                  View Report →
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Center Column - Statistics Cards Above Search */}
+          <div className="space-y-6">
+            {/* Statistics Cards - Moved Above Search */}
+            <div className="grid grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mx-auto mb-2">
+                    <Users className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900">6</div>
+                  <div className="text-sm text-gray-600">Total Clients</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mx-auto mb-2">
+                    <Clock className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900">89</div>
+                  <div className="text-sm text-gray-600">Active Today</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="flex items-center justify-center w-12 h-12 bg-orange-100 rounded-full mx-auto mb-2">
+                    <FileText className="w-6 h-6 text-orange-600" />
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900">43</div>
+                  <div className="text-sm text-gray-600">Pending Actions</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Search Section - Now Below Statistics */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Search className="w-5 h-5" />
+                  {showSearchResults ? "Search Results" : "Search Client Directory"}
+                  {showSearchResults && (
+                    <Button variant="ghost" size="sm" onClick={clearSearch} className="ml-auto text-blue-600">
+                      Clear
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!showSearchResults && (
+                  <>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="search-name">Name:</Label>
+                        <Input
+                          id="search-name"
+                          placeholder="Enter client name"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="search-pid">Participant Id:</Label>
+                        <Input id="search-pid" placeholder="Enter participant ID" />
+                      </div>
+                      <div>
+                        <Label htmlFor="search-ssn">SSN (Last 4):</Label>
+                        <Input id="search-ssn" placeholder="Last 4 digits" maxLength={4} />
+                      </div>
+                      <div>
+                        <Label htmlFor="records-per-page">Records/Page:</Label>
+                        <Input id="records-per-page" defaultValue="25" />
+                      </div>
+                    </div>
+                    <Button onClick={handleSearch} className="w-full bg-blue-600 hover:bg-blue-700">
+                      <Search className="w-4 h-4 mr-2" />
+                      Search
+                    </Button>
+                  </>
+                )}
+
+                {showSearchResults && (
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-600">Found {searchResults.length} client(s)</p>
+                    {searchResults.length > 0 ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-5 gap-2 text-xs font-medium text-gray-500 border-b pb-2">
+                          <div>Name</div>
+                          <div>PID</div>
+                          <div>Program</div>
+                          <div>Status</div>
+                          <div>Actions</div>
+                        </div>
+                        {searchResults.map((client) => (
+                          <div key={client.id} className="grid grid-cols-5 gap-2 text-sm items-center py-2 border-b">
+                            <button
+                              onClick={() => handleViewClient(client.id)}
+                              className="text-left text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                            >
+                              {client.lastName}, {client.firstName}
+                            </button>
+                            <div>{client.participantId}</div>
+                            <div>{client.program}</div>
+                            <div>
+                              <Badge variant={client.status === "Active" ? "default" : "secondary"}>
+                                {client.status}
+                              </Badge>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewClient(client.id)}
+                              className="hover:bg-blue-50"
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              View
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-center py-4">No clients found matching your search.</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column - Client Directory */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Client Directory</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button
+                  onClick={() => setCurrentView("clientManagement")}
+                  variant="outline"
+                  className="w-full justify-start hover:bg-blue-50"
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  View My Clients →
+                </Button>
+                <Button
+                  onClick={() => setCurrentView("newClient")}
+                  variant="outline"
+                  className="w-full justify-start hover:bg-green-50"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  New Client
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Quick Reports Access */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Quick Reports
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button
+                  onClick={() => setCurrentView("activeClientsReport")}
+                  variant="ghost"
+                  className="w-full justify-start hover:bg-blue-50 text-blue-700"
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Active Clients
+                </Button>
+                <Button
+                  onClick={() => setCurrentView("callLogReport")}
+                  variant="ghost"
+                  className="w-full justify-start hover:bg-green-50 text-green-700"
+                >
+                  <Phone className="w-4 h-4 mr-2" />
+                  Call Logs
+                </Button>
+                <Button
+                  onClick={() => setCurrentView("jobsPlacementsReport")}
+                  variant="ghost"
+                  className="w-full justify-start hover:bg-purple-50 text-purple-700"
+                >
+                  <Briefcase className="w-4 h-4 mr-2" />
+                  Job Placements
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="w-5 h-5" />
+                  Recent Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar className="w-3 h-3 text-gray-400" />
+                    <span className="text-gray-600">Today, 2:30 PM</span>
+                  </div>
+                  <p>New client enrollment: Sarah Johnson</p>
+                </div>
+                <div className="text-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar className="w-3 h-3 text-gray-400" />
+                    <span className="text-gray-600">Today, 1:15 PM</span>
+                  </div>
+                  <p>Case note added for Michael Davis</p>
+                </div>
+                <div className="text-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar className="w-3 h-3 text-gray-400" />
+                    <span className="text-gray-600">Today, 11:45 AM</span>
+                  </div>
+                  <p>Employment placement: Robert Wilson</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
