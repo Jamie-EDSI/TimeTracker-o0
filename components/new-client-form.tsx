@@ -20,6 +20,7 @@ export function NewClientForm({ onClose, onSubmit, onClientCreated }: NewClientF
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [createdClient, setCreatedClient] = useState<any>(null)
   const [formData, setFormData] = useState({
     personal: {
       firstName: "",
@@ -159,7 +160,7 @@ export function NewClientForm({ onClose, onSubmit, onClientCreated }: NewClientF
 
     // In a real application, this would be an actual API call
     // For now, we'll simulate success/failure
-    const shouldFail = Math.random() < 0.1 // 10% chance of failure for demo
+    const shouldFail = Math.random() < 0.05 // 5% chance of failure for demo
 
     if (shouldFail) {
       throw new Error("Failed to create client record. Please try again.")
@@ -169,14 +170,35 @@ export function NewClientForm({ onClose, onSubmit, onClientCreated }: NewClientF
     const newClient = {
       id: `client_${Date.now()}`,
       participantId: generateParticipantId(),
-      ...clientData.personal,
-      ...clientData.contact,
-      ...clientData.program,
-      employment: clientData.employment,
-      additional: clientData.additional,
+      firstName: clientData.personal.firstName,
+      lastName: clientData.personal.lastName,
+      program: clientData.program.program,
+      status: clientData.personal.status,
+      enrollmentDate: clientData.program.enrollmentDate,
+      phone: clientData.contact.phone,
+      cellPhone: clientData.contact.phone,
+      email: clientData.contact.email,
+      address: clientData.contact.address,
+      city: clientData.contact.city,
+      state: clientData.contact.state,
+      zipCode: clientData.contact.zipCode,
+      dateOfBirth: clientData.personal.dateOfBirth,
+      ssn: clientData.personal.ssn,
+      emergencyContact: clientData.contact.emergencyContactName,
+      emergencyPhone: clientData.contact.emergencyContactPhone,
+      caseManager: clientData.program.caseManager,
+      responsibleEC: "Current User",
+      requiredHours: clientData.employment.hoursPerWeek || "40",
+      caoNumber: "",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      createdBy: "Current User", // In real app, this would be the logged-in user
+      createdBy: "Current User",
+      // Include all form data for comprehensive record
+      personal: clientData.personal,
+      contact: clientData.contact,
+      program: clientData.program,
+      employment: clientData.employment,
+      additional: clientData.additional,
     }
 
     return newClient
@@ -204,6 +226,7 @@ export function NewClientForm({ onClose, onSubmit, onClientCreated }: NewClientF
 
       // Create the client record
       const newClient = await createClientRecord(formData)
+      setCreatedClient(newClient)
 
       // Show success state
       setSubmitSuccess(true)
@@ -223,7 +246,7 @@ export function NewClientForm({ onClose, onSubmit, onClientCreated }: NewClientF
         if (onClose) {
           onClose()
         }
-      }, 2000)
+      }, 3000)
     } catch (error) {
       console.error("Error creating client:", error)
       setSubmitError(error instanceof Error ? error.message : "An unexpected error occurred")
@@ -266,7 +289,7 @@ export function NewClientForm({ onClose, onSubmit, onClientCreated }: NewClientF
   const incompleteSections = getIncompleteSections()
 
   // Success state overlay
-  if (submitSuccess) {
+  if (submitSuccess && createdClient) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-8 text-center">
@@ -275,14 +298,23 @@ export function NewClientForm({ onClose, onSubmit, onClientCreated }: NewClientF
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Client Created Successfully!</h2>
           <p className="text-gray-600 mb-4">
-            {formData.personal.firstName} {formData.personal.lastName} has been added to the system.
+            {createdClient.firstName} {createdClient.lastName} has been added to the system and is now available in all
+            reports.
           </p>
           <div className="bg-gray-50 rounded-lg p-3 mb-4">
             <p className="text-sm text-gray-600">
-              Participant ID: <span className="font-mono font-semibold">{generateParticipantId()}</span>
+              Participant ID: <span className="font-mono font-semibold">{createdClient.participantId}</span>
+            </p>
+            <p className="text-sm text-gray-600 mt-1">
+              Program: <span className="font-semibold">{createdClient.program}</span>
             </p>
           </div>
-          <p className="text-sm text-gray-500">Redirecting to dashboard...</p>
+          <div className="bg-blue-50 rounded-lg p-3 mb-4">
+            <p className="text-sm text-blue-800 font-medium">✓ Added to Active Client List</p>
+            <p className="text-sm text-blue-800 font-medium">✓ Available in All Reports</p>
+            <p className="text-sm text-blue-800 font-medium">✓ Ready for Case Management</p>
+          </div>
+          <p className="text-sm text-gray-500">Redirecting to client record...</p>
         </div>
       </div>
     )
@@ -655,6 +687,9 @@ export function NewClientForm({ onClose, onSubmit, onClientCreated }: NewClientF
                         <SelectItem value="Career Development">Career Development</SelectItem>
                         <SelectItem value="Job Readiness">Job Readiness</SelectItem>
                         <SelectItem value="Skills Training">Skills Training</SelectItem>
+                        <SelectItem value="EARN">EARN</SelectItem>
+                        <SelectItem value="Ex-Offender">Ex-Offender</SelectItem>
+                        <SelectItem value="YOUTH">YOUTH</SelectItem>
                       </SelectContent>
                     </Select>
                     {validationErrors.program?.includes("program") && (

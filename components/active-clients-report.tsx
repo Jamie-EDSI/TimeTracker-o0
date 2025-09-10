@@ -556,6 +556,17 @@ export function ActiveClientsReport({ onBack, onViewClient, clients = [] }: Acti
     }
   }
 
+  // Error handling for viewing client
+  const handleViewClientWithErrorHandling = (clientId: string) => {
+    try {
+      console.log("Attempting to view client:", clientId)
+      onViewClient(clientId)
+    } catch (error) {
+      console.error("Error viewing client:", error)
+      alert("Error loading client record. Please try again.")
+    }
+  }
+
   // Breadcrumb logic
   const getBreadcrumbs = () => {
     return [
@@ -1038,7 +1049,7 @@ export function ActiveClientsReport({ onBack, onViewClient, clients = [] }: Acti
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => onViewClient(client.id)}
+                          onClick={() => handleViewClientWithErrorHandling(client.id)}
                           className="hover:bg-blue-50 hover:border-blue-300"
                         >
                           <Eye className="w-4 h-4 mr-1" />
