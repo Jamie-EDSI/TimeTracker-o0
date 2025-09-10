@@ -44,11 +44,44 @@ import {
   Award,
   Calendar,
   Trash2,
+  MapPin,
+  Building,
+  AlertCircle,
 } from "lucide-react"
 
 // Mock notes and activities
 const initialMockClientData = {
   "1": {
+    personalInfo: {
+      firstName: "Brian",
+      lastName: "Allen",
+      middleName: "",
+      dateOfBirth: "1988-04-27",
+      gender: "Male",
+      ethnicity: "Black or African American",
+      race: "Black or African American",
+      veteranStatus: "No",
+      disabilityStatus: "No",
+      ssn: "1293",
+      participantId: "2965142",
+      status: "Active",
+    },
+    contactInfo: {
+      phone: "215-207-4497",
+      email: "brianallen0488@gmail.com",
+      address: "1348 Adair Rd",
+      city: "Brookhaven",
+      state: "Pennsylvania",
+      zipCode: "19015",
+    },
+    programInfo: {
+      program: "Next Step Program",
+      caseManager: "Chester, District - 01",
+      enrollmentDate: "2023-08-27",
+      lastActivity: "2024-01-15",
+      county: "Delaware County",
+      location: "Delaware County 001, PA",
+    },
     activities: [
       {
         id: "a1",
@@ -132,18 +165,105 @@ const initialMockClientData = {
         uploadedDate: "2023-08-25 3:30 PM",
         status: "Active",
       },
+    ],
+  },
+  "3": {
+    personalInfo: {
+      firstName: "Michael",
+      lastName: "Davis",
+      middleName: "",
+      dateOfBirth: "1985-03-12",
+      gender: "Male",
+      ethnicity: "White",
+      race: "White",
+      veteranStatus: "No",
+      disabilityStatus: "No",
+      ssn: "7890",
+      participantId: "2965144",
+      status: "Inactive",
+    },
+    contactInfo: {
+      phone: "484-555-0101",
+      email: "michael.davis@email.com",
+      address: "456 Oak Street",
+      city: "Chester",
+      state: "Pennsylvania",
+      zipCode: "19013",
+    },
+    programInfo: {
+      program: "Job Readiness",
+      caseManager: "Smith, John",
+      enrollmentDate: "2023-01-15",
+      lastActivity: "2024-01-15",
+      county: "Delaware County",
+      location: "Delaware County 002, PA",
+    },
+    activities: [
       {
-        id: "c3",
-        title: "High School Diploma",
-        type: "Education",
-        issuedBy: "Chester High School",
-        issueDate: "2006-06-15",
+        id: "a1",
+        type: "Phone Call",
+        description: "Follow-up call regarding job interview preparation",
+        author: "Smith, John",
+        timestamp: "2024-01-15 10:00 AM",
+        outcome: "Positive",
+      },
+      {
+        id: "a2",
+        type: "In-Person Meeting",
+        description: "Career counseling session - resume review",
+        author: "Smith, John",
+        timestamp: "2024-01-12 2:00 PM",
+        outcome: "Completed",
+      },
+      {
+        id: "a3",
+        type: "Email",
+        description: "Sent job opportunity listings in client's area of interest",
+        author: "Smith, John",
+        timestamp: "2024-01-10 9:30 AM",
+        outcome: "Sent",
+      },
+    ],
+    employment: [
+      {
+        id: "e1",
+        jobTitle: "Warehouse Associate",
+        companyName: "ABC Logistics Inc.",
+        startDate: "2024-01-15",
+        endDate: "",
+        description: "Responsible for inventory management, order fulfillment, and maintaining warehouse organization.",
+        status: "Current",
+        addedBy: "Smith, John",
+        addedDate: "2024-01-15 10:30 AM",
+      },
+    ],
+    credentials: [
+      {
+        id: "c1",
+        title: "Forklift Operator Certification",
+        type: "Safety Certification",
+        issuedBy: "OSHA Training Institute",
+        issueDate: "2023-12-15",
+        expirationDate: "2025-12-15",
+        description: "Certified to operate forklifts in warehouse environments.",
+        fileName: "forklift_cert_michael_davis.pdf",
+        fileSize: "2.1 MB",
+        uploadedBy: "Smith, John",
+        uploadedDate: "2024-01-10 9:15 AM",
+        status: "Active",
+      },
+      {
+        id: "c2",
+        title: "Customer Service Excellence Certificate",
+        type: "Professional Development",
+        issuedBy: "National Retail Federation",
+        issueDate: "2023-08-20",
         expirationDate: "",
-        description: "High school diploma with focus on general studies and vocational training.",
-        fileName: "hs_diploma_scan.pdf",
-        fileSize: "3.1 MB",
-        uploadedBy: "Chester, District - 01",
-        uploadedDate: "2023-08-27 11:00 AM",
+        description: "Customer service training program completion certificate.",
+        fileName: "customer_service_cert.pdf",
+        fileSize: "1.5 MB",
+        uploadedBy: "Smith, John",
+        uploadedDate: "2023-08-25 3:30 PM",
         status: "Active",
       },
     ],
@@ -154,7 +274,7 @@ interface ClientManagementProps {
   onBack: () => void
   clients?: any[]
   onUpdateClients?: (clients: any[]) => void
-  selectedClientId?: string | null // Add this prop
+  selectedClientId?: string | null
 }
 
 export function ClientManagement({ onBack, clients = [], onUpdateClients, selectedClientId }: ClientManagementProps) {
@@ -162,12 +282,18 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
   const [showAddActivity, setShowAddActivity] = useState(false)
+  const [showAddEmployment, setShowAddEmployment] = useState(false)
+  const [showAddCredential, setShowAddCredential] = useState(false)
+  const [clientData, setClientData] = useState(initialMockClientData)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editableClientData, setEditableClientData] = useState<any>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+
   const [newActivity, setNewActivity] = useState({
     type: "Phone Call",
     description: "",
     outcome: "",
   })
-  const [showAddEmployment, setShowAddEmployment] = useState(false)
   const [newEmployment, setNewEmployment] = useState({
     jobTitle: "",
     companyName: "",
@@ -175,7 +301,6 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
     endDate: "",
     description: "",
   })
-  const [showAddCredential, setShowAddCredential] = useState(false)
   const [newCredential, setNewCredential] = useState({
     title: "",
     type: "Professional Certification",
@@ -186,16 +311,13 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
     fileName: "",
     fileSize: "",
   })
-  const [clientData, setClientData] = useState(initialMockClientData)
 
-  // Add this useEffect after the state declarations
   useEffect(() => {
     if (selectedClientId) {
       setSelectedClient(selectedClientId)
     }
   }, [selectedClientId])
 
-  // Replace the mockClients usage with the passed clients data
   const mockClients =
     clients.length > 0
       ? clients
@@ -234,17 +356,16 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
             firstName: "Michael",
             lastName: "Davis",
             ssn: "7890",
-            phone: "610-555-0456",
-            email: "m.davis@email.com",
+            phone: "484-555-0101",
+            email: "michael.davis@email.com",
             program: "Job Readiness",
             status: "Inactive",
-            lastActivity: "2024-01-10",
-            enrollmentDate: "2023-07-20",
-            caseManager: "Johnson, District - 01",
+            lastActivity: "2024-01-15",
+            enrollmentDate: "2023-01-15",
+            caseManager: "Smith, John",
           },
         ]
 
-  // Filter clients based on search and status
   const filteredClients = mockClients.filter((client) => {
     const matchesSearch =
       client.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -268,13 +389,55 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
     }
   }
 
+  const handleEditToggle = () => {
+    if (isEditing) {
+      if (hasUnsavedChanges) {
+        const confirmDiscard = window.confirm("You have unsaved changes. Are you sure you want to discard them?")
+        if (!confirmDiscard) return
+      }
+      setIsEditing(false)
+      setEditableClientData(null)
+      setHasUnsavedChanges(false)
+    } else {
+      setIsEditing(true)
+      setEditableClientData(JSON.parse(JSON.stringify(currentClientData)))
+      setHasUnsavedChanges(false)
+    }
+  }
+
+  const handleSaveChanges = () => {
+    if (selectedClient && editableClientData) {
+      setClientData((prev) => ({
+        ...prev,
+        [selectedClient]: editableClientData,
+      }))
+      setIsEditing(false)
+      setHasUnsavedChanges(false)
+      // In a real app, this would make an API call to save the data
+      console.log("Saving client data:", editableClientData)
+    }
+  }
+
+  const handleFieldChange = (section: string, field: string, value: any) => {
+    if (!editableClientData) return
+
+    setEditableClientData((prev: any) => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value,
+      },
+    }))
+    setHasUnsavedChanges(true)
+  }
+
   const handleAddActivity = () => {
     if (newActivity.description.trim() && selectedClient) {
       const newActivityEntry = {
-        id: `a${Date.now()}`, // Generate unique ID
+        id: `a${Date.now()}`,
         type: newActivity.type,
         description: newActivity.description,
-        author: "Current User", // In real app, get from auth context
+        author: "Current User",
         timestamp: new Date().toLocaleString("en-US", {
           year: "numeric",
           month: "2-digit",
@@ -286,7 +449,6 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
         outcome: newActivity.outcome,
       }
 
-      // Update the client data state
       setClientData((prev) => ({
         ...prev,
         [selectedClient]: {
@@ -295,7 +457,6 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
         },
       }))
 
-      // Reset form and close
       setNewActivity({ type: "Phone Call", description: "", outcome: "" })
       setShowAddActivity(false)
     }
@@ -416,10 +577,17 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
       newIndex = currentIndex < filteredClients.length - 1 ? currentIndex + 1 : 0
     }
 
+    if (hasUnsavedChanges) {
+      const confirmDiscard = window.confirm("You have unsaved changes. Are you sure you want to navigate away?")
+      if (!confirmDiscard) return
+    }
+
     setSelectedClient(filteredClients[newIndex].id)
+    setIsEditing(false)
+    setEditableClientData(null)
+    setHasUnsavedChanges(false)
   }
 
-  // Breadcrumb logic with dropdown options
   const getBreadcrumbs = () => {
     const breadcrumbs = [
       {
@@ -435,7 +603,16 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
       },
       {
         label: "Client Management",
-        onClick: () => setSelectedClient(null),
+        onClick: () => {
+          if (hasUnsavedChanges) {
+            const confirmDiscard = window.confirm("You have unsaved changes. Are you sure you want to navigate away?")
+            if (!confirmDiscard) return
+          }
+          setSelectedClient(null)
+          setIsEditing(false)
+          setEditableClientData(null)
+          setHasUnsavedChanges(false)
+        },
         isActive: !selectedClient,
         dropdownItems: [
           {
@@ -478,7 +655,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
           { label: "Overview", icon: User, action: () => console.log("Client overview") },
           { label: "Activities", icon: Activity, action: () => console.log("Client activities") },
           { label: "Full Profile", icon: FileText, action: () => console.log("Full profile") },
-          { label: "Edit Client", icon: Edit, action: () => console.log("Edit client") },
+          { label: "Edit Client", icon: Edit, action: handleEditToggle },
           { label: "Client History", icon: Clock, action: () => console.log("Client history") },
         ],
       })
@@ -487,7 +664,9 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
     return breadcrumbs
   }
 
-  if (selectedClient && currentClient) {
+  const displayData = isEditing ? editableClientData : currentClientData
+
+  if (selectedClient && currentClient && displayData) {
     return (
       <div className="min-h-screen bg-gray-50">
         {/* Client Record Header */}
@@ -503,50 +682,91 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
           {/* Second row with client info and navigation */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
             <div className="flex items-center gap-4">
-              <Button variant="outline" onClick={() => setSelectedClient(null)}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (hasUnsavedChanges) {
+                    const confirmDiscard = window.confirm(
+                      "You have unsaved changes. Are you sure you want to navigate away?",
+                    )
+                    if (!confirmDiscard) return
+                  }
+                  setSelectedClient(null)
+                  setIsEditing(false)
+                  setEditableClientData(null)
+                  setHasUnsavedChanges(false)
+                }}
+              >
                 <ChevronLeft className="w-4 h-4 mr-2" />
                 Back to Client List
               </Button>
               <div>
                 <div className="flex items-center gap-3">
                   <h2 className="text-2xl font-bold text-gray-900">
-                    {currentClient.firstName} {currentClient.lastName}
+                    {displayData.personalInfo?.firstName} {displayData.personalInfo?.lastName}
                   </h2>
-                  {getStatusBadge(currentClient.status)}
+                  {getStatusBadge(displayData.personalInfo?.status || currentClient.status)}
+                  {hasUnsavedChanges && (
+                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      Unsaved Changes
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-sm text-gray-600">
-                  PID: {currentClient.participantId} | {currentClient.program}
+                  PID: {displayData.personalInfo?.participantId || currentClient.participantId} |{" "}
+                  {displayData.programInfo?.program || currentClient.program}
                 </p>
               </div>
             </div>
 
-            {/* Navigation between clients */}
+            {/* Edit Controls and Navigation */}
             <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateToClient("prev")}
-                className="hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
-              </Button>
-              <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
-                {filteredClients.findIndex((c) => c.id === selectedClient) + 1} of {filteredClients.length}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateToClient("next")}
-                className="hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+              {isEditing ? (
+                <div className="flex items-center gap-2">
+                  <Button onClick={handleSaveChanges} className="bg-green-600 hover:bg-green-700">
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </Button>
+                  <Button variant="outline" onClick={handleEditToggle}>
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="outline" onClick={handleEditToggle}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Client
+                </Button>
+              )}
+
+              <div className="flex items-center gap-2 border-l pl-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigateToClient("prev")}
+                  className="hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </Button>
+                <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                  {filteredClients.findIndex((c) => c.id === selectedClient) + 1} of {filteredClients.length}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigateToClient("next")}
+                  className="hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
 
-          {/* Breadcrumb Navigation with Dropdowns */}
+          {/* Breadcrumb Navigation */}
           <div className="px-6 py-2 bg-gray-50 border-t border-gray-100">
             <nav className="flex items-center space-x-2 text-sm">
               {getBreadcrumbs().map((breadcrumb, index) => (
@@ -624,7 +844,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
             {/* Overview Tab */}
             <TabsContent value="overview" className="mt-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Quick Info */}
+                {/* Quick Information */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -632,27 +852,61 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                       Quick Information
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Status:</span>
-                      {getStatusBadge(currentClient.status)}
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Case Manager:</span>
-                      <span className="text-sm font-medium">{currentClient.caseManager}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Enrollment:</span>
-                      <span className="text-sm">{currentClient.enrollmentDate}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Last Activity:</span>
-                      <span className="text-sm">{currentClient.lastActivity}</span>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Status:</span>
+                        {isEditing ? (
+                          <Select
+                            value={displayData.personalInfo?.status}
+                            onValueChange={(value) => handleFieldChange("personalInfo", "status", value)}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Active">Active</SelectItem>
+                              <SelectItem value="Inactive">Inactive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          getStatusBadge(displayData.personalInfo?.status || currentClient.status)
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Case Manager:</span>
+                        {isEditing ? (
+                          <Input
+                            value={displayData.programInfo?.caseManager || ""}
+                            onChange={(e) => handleFieldChange("programInfo", "caseManager", e.target.value)}
+                            className="w-40 text-sm"
+                          />
+                        ) : (
+                          <span className="text-sm font-medium">{displayData.programInfo?.caseManager}</span>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Enrollment:</span>
+                        {isEditing ? (
+                          <Input
+                            type="date"
+                            value={displayData.programInfo?.enrollmentDate || ""}
+                            onChange={(e) => handleFieldChange("programInfo", "enrollmentDate", e.target.value)}
+                            className="w-40 text-sm"
+                          />
+                        ) : (
+                          <span className="text-sm">{displayData.programInfo?.enrollmentDate}</span>
+                        )}
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Last Activity:</span>
+                        <span className="text-sm">{displayData.programInfo?.lastActivity}</span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Contact Info */}
+                {/* Contact Information */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -660,14 +914,78 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                       Contact Information
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm">{currentClient.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm">{currentClient.email}</span>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-gray-400" />
+                        {isEditing ? (
+                          <Input
+                            value={displayData.contactInfo?.phone || ""}
+                            onChange={(e) => handleFieldChange("contactInfo", "phone", e.target.value)}
+                            placeholder="Phone number"
+                            className="text-sm"
+                          />
+                        ) : (
+                          <span className="text-sm">{displayData.contactInfo?.phone}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-gray-400" />
+                        {isEditing ? (
+                          <Input
+                            type="email"
+                            value={displayData.contactInfo?.email || ""}
+                            onChange={(e) => handleFieldChange("contactInfo", "email", e.target.value)}
+                            placeholder="Email address"
+                            className="text-sm"
+                          />
+                        ) : (
+                          <span className="text-sm">{displayData.contactInfo?.email}</span>
+                        )}
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                        <div className="flex-1">
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              <Input
+                                value={displayData.contactInfo?.address || ""}
+                                onChange={(e) => handleFieldChange("contactInfo", "address", e.target.value)}
+                                placeholder="Street address"
+                                className="text-sm"
+                              />
+                              <div className="grid grid-cols-3 gap-2">
+                                <Input
+                                  value={displayData.contactInfo?.city || ""}
+                                  onChange={(e) => handleFieldChange("contactInfo", "city", e.target.value)}
+                                  placeholder="City"
+                                  className="text-sm"
+                                />
+                                <Input
+                                  value={displayData.contactInfo?.state || ""}
+                                  onChange={(e) => handleFieldChange("contactInfo", "state", e.target.value)}
+                                  placeholder="State"
+                                  className="text-sm"
+                                />
+                                <Input
+                                  value={displayData.contactInfo?.zipCode || ""}
+                                  onChange={(e) => handleFieldChange("contactInfo", "zipCode", e.target.value)}
+                                  placeholder="ZIP"
+                                  className="text-sm"
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-sm">
+                              <div>{displayData.contactInfo?.address}</div>
+                              <div>
+                                {displayData.contactInfo?.city}, {displayData.contactInfo?.state}{" "}
+                                {displayData.contactInfo?.zipCode}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -681,7 +999,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {currentClientData?.activities?.slice(0, 3).map((activity) => (
+                    {displayData.activities?.slice(0, 3).map((activity: any) => (
                       <div key={activity.id} className="mb-3 last:mb-0">
                         <div className="flex items-center gap-2 mb-1">
                           <Badge variant="outline" className="text-xs">
@@ -695,21 +1013,21 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                   </CardContent>
                 </Card>
 
-                {/* Employment Summary */}
+                {/* Current Employment */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <FileText className="w-5 h-5" />
+                      <Building className="w-5 h-5" />
                       Current Employment
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {currentClientData?.employment?.find((emp) => emp.status === "Current") ? (
+                    {displayData.employment?.find((emp: any) => emp.status === "Current") ? (
                       <div className="space-y-2">
-                        {currentClientData.employment
-                          .filter((emp) => emp.status === "Current")
+                        {displayData.employment
+                          .filter((emp: any) => emp.status === "Current")
                           .slice(0, 1)
-                          .map((employment) => (
+                          .map((employment: any) => (
                             <div key={employment.id}>
                               <p className="font-medium text-gray-900">{employment.jobTitle}</p>
                               <p className="text-sm text-blue-600">{employment.companyName}</p>
@@ -723,7 +1041,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                   </CardContent>
                 </Card>
 
-                {/* Credentials Summary */}
+                {/* Recent Credentials */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -732,17 +1050,17 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {currentClientData?.credentials?.length > 0 ? (
+                    {displayData.credentials?.length > 0 ? (
                       <div className="space-y-2">
-                        {currentClientData.credentials.slice(0, 2).map((credential) => (
+                        {displayData.credentials.slice(0, 2).map((credential: any) => (
                           <div key={credential.id}>
                             <p className="font-medium text-gray-900 text-sm">{credential.title}</p>
                             <p className="text-xs text-blue-600">{credential.issuedBy}</p>
                             <p className="text-xs text-gray-500">{credential.issueDate}</p>
                           </div>
                         ))}
-                        {currentClientData.credentials.length > 2 && (
-                          <p className="text-xs text-gray-500">+{currentClientData.credentials.length - 2} more</p>
+                        {displayData.credentials.length > 2 && (
+                          <p className="text-xs text-gray-500">+{displayData.credentials.length - 2} more</p>
                         )}
                       </div>
                     ) : (
@@ -842,7 +1160,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
 
                 {/* Activities List */}
                 <div className="space-y-4">
-                  {currentClientData?.activities?.map((activity) => (
+                  {displayData.activities?.map((activity: any) => (
                     <Card key={activity.id}>
                       <CardContent className="pt-4">
                         <div className="flex items-center justify-between mb-2">
@@ -952,8 +1270,8 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
 
                 {/* Employment List */}
                 <div className="space-y-4">
-                  {currentClientData?.employment?.length > 0 ? (
-                    currentClientData.employment.map((employment) => (
+                  {displayData.employment?.length > 0 ? (
+                    displayData.employment.map((employment: any) => (
                       <Card key={employment.id}>
                         <CardContent className="pt-4">
                           <div className="flex items-center justify-between mb-3">
@@ -1149,8 +1467,8 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
 
                 {/* Credentials List */}
                 <div className="space-y-4">
-                  {currentClientData?.credentials?.length > 0 ? (
-                    currentClientData.credentials.map((credential) => (
+                  {displayData.credentials?.length > 0 ? (
+                    displayData.credentials.map((credential: any) => (
                       <Card key={credential.id}>
                         <CardContent className="pt-4">
                           <div className="flex items-start justify-between mb-3">
@@ -1249,21 +1567,251 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
 
             {/* Full Profile Tab */}
             <TabsContent value="profile" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Complete Client Profile</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600">
-                    This would show the complete client profile similar to what we built earlier, with all personal
-                    information, program details, contact information, etc.
-                  </p>
-                  <Button className="mt-4 bg-transparent" variant="outline">
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit Profile
-                  </Button>
-                </CardContent>
-              </Card>
+              <div className="space-y-6">
+                {/* Personal Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="w-5 h-5" />
+                      Personal Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium">First Name</Label>
+                        {isEditing ? (
+                          <Input
+                            value={displayData.personalInfo?.firstName || ""}
+                            onChange={(e) => handleFieldChange("personalInfo", "firstName", e.target.value)}
+                            className="mt-1"
+                          />
+                        ) : (
+                          <p className="text-sm mt-1">{displayData.personalInfo?.firstName}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Middle Name</Label>
+                        {isEditing ? (
+                          <Input
+                            value={displayData.personalInfo?.middleName || ""}
+                            onChange={(e) => handleFieldChange("personalInfo", "middleName", e.target.value)}
+                            className="mt-1"
+                          />
+                        ) : (
+                          <p className="text-sm mt-1">{displayData.personalInfo?.middleName || "N/A"}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Last Name</Label>
+                        {isEditing ? (
+                          <Input
+                            value={displayData.personalInfo?.lastName || ""}
+                            onChange={(e) => handleFieldChange("personalInfo", "lastName", e.target.value)}
+                            className="mt-1"
+                          />
+                        ) : (
+                          <p className="text-sm mt-1">{displayData.personalInfo?.lastName}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Date of Birth</Label>
+                        {isEditing ? (
+                          <Input
+                            type="date"
+                            value={displayData.personalInfo?.dateOfBirth || ""}
+                            onChange={(e) => handleFieldChange("personalInfo", "dateOfBirth", e.target.value)}
+                            className="mt-1"
+                          />
+                        ) : (
+                          <p className="text-sm mt-1">{displayData.personalInfo?.dateOfBirth}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Gender</Label>
+                        {isEditing ? (
+                          <Select
+                            value={displayData.personalInfo?.gender || ""}
+                            onChange={(e) => handleFieldChange("personalInfo", "gender", value)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select gender" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Male">Male</SelectItem>
+                              <SelectItem value="Female">Female</SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                              <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-sm mt-1">{displayData.personalInfo?.gender}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">SSN (Last 4)</Label>
+                        {isEditing ? (
+                          <Input
+                            value={displayData.personalInfo?.ssn || ""}
+                            onChange={(e) => handleFieldChange("personalInfo", "ssn", e.target.value)}
+                            className="mt-1"
+                            maxLength={4}
+                          />
+                        ) : (
+                          <p className="text-sm mt-1">{displayData.personalInfo?.ssn}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Participant ID</Label>
+                        <p className="text-sm mt-1">{displayData.personalInfo?.participantId}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Ethnicity</Label>
+                        {isEditing ? (
+                          <Select
+                            value={displayData.personalInfo?.ethnicity || ""}
+                            onChange={(e) => handleFieldChange("personalInfo", "ethnicity", value)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select ethnicity" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Hispanic or Latino">Hispanic or Latino</SelectItem>
+                              <SelectItem value="Not Hispanic or Latino">Not Hispanic or Latino</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-sm mt-1">{displayData.personalInfo?.ethnicity}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Race</Label>
+                        {isEditing ? (
+                          <Select
+                            value={displayData.personalInfo?.race || ""}
+                            onChange={(e) => handleFieldChange("personalInfo", "race", value)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select race" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="American Indian or Alaska Native">
+                                American Indian or Alaska Native
+                              </SelectItem>
+                              <SelectItem value="Asian">Asian</SelectItem>
+                              <SelectItem value="Black or African American">Black or African American</SelectItem>
+                              <SelectItem value="Native Hawaiian or Other Pacific Islander">
+                                Native Hawaiian or Other Pacific Islander
+                              </SelectItem>
+                              <SelectItem value="White">White</SelectItem>
+                              <SelectItem value="Two or More Races">Two or More Races</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-sm mt-1">{displayData.personalInfo?.race}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Veteran Status</Label>
+                        {isEditing ? (
+                          <Select
+                            value={displayData.personalInfo?.veteranStatus || ""}
+                            onChange={(e) => handleFieldChange("personalInfo", "veteranStatus", value)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Yes">Yes</SelectItem>
+                              <SelectItem value="No">No</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-sm mt-1">{displayData.personalInfo?.veteranStatus}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Disability Status</Label>
+                        {isEditing ? (
+                          <Select
+                            value={displayData.personalInfo?.disabilityStatus || ""}
+                            onChange={(e) => handleFieldChange("personalInfo", "disabilityStatus", value)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Yes">Yes</SelectItem>
+                              <SelectItem value="No">No</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-sm mt-1">{displayData.personalInfo?.disabilityStatus}</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Program Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      Program Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium">Program</Label>
+                        {isEditing ? (
+                          <Select
+                            value={displayData.programInfo?.program || ""}
+                            onChange={(e) => handleFieldChange("programInfo", "program", value)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select program" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Next Step Program">Next Step Program</SelectItem>
+                              <SelectItem value="Career Development">Career Development</SelectItem>
+                              <SelectItem value="Job Readiness">Job Readiness</SelectItem>
+                              <SelectItem value="Skills Training">Skills Training</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-sm mt-1">{displayData.programInfo?.program}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">County</Label>
+                        {isEditing ? (
+                          <Input
+                            value={displayData.programInfo?.county || ""}
+                            onChange={(e) => handleFieldChange("programInfo", "county", e.target.value)}
+                            className="mt-1"
+                          />
+                        ) : (
+                          <p className="text-sm mt-1">{displayData.programInfo?.county}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Location</Label>
+                        {isEditing ? (
+                          <Input
+                            value={displayData.programInfo?.location || ""}
+                            onChange={(e) => handleFieldChange("programInfo", "location", e.target.value)}
+                            className="mt-1"
+                          />
+                        ) : (
+                          <p className="text-sm mt-1">{displayData.programInfo?.location}</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
           </Tabs>
         </div>
