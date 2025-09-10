@@ -47,6 +47,7 @@ import {
   MapPin,
   Building,
   AlertCircle,
+  Loader2,
 } from "lucide-react"
 
 // Mock notes and activities
@@ -163,6 +164,77 @@ const initialMockClientData = {
         fileSize: "1.8 MB",
         uploadedBy: "Chester, District - 01",
         uploadedDate: "2023-08-25 3:30 PM",
+        status: "Active",
+      },
+    ],
+  },
+  "2": {
+    personalInfo: {
+      firstName: "Sarah",
+      lastName: "Johnson",
+      middleName: "",
+      dateOfBirth: "1990-07-15",
+      gender: "Female",
+      ethnicity: "White",
+      race: "White",
+      veteranStatus: "No",
+      disabilityStatus: "No",
+      ssn: "4567",
+      participantId: "2965143",
+      status: "Active",
+    },
+    contactInfo: {
+      phone: "484-555-0123",
+      email: "sarah.johnson@email.com",
+      address: "789 Pine Street",
+      city: "Chester",
+      state: "Pennsylvania",
+      zipCode: "19013",
+    },
+    programInfo: {
+      program: "Career Development",
+      caseManager: "Smith, District - 02",
+      enrollmentDate: "2023-09-15",
+      lastActivity: "2024-01-14",
+      county: "Delaware County",
+      location: "Delaware County 002, PA",
+    },
+    activities: [
+      {
+        id: "a1",
+        type: "Phone Call",
+        description: "Career assessment and goal setting discussion",
+        author: "Smith, District - 02",
+        timestamp: "2024-01-14 11:00 AM",
+        outcome: "Positive",
+      },
+    ],
+    employment: [
+      {
+        id: "e1",
+        jobTitle: "Administrative Assistant",
+        companyName: "Local Government Office",
+        startDate: "2024-01-10",
+        endDate: "",
+        description: "Administrative support and customer service duties",
+        status: "Current",
+        addedBy: "Smith, District - 02",
+        addedDate: "2024-01-10 2:30 PM",
+      },
+    ],
+    credentials: [
+      {
+        id: "c1",
+        title: "Microsoft Office Specialist",
+        type: "Professional Certification",
+        issuedBy: "Microsoft",
+        issueDate: "2023-11-20",
+        expirationDate: "",
+        description: "Certified in Microsoft Office Suite including Word, Excel, and PowerPoint",
+        fileName: "ms_office_cert.pdf",
+        fileSize: "1.2 MB",
+        uploadedBy: "Smith, District - 02",
+        uploadedDate: "2023-11-25 4:00 PM",
         status: "Active",
       },
     ],
@@ -288,6 +360,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
   const [isEditing, setIsEditing] = useState(false)
   const [editableClientData, setEditableClientData] = useState<any>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false)
 
   const [newActivity, setNewActivity] = useState({
     type: "Phone Call",
@@ -565,7 +638,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
     }
   }
 
-  const navigateToClient = (direction: "prev" | "next") => {
+  const navigateToClient = async (direction: "prev" | "next") => {
     if (!selectedClient) return
 
     const currentIndex = filteredClients.findIndex((c) => c.id === selectedClient)
@@ -582,10 +655,20 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
       if (!confirmDiscard) return
     }
 
-    setSelectedClient(filteredClients[newIndex].id)
+    // Show loading state
+    setIsNavigating(true)
+
+    // Simulate loading time for smooth transition
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    const newClientId = filteredClients[newIndex].id
+    setSelectedClient(newClientId)
     setIsEditing(false)
     setEditableClientData(null)
     setHasUnsavedChanges(false)
+
+    // Hide loading state
+    setIsNavigating(false)
   }
 
   const getBreadcrumbs = () => {
@@ -712,6 +795,12 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                       Unsaved Changes
                     </Badge>
                   )}
+                  {isNavigating && (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Loading...
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-sm text-gray-600">
                   PID: {displayData.personalInfo?.participantId || currentClient.participantId} |{" "}
@@ -734,7 +823,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                   </Button>
                 </div>
               ) : (
-                <Button variant="outline" onClick={handleEditToggle}>
+                <Button variant="outline" onClick={handleEditToggle} disabled={isNavigating}>
                   <Edit className="w-4 h-4 mr-2" />
                   Edit Client
                 </Button>
@@ -745,9 +834,10 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                   variant="outline"
                   size="sm"
                   onClick={() => navigateToClient("prev")}
+                  disabled={isNavigating}
                   className="hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  {isNavigating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronLeft className="w-4 h-4" />}
                   Previous
                 </Button>
                 <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
@@ -757,10 +847,11 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                   variant="outline"
                   size="sm"
                   onClick={() => navigateToClient("next")}
+                  disabled={isNavigating}
                   className="hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
                 >
                   Next
-                  <ChevronRight className="w-4 h-4" />
+                  {isNavigating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
                 </Button>
               </div>
             </div>
@@ -1632,7 +1723,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                         {isEditing ? (
                           <Select
                             value={displayData.personalInfo?.gender || ""}
-                            onChange={(e) => handleFieldChange("personalInfo", "gender", value)}
+                            onValueChange={(value) => handleFieldChange("personalInfo", "gender", value)}
                           >
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="Select gender" />
@@ -1670,7 +1761,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                         {isEditing ? (
                           <Select
                             value={displayData.personalInfo?.ethnicity || ""}
-                            onChange={(e) => handleFieldChange("personalInfo", "ethnicity", value)}
+                            onValueChange={(value) => handleFieldChange("personalInfo", "ethnicity", value)}
                           >
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="Select ethnicity" />
@@ -1689,7 +1780,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                         {isEditing ? (
                           <Select
                             value={displayData.personalInfo?.race || ""}
-                            onChange={(e) => handleFieldChange("personalInfo", "race", value)}
+                            onValueChange={(value) => handleFieldChange("personalInfo", "race", value)}
                           >
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="Select race" />
@@ -1716,7 +1807,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                         {isEditing ? (
                           <Select
                             value={displayData.personalInfo?.veteranStatus || ""}
-                            onChange={(e) => handleFieldChange("personalInfo", "veteranStatus", value)}
+                            onValueChange={(value) => handleFieldChange("personalInfo", "veteranStatus", value)}
                           >
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="Select status" />
@@ -1735,7 +1826,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                         {isEditing ? (
                           <Select
                             value={displayData.personalInfo?.disabilityStatus || ""}
-                            onChange={(e) => handleFieldChange("personalInfo", "disabilityStatus", value)}
+                            onValueChange={(value) => handleFieldChange("personalInfo", "disabilityStatus", value)}
                           >
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="Select status" />
@@ -1768,7 +1859,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                         {isEditing ? (
                           <Select
                             value={displayData.programInfo?.program || ""}
-                            onChange={(e) => handleFieldChange("programInfo", "program", value)}
+                            onValueChange={(value) => handleFieldChange("programInfo", "program", value)}
                           >
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="Select program" />
