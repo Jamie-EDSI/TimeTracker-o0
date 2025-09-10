@@ -28,6 +28,7 @@ import {
   Activity,
   Calendar,
   CheckCircle,
+  TrendingUp,
 } from "lucide-react"
 import { NewClientForm } from "./new-client-form"
 import { ClientManagement } from "./client-management"
@@ -228,6 +229,14 @@ export function Dashboard() {
     clearSearch()
   }
 
+  const getStatusBadge = (status: string) => {
+    if (status === "Active") {
+      return <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">Active</Badge>
+    } else {
+      return <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100">Inactive</Badge>
+    }
+  }
+
   if (currentView === "newClient") {
     return <NewClientForm onBack={handleBackToDashboard} />
   }
@@ -372,68 +381,129 @@ export function Dashboard() {
       {/* Main Content */}
       <div className="p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Report Cards with matching colors */}
+          {/* Left Column - Report Cards with matching colors and Quick Stats */}
           <div className="space-y-4">
-            {/* Active Clients Report - Blue to match Quick Reports */}
+            {/* Statistics Cards - Smaller */}
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="bg-blue-50 border-l-4 border-l-blue-500">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xl font-bold text-blue-600">89</p>
+                      <p className="text-xs text-blue-600">Active Today</p>
+                    </div>
+                    <Clock className="h-6 w-6 text-blue-600" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-orange-50 border-l-4 border-l-orange-500">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xl font-bold text-orange-600">43</p>
+                      <p className="text-xs text-orange-600">Pending Actions</p>
+                    </div>
+                    <FileText className="h-6 w-6 text-orange-600" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Active Clients Report - Smaller */}
             <Card className="border-l-4 border-l-blue-500 bg-blue-50 hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-blue-600 text-base">
+                <CardTitle className="flex items-center gap-2 text-blue-600 text-sm">
                   <Users className="w-4 h-4" />
-                  Active Clients Report
+                  Active Client Report
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-blue-600 mb-2 text-sm">View comprehensive client data</p>
+                <p className="text-blue-600 mb-2 text-xs">Comprehensive overview of all currently active clients</p>
                 <Button
                   onClick={() => setCurrentView("activeClientsReport")}
                   variant="outline"
                   size="sm"
-                  className="w-full border-blue-300 text-blue-600 hover:bg-blue-100"
+                  className="w-full border-blue-300 text-blue-600 hover:bg-blue-100 text-xs py-1"
                 >
                   View Report →
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Call Log Report - Green to match Quick Reports */}
+            {/* Call Log Report - Smaller */}
             <Card className="border-l-4 border-l-green-500 bg-green-50 hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-green-600 text-base">
+                <CardTitle className="flex items-center gap-2 text-green-600 text-sm">
                   <Phone className="w-4 h-4" />
                   Call Log Report
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-green-600 mb-2 text-sm">Recent case notes and communications</p>
+                <p className="text-green-600 mb-2 text-xs">Recent case notes and communications</p>
                 <Button
                   onClick={() => setCurrentView("callLogReport")}
                   variant="outline"
                   size="sm"
-                  className="w-full border-green-300 text-green-600 hover:bg-green-100"
+                  className="w-full border-green-300 text-green-600 hover:bg-green-100 text-xs py-1"
                 >
                   View Report →
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Jobs/Placements Report - Purple to match Quick Reports */}
+            {/* Jobs/Placements Report - Smaller */}
             <Card className="border-l-4 border-l-purple-500 bg-purple-50 hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-purple-600 text-base">
+                <CardTitle className="flex items-center gap-2 text-purple-600 text-sm">
                   <Briefcase className="w-4 h-4" />
                   Jobs/Placements Report
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-purple-600 mb-2 text-sm">Employment placements and EVF tracking</p>
+                <p className="text-purple-600 mb-2 text-xs">Employment placements and EVF tracking</p>
                 <Button
                   onClick={() => setCurrentView("jobsPlacementsReport")}
                   variant="outline"
                   size="sm"
-                  className="w-full border-purple-300 text-purple-600 hover:bg-purple-100"
+                  className="w-full border-purple-300 text-purple-600 hover:bg-purple-100 text-xs py-1"
                 >
                   View Report →
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Quick Stats Card - New */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <TrendingUp className="w-4 h-4" />
+                  Quick Stats
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Total Clients</span>
+                    <Badge variant="secondary" className="text-xs">
+                      247
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Active Programs</span>
+                    <Badge variant="secondary" className="text-xs">
+                      12
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">This Month</span>
+                    <Badge className="bg-green-100 text-green-800 text-xs">+23</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Placements</span>
+                    <Badge className="bg-blue-100 text-blue-800 text-xs">156</Badge>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -534,28 +604,24 @@ export function Dashboard() {
                     <p className="text-sm text-gray-600">Found {searchResults.length} client(s)</p>
                     {searchResults.length > 0 ? (
                       <div className="space-y-3">
-                        <div className="grid grid-cols-5 gap-2 text-xs font-medium text-gray-500 border-b pb-2">
+                        <div className="grid grid-cols-6 gap-2 text-xs font-medium text-gray-500 border-b pb-2">
                           <div>Name</div>
+                          <div>Status</div>
                           <div>PID</div>
                           <div>Program</div>
-                          <div>Status</div>
                           <div>Actions</div>
                         </div>
                         {searchResults.map((client) => (
-                          <div key={client.id} className="grid grid-cols-5 gap-2 text-sm items-center py-2 border-b">
+                          <div key={client.id} className="grid grid-cols-6 gap-2 text-sm items-center py-2 border-b">
                             <button
                               onClick={() => handleViewClient(client.id)}
                               className="text-left text-blue-600 hover:text-blue-800 hover:underline font-medium"
                             >
                               {client.lastName}, {client.firstName}
                             </button>
+                            <div>{getStatusBadge(client.status)}</div>
                             <div>{client.participantId}</div>
                             <div>{client.program}</div>
-                            <div>
-                              <Badge variant={client.status === "Active" ? "default" : "secondary"}>
-                                {client.status}
-                              </Badge>
-                            </div>
                             <Button
                               size="sm"
                               variant="outline"

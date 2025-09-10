@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AlertTriangle, User, FileText, Clock, Phone, MapPin, History, Edit, Trash2, Save, Search } from "lucide-react"
 
@@ -33,6 +34,7 @@ const clientData = {
     driversLicense: "No",
     housingIssue: "None",
     passedDrugTest: "N/A",
+    status: "Active", // Added status field
   },
   programInfo: {
     daysEnrolled: "338",
@@ -108,6 +110,25 @@ const clientData = {
 export function ClientProfile() {
   const [isEditing, setIsEditing] = useState(false)
   const [activeTab, setActiveTab] = useState("client")
+  const [editableData, setEditableData] = useState(clientData)
+
+  const getStatusBadge = (status: string) => {
+    if (status === "Active") {
+      return <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">Active</Badge>
+    } else {
+      return <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100">Inactive</Badge>
+    }
+  }
+
+  const handleStatusChange = (newStatus: string) => {
+    setEditableData((prev) => ({
+      ...prev,
+      personalInfo: {
+        ...prev.personalInfo,
+        status: newStatus,
+      },
+    }))
+  }
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
@@ -115,8 +136,9 @@ export function ClientProfile() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <h1 className="text-3xl font-bold text-gray-900">
-            {clientData.personalInfo.firstName} {clientData.personalInfo.lastName}
+            {editableData.personalInfo.firstName} {editableData.personalInfo.lastName}
           </h1>
+          <div className="flex items-center gap-2">{getStatusBadge(editableData.personalInfo.status)}</div>
           <Button variant="outline" size="sm">
             <Search className="w-4 h-4 mr-2" />
             Find another client
@@ -180,57 +202,79 @@ export function ClientProfile() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium">Participant ID:</Label>
-                    <p className="text-sm">{clientData.personalInfo.participantId}</p>
+                    <p className="text-sm">{editableData.personalInfo.participantId}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">SSN (Last 4):</Label>
-                    <p className="text-sm">{clientData.personalInfo.ssn}</p>
+                    <p className="text-sm">{editableData.personalInfo.ssn}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">First Name:</Label>
                     {isEditing ? (
-                      <Input defaultValue={clientData.personalInfo.firstName} />
+                      <Input defaultValue={editableData.personalInfo.firstName} />
                     ) : (
-                      <p className="text-sm">{clientData.personalInfo.firstName}</p>
+                      <p className="text-sm">{editableData.personalInfo.firstName}</p>
                     )}
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Last Name:</Label>
                     {isEditing ? (
-                      <Input defaultValue={clientData.personalInfo.lastName} />
+                      <Input defaultValue={editableData.personalInfo.lastName} />
                     ) : (
-                      <p className="text-sm">{clientData.personalInfo.lastName}</p>
+                      <p className="text-sm">{editableData.personalInfo.lastName}</p>
                     )}
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Date of Birth:</Label>
-                    <p className="text-sm">{clientData.personalInfo.dateOfBirth}</p>
+                    <p className="text-sm">{editableData.personalInfo.dateOfBirth}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Gender:</Label>
-                    <p className="text-sm">{clientData.personalInfo.gender}</p>
+                    <p className="text-sm">{editableData.personalInfo.gender}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Status:</Label>
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <Select value={editableData.personalInfo.status} onValueChange={handleStatusChange}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Active">Active</SelectItem>
+                            <SelectItem value="Inactive">Inactive</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-600">Preview:</span>
+                          {getStatusBadge(editableData.personalInfo.status)}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center">{getStatusBadge(editableData.personalInfo.status)}</div>
+                    )}
                   </div>
                   <div className="col-span-2">
                     <Label className="text-sm font-medium">Ethnicity:</Label>
-                    <p className="text-sm">{clientData.personalInfo.ethnicity}</p>
+                    <p className="text-sm">{editableData.personalInfo.ethnicity}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Education:</Label>
-                    <p className="text-sm">{clientData.personalInfo.education}</p>
+                    <p className="text-sm">{editableData.personalInfo.education}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Criminal Record:</Label>
                     <Badge variant="destructive" className="text-xs">
-                      {clientData.personalInfo.criminalRecord}
+                      {editableData.personalInfo.criminalRecord}
                     </Badge>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Case Manager:</Label>
-                    <p className="text-sm">{clientData.personalInfo.caseManager}</p>
+                    <p className="text-sm">{editableData.personalInfo.caseManager}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Driver's License:</Label>
-                    <p className="text-sm">{clientData.personalInfo.driversLicense}</p>
+                    <p className="text-sm">{editableData.personalInfo.driversLicense}</p>
                   </div>
                 </div>
               </CardContent>
@@ -248,51 +292,51 @@ export function ClientProfile() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium"># Days Enrolled:</Label>
-                    <p className="text-sm font-semibold">{clientData.programInfo.daysEnrolled}</p>
+                    <p className="text-sm font-semibold">{editableData.programInfo.daysEnrolled}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Currently Clocked In?:</Label>
-                    <Badge variant="secondary">{clientData.programInfo.currentlyClockedIn}</Badge>
+                    <Badge variant="secondary">{editableData.programInfo.currentlyClockedIn}</Badge>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Enrollment Date:</Label>
-                    <p className="text-sm">{clientData.programInfo.enrollmentDate}</p>
+                    <p className="text-sm">{editableData.programInfo.enrollmentDate}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">County:</Label>
-                    <p className="text-sm">{clientData.programInfo.county}</p>
+                    <p className="text-sm">{editableData.programInfo.county}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Program:</Label>
-                    <p className="text-sm font-semibold">{clientData.programInfo.program}</p>
+                    <p className="text-sm font-semibold">{editableData.programInfo.program}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Location:</Label>
-                    <p className="text-sm">{clientData.programInfo.location}</p>
+                    <p className="text-sm">{editableData.programInfo.location}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Responsible EC:</Label>
-                    <p className="text-sm">{clientData.programInfo.responsibleEC}</p>
+                    <p className="text-sm">{editableData.programInfo.responsibleEC}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Instructor:</Label>
-                    <p className="text-sm">{clientData.programInfo.instructor}</p>
+                    <p className="text-sm">{editableData.programInfo.instructor}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">TANF Days Used:</Label>
-                    <p className="text-sm">{clientData.programInfo.tanfDaysUsed}</p>
+                    <p className="text-sm">{editableData.programInfo.tanfDaysUsed}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium"># of Required Hours:</Label>
-                    <p className="text-sm">{clientData.programInfo.requiredHours}</p>
+                    <p className="text-sm">{editableData.programInfo.requiredHours}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Termination Date:</Label>
-                    <p className="text-sm">{clientData.programInfo.terminationDate}</p>
+                    <p className="text-sm">{editableData.programInfo.terminationDate}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Retention Met:</Label>
-                    <Badge variant="outline">{clientData.programInfo.retentionMet}</Badge>
+                    <Badge variant="outline">{editableData.programInfo.retentionMet}</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -311,38 +355,38 @@ export function ClientProfile() {
                   <div>
                     <Label className="text-sm font-medium">Address Line 1:</Label>
                     {isEditing ? (
-                      <Input defaultValue={clientData.contactInfo.addressLine1} />
+                      <Input defaultValue={editableData.contactInfo.addressLine1} />
                     ) : (
-                      <p className="text-sm">{clientData.contactInfo.addressLine1}</p>
+                      <p className="text-sm">{editableData.contactInfo.addressLine1}</p>
                     )}
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <Label className="text-sm font-medium">City:</Label>
-                      <p className="text-sm">{clientData.contactInfo.city}</p>
+                      <p className="text-sm">{editableData.contactInfo.city}</p>
                     </div>
                     <div>
                       <Label className="text-sm font-medium">State:</Label>
-                      <p className="text-sm">{clientData.contactInfo.state}</p>
+                      <p className="text-sm">{editableData.contactInfo.state}</p>
                     </div>
                     <div>
                       <Label className="text-sm font-medium">Zip:</Label>
-                      <p className="text-sm">{clientData.contactInfo.zip}</p>
+                      <p className="text-sm">{editableData.contactInfo.zip}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm font-medium">Home Phone:</Label>
-                      <p className="text-sm">{clientData.contactInfo.homePhone}</p>
+                      <p className="text-sm">{editableData.contactInfo.homePhone}</p>
                     </div>
                     <div>
                       <Label className="text-sm font-medium">Cell Phone:</Label>
-                      <p className="text-sm">{clientData.contactInfo.cellPhone}</p>
+                      <p className="text-sm">{editableData.contactInfo.cellPhone}</p>
                     </div>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Email:</Label>
-                    <p className="text-sm">{clientData.contactInfo.email}</p>
+                    <p className="text-sm">{editableData.contactInfo.email}</p>
                   </div>
                 </div>
               </CardContent>
@@ -360,15 +404,15 @@ export function ClientProfile() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium">First Name:</Label>
-                    <p className="text-sm">{clientData.emergencyContact.firstName}</p>
+                    <p className="text-sm">{editableData.emergencyContact.firstName}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Last Name:</Label>
-                    <p className="text-sm">{clientData.emergencyContact.lastName}</p>
+                    <p className="text-sm">{editableData.emergencyContact.lastName}</p>
                   </div>
                   <div className="col-span-2">
                     <Label className="text-sm font-medium">Phone:</Label>
-                    <p className="text-sm">{clientData.emergencyContact.phone}</p>
+                    <p className="text-sm">{editableData.emergencyContact.phone}</p>
                   </div>
                 </div>
               </CardContent>
@@ -394,7 +438,7 @@ export function ClientProfile() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {clientData.history.map((entry, index) => (
+                  {editableData.history.map((entry, index) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium">{entry.startDate}</TableCell>
                       <TableCell>{entry.endDate}</TableCell>
@@ -419,11 +463,11 @@ export function ClientProfile() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Created:</Label>
-                  <p className="text-sm">{clientData.auditInfo.created}</p>
+                  <p className="text-sm">{editableData.auditInfo.created}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Last Updated:</Label>
-                  <p className="text-sm">{clientData.auditInfo.lastUpdated}</p>
+                  <p className="text-sm">{editableData.auditInfo.lastUpdated}</p>
                 </div>
               </div>
             </CardContent>

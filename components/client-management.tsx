@@ -260,6 +260,14 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
   const currentClient = selectedClient ? mockClients.find((c) => c.id === selectedClient) : null
   const currentClientData = selectedClient ? clientData[selectedClient as keyof typeof clientData] : null
 
+  const getStatusBadge = (status: string) => {
+    if (status === "Active") {
+      return <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">Active</Badge>
+    } else {
+      return <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100">Inactive</Badge>
+    }
+  }
+
   const handleAddActivity = () => {
     if (newActivity.description.trim() && selectedClient) {
       const newActivityEntry = {
@@ -500,9 +508,12 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                 Back to Client List
               </Button>
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {currentClient.firstName} {currentClient.lastName}
-                </h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {currentClient.firstName} {currentClient.lastName}
+                  </h2>
+                  {getStatusBadge(currentClient.status)}
+                </div>
                 <p className="text-sm text-gray-600">
                   PID: {currentClient.participantId} | {currentClient.program}
                 </p>
@@ -624,9 +635,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                   <CardContent className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Status:</span>
-                      <Badge variant={currentClient.status === "Active" ? "default" : "secondary"}>
-                        {currentClient.status}
-                      </Badge>
+                      {getStatusBadge(currentClient.status)}
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Case Manager:</span>
@@ -672,7 +681,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {currentClientData?.activities.slice(0, 3).map((activity) => (
+                    {currentClientData?.activities?.slice(0, 3).map((activity) => (
                       <div key={activity.id} className="mb-3 last:mb-0">
                         <div className="flex items-center gap-2 mb-1">
                           <Badge variant="outline" className="text-xs">
@@ -833,7 +842,7 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
 
                 {/* Activities List */}
                 <div className="space-y-4">
-                  {currentClientData?.activities.map((activity) => (
+                  {currentClientData?.activities?.map((activity) => (
                     <Card key={activity.id}>
                       <CardContent className="pt-4">
                         <div className="flex items-center justify-between mb-2">
@@ -1392,9 +1401,9 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>PID</TableHead>
                   <TableHead>Program</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>Case Manager</TableHead>
                   <TableHead>Last Activity</TableHead>
                   <TableHead>Actions</TableHead>
@@ -1410,11 +1419,9 @@ export function ClientManagement({ onBack, clients = [], onUpdateClients, select
                     <TableCell className="font-medium">
                       {client.firstName} {client.lastName}
                     </TableCell>
+                    <TableCell>{getStatusBadge(client.status)}</TableCell>
                     <TableCell>{client.participantId}</TableCell>
                     <TableCell>{client.program}</TableCell>
-                    <TableCell>
-                      <Badge variant={client.status === "Active" ? "default" : "secondary"}>{client.status}</Badge>
-                    </TableCell>
                     <TableCell>{client.caseManager}</TableCell>
                     <TableCell>{client.lastActivity}</TableCell>
                     <TableCell>
