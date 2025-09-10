@@ -410,63 +410,63 @@ export function Dashboard() {
               </Card>
             </div>
 
-            {/* Active Clients Report - Smaller */}
+            {/* Active Clients Report - Larger fonts */}
             <Card className="border-l-4 border-l-blue-500 bg-blue-50 hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-blue-600 text-sm">
+                <CardTitle className="flex items-center gap-2 text-blue-600 text-base">
                   <Users className="w-4 h-4" />
                   Active Client Report
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-blue-600 mb-2 text-xs">Comprehensive overview of all currently active clients</p>
+                <p className="text-blue-600 mb-2 text-sm">Comprehensive overview of all currently active clients</p>
                 <Button
                   onClick={() => setCurrentView("activeClientsReport")}
                   variant="outline"
                   size="sm"
-                  className="w-full border-blue-300 text-blue-600 hover:bg-blue-100 text-xs py-1"
+                  className="w-full border-blue-300 text-blue-600 hover:bg-blue-100 text-sm py-2"
                 >
                   View Report →
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Call Log Report - Smaller */}
+            {/* Call Log Report - Larger fonts */}
             <Card className="border-l-4 border-l-green-500 bg-green-50 hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-green-600 text-sm">
+                <CardTitle className="flex items-center gap-2 text-green-600 text-base">
                   <Phone className="w-4 h-4" />
                   Call Log Report
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-green-600 mb-2 text-xs">Recent case notes and communications</p>
+                <p className="text-green-600 mb-2 text-sm">Recent case notes and communications</p>
                 <Button
                   onClick={() => setCurrentView("callLogReport")}
                   variant="outline"
                   size="sm"
-                  className="w-full border-green-300 text-green-600 hover:bg-green-100 text-xs py-1"
+                  className="w-full border-green-300 text-green-600 hover:bg-green-100 text-sm py-2"
                 >
                   View Report →
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Jobs/Placements Report - Smaller */}
+            {/* Jobs/Placements Report - Larger fonts */}
             <Card className="border-l-4 border-l-purple-500 bg-purple-50 hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-purple-600 text-sm">
+                <CardTitle className="flex items-center gap-2 text-purple-600 text-base">
                   <Briefcase className="w-4 h-4" />
                   Jobs/Placements Report
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-purple-600 mb-2 text-xs">Employment placements and EVF tracking</p>
+                <p className="text-purple-600 mb-2 text-sm">Employment placements and EVF tracking</p>
                 <Button
                   onClick={() => setCurrentView("jobsPlacementsReport")}
                   variant="outline"
                   size="sm"
-                  className="w-full border-purple-300 text-purple-600 hover:bg-purple-100 text-xs py-1"
+                  className="w-full border-purple-300 text-purple-600 hover:bg-purple-100 text-sm py-2"
                 >
                   View Report →
                 </Button>
