@@ -332,7 +332,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Second row with main navigation */}
+        {/* Second row with main navigation - REMOVED Create New Client button */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
           <div className="flex items-center gap-4">
             <Button variant="ghost" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50">
@@ -365,77 +365,72 @@ export function Dashboard() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <Button
-            onClick={() => setCurrentView("newClient")}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-          >
-            ✨ Create New Client
-          </Button>
+          {/* Removed the Create New Client button from here */}
         </div>
       </div>
 
       {/* Main Content */}
       <div className="p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Smaller Report Cards */}
+          {/* Left Column - Report Cards with matching colors */}
           <div className="space-y-4">
-            {/* Active Clients Report - Smaller */}
-            <Card className="border-l-4 border-l-green-500 bg-green-50 hover:shadow-md transition-shadow cursor-pointer">
+            {/* Active Clients Report - Blue to match Quick Reports */}
+            <Card className="border-l-4 border-l-blue-500 bg-blue-50 hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-green-800 text-base">
+                <CardTitle className="flex items-center gap-2 text-blue-600 text-base">
                   <Users className="w-4 h-4" />
                   Active Clients Report
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-green-700 mb-2 text-sm">View comprehensive client data</p>
+                <p className="text-blue-600 mb-2 text-sm">View comprehensive client data</p>
                 <Button
                   onClick={() => setCurrentView("activeClientsReport")}
                   variant="outline"
                   size="sm"
-                  className="w-full border-green-300 text-green-700 hover:bg-green-100"
+                  className="w-full border-blue-300 text-blue-600 hover:bg-blue-100"
                 >
                   View Report →
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Call Log Report - Smaller */}
-            <Card className="border-l-4 border-l-blue-500 bg-blue-50 hover:shadow-md transition-shadow cursor-pointer">
+            {/* Call Log Report - Green to match Quick Reports */}
+            <Card className="border-l-4 border-l-green-500 bg-green-50 hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-blue-800 text-base">
+                <CardTitle className="flex items-center gap-2 text-green-600 text-base">
                   <Phone className="w-4 h-4" />
                   Call Log Report
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-blue-700 mb-2 text-sm">Recent case notes and communications</p>
+                <p className="text-green-600 mb-2 text-sm">Recent case notes and communications</p>
                 <Button
                   onClick={() => setCurrentView("callLogReport")}
                   variant="outline"
                   size="sm"
-                  className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
+                  className="w-full border-green-300 text-green-600 hover:bg-green-100"
                 >
                   View Report →
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Jobs/Placements Report - Smaller */}
+            {/* Jobs/Placements Report - Purple to match Quick Reports */}
             <Card className="border-l-4 border-l-purple-500 bg-purple-50 hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-purple-800 text-base">
+                <CardTitle className="flex items-center gap-2 text-purple-600 text-base">
                   <Briefcase className="w-4 h-4" />
                   Jobs/Placements Report
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-purple-700 mb-2 text-sm">Employment placements and EVF tracking</p>
+                <p className="text-purple-600 mb-2 text-sm">Employment placements and EVF tracking</p>
                 <Button
                   onClick={() => setCurrentView("jobsPlacementsReport")}
                   variant="outline"
                   size="sm"
-                  className="w-full border-purple-300 text-purple-700 hover:bg-purple-100"
+                  className="w-full border-purple-300 text-purple-600 hover:bg-purple-100"
                 >
                   View Report →
                 </Button>
@@ -476,7 +471,18 @@ export function Dashboard() {
               </Card>
             </div>
 
-            {/* Search Section - Now Below Statistics */}
+            {/* Create New Client Button - Positioned above Search */}
+            <div className="flex justify-center">
+              <Button
+                onClick={() => setCurrentView("newClient")}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
+              >
+                <UserPlus className="w-5 h-5" />
+                Create New Client
+              </Button>
+            </div>
+
+            {/* Search Section - Now Below Create Button */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -609,7 +615,7 @@ export function Dashboard() {
                 <Button
                   onClick={() => setCurrentView("activeClientsReport")}
                   variant="ghost"
-                  className="w-full justify-start hover:bg-blue-50 text-blue-700"
+                  className="w-full justify-start hover:bg-blue-50 text-blue-600"
                 >
                   <BarChart3 className="w-4 h-4 mr-2" />
                   Active Clients
@@ -617,7 +623,7 @@ export function Dashboard() {
                 <Button
                   onClick={() => setCurrentView("callLogReport")}
                   variant="ghost"
-                  className="w-full justify-start hover:bg-green-50 text-green-700"
+                  className="w-full justify-start hover:bg-green-50 text-green-600"
                 >
                   <Phone className="w-4 h-4 mr-2" />
                   Call Logs
@@ -625,7 +631,7 @@ export function Dashboard() {
                 <Button
                   onClick={() => setCurrentView("jobsPlacementsReport")}
                   variant="ghost"
-                  className="w-full justify-start hover:bg-purple-50 text-purple-700"
+                  className="w-full justify-start hover:bg-purple-50 text-purple-600"
                 >
                   <Briefcase className="w-4 h-4 mr-2" />
                   Job Placements
