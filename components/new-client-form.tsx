@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Save, X, User, Phone, GraduationCap, Shield } from "lucide-react"
+import { ArrowLeft, Save, X, User, Phone, GraduationCap, Shield, FileText } from "lucide-react"
 
 interface NewClientFormProps {
   onClientCreated: (client: any) => void
@@ -40,6 +40,20 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
     requiredHours: "",
     caoNumber: "",
     notes: "",
+    // Education fields
+    educationLevel: "",
+    graduationYear: "",
+    schoolName: "",
+    fieldOfStudy: "",
+    educationNotes: "",
+    currentlyEnrolled: "No",
+    gpa: "",
+    // Certification fields
+    certifications: "",
+    licenses: "",
+    industryCertifications: "",
+    certificationStatus: "",
+    certificationNotes: "",
   })
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
@@ -125,6 +139,18 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
         requiredHours: formData.requiredHours.trim(),
         caoNumber: formData.caoNumber.trim(),
         notes: formData.notes.trim(),
+        educationLevel: formData.educationLevel.trim(),
+        graduationYear: formData.graduationYear.trim(),
+        schoolName: formData.schoolName.trim(),
+        fieldOfStudy: formData.fieldOfStudy.trim(),
+        educationNotes: formData.educationNotes.trim(),
+        currentlyEnrolled: formData.currentlyEnrolled.trim(),
+        gpa: formData.gpa.trim(),
+        certifications: formData.certifications.trim(),
+        licenses: formData.licenses.trim(),
+        industryCertifications: formData.industryCertifications.trim(),
+        certificationStatus: formData.certificationStatus.trim(),
+        certificationNotes: formData.certificationNotes.trim(),
       }
 
       // Call the parent handler with validated and formatted data
@@ -220,6 +246,25 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
           errors.requiredHours = "Please enter a valid number of hours"
         } else {
           delete errors.requiredHours
+        }
+        break
+
+      case "graduationYear":
+        if (
+          value.trim() &&
+          (isNaN(Number(value)) || Number(value) < 1950 || Number(value) > new Date().getFullYear())
+        ) {
+          errors.graduationYear = "Please enter a valid graduation year"
+        } else {
+          delete errors.graduationYear
+        }
+        break
+
+      case "gpa":
+        if (value.trim() && (isNaN(Number(value)) || Number(value) < 0 || Number(value) > 4)) {
+          errors.gpa = "Please enter a valid GPA between 0 and 4"
+        } else {
+          delete errors.gpa
         }
         break
     }
@@ -332,7 +377,7 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
       </div>
 
       <form onSubmit={handleSubmit} className="p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Personal Information */}
           <Card>
             <CardHeader>
@@ -666,8 +711,247 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
             </CardContent>
           </Card>
 
-          {/* Additional Information */}
+          {/* Education Information */}
           <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GraduationCap className="w-5 h-5 text-indigo-600" />
+                Education Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="educationLevel">Highest Education Level</Label>
+                  <Select
+                    value={formData.educationLevel}
+                    onValueChange={(value) => handleInputChange("educationLevel", value)}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select education level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Less than High School">Less than High School</SelectItem>
+                      <SelectItem value="High School Diploma/GED">High School Diploma/GED</SelectItem>
+                      <SelectItem value="Some College">Some College</SelectItem>
+                      <SelectItem value="Associate Degree">Associate Degree</SelectItem>
+                      <SelectItem value="Bachelor's Degree">Bachelor's Degree</SelectItem>
+                      <SelectItem value="Master's Degree">Master's Degree</SelectItem>
+                      <SelectItem value="Doctoral Degree">Doctoral Degree</SelectItem>
+                      <SelectItem value="Professional Degree">Professional Degree</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="graduationYear">Graduation Year</Label>
+                  <Input
+                    id="graduationYear"
+                    type="number"
+                    min="1950"
+                    max={new Date().getFullYear()}
+                    value={formData.graduationYear}
+                    onChange={(e) => handleInputChange("graduationYear", e.target.value)}
+                    placeholder="e.g., 2020"
+                    disabled={isLoading}
+                  />
+                  {validationErrors.graduationYear && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.graduationYear}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="schoolName">School/Institution Name</Label>
+                  <Input
+                    id="schoolName"
+                    value={formData.schoolName}
+                    onChange={(e) => handleInputChange("schoolName", e.target.value)}
+                    placeholder="Enter school or institution name"
+                    disabled={isLoading}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="fieldOfStudy">Field of Study/Major</Label>
+                  <Input
+                    id="fieldOfStudy"
+                    value={formData.fieldOfStudy}
+                    onChange={(e) => handleInputChange("fieldOfStudy", e.target.value)}
+                    placeholder="Enter field of study or major"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="educationNotes">Additional Education Details</Label>
+                <Textarea
+                  id="educationNotes"
+                  value={formData.educationNotes}
+                  onChange={(e) => handleInputChange("educationNotes", e.target.value)}
+                  placeholder="Enter any additional education details, honors, relevant coursework, etc."
+                  className="min-h-[80px]"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="currentlyEnrolled">Currently Enrolled</Label>
+                  <Select
+                    value={formData.currentlyEnrolled}
+                    onValueChange={(value) => handleInputChange("currentlyEnrolled", value)}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="No">No</SelectItem>
+                      <SelectItem value="Yes">Yes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="gpa">GPA (if applicable)</Label>
+                  <Input
+                    id="gpa"
+                    type="number"
+                    min="0"
+                    max="4"
+                    step="0.01"
+                    value={formData.gpa}
+                    onChange={(e) => handleInputChange("gpa", e.target.value)}
+                    placeholder="e.g., 3.5"
+                    disabled={isLoading}
+                    className={validationErrors.gpa ? "border-red-500" : ""}
+                  />
+                  {validationErrors.gpa && <p className="text-red-500 text-xs mt-1">{validationErrors.gpa}</p>}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Certifications & Licenses */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-orange-600" />
+                Certifications & Licenses
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="certifications">Professional Certifications</Label>
+                  <Textarea
+                    id="certifications"
+                    value={formData.certifications}
+                    onChange={(e) => handleInputChange("certifications", e.target.value)}
+                    placeholder="List professional certifications (e.g., CompTIA A+, Microsoft Office Specialist, etc.)"
+                    className="min-h-[80px]"
+                    disabled={isLoading}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="licenses">Licenses</Label>
+                  <Textarea
+                    id="licenses"
+                    value={formData.licenses}
+                    onChange={(e) => handleInputChange("licenses", e.target.value)}
+                    placeholder="List professional licenses (e.g., Driver's License, CDL, Professional License, etc.)"
+                    className="min-h-[80px]"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="industryCertifications">Industry Certifications</Label>
+                  <Input
+                    id="industryCertifications"
+                    value={formData.industryCertifications}
+                    onChange={(e) => handleInputChange("industryCertifications", e.target.value)}
+                    placeholder="e.g., OSHA 10, Food Handler's License, etc."
+                    disabled={isLoading}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="certificationStatus">Certification Status</Label>
+                  <Select
+                    value={formData.certificationStatus}
+                    onValueChange={(value) => handleInputChange("certificationStatus", value)}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Current">Current</SelectItem>
+                      <SelectItem value="Expired">Expired</SelectItem>
+                      <SelectItem value="In Progress">In Progress</SelectItem>
+                      <SelectItem value="Renewal Required">Renewal Required</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* File Upload Section */}
+              <div>
+                <Label className="mb-3 block">Certification Documents</Label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    className="hidden"
+                    id="certification-upload-new"
+                    disabled={isLoading}
+                    onChange={(e) => {
+                      // Handle file upload logic here
+                      const files = Array.from(e.target.files || [])
+                      console.log("Uploaded files:", files)
+                      // In a real application, you would upload these files to a server
+                    }}
+                  />
+                  <label
+                    htmlFor="certification-upload-new"
+                    className={`cursor-pointer ${isLoading ? "pointer-events-none opacity-50" : ""}`}
+                  >
+                    <div className="flex flex-col items-center">
+                      <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
+                      </svg>
+                      <span className="text-sm text-gray-600">Click to upload certification documents</span>
+                      <span className="text-xs text-gray-500 mt-1">PDF, JPG, PNG, DOC, DOCX (Max 10MB each)</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="certificationNotes">Certification Notes</Label>
+                <Textarea
+                  id="certificationNotes"
+                  value={formData.certificationNotes}
+                  onChange={(e) => handleInputChange("certificationNotes", e.target.value)}
+                  placeholder="Additional notes about certifications, renewal dates, etc."
+                  className="min-h-[60px]"
+                  disabled={isLoading}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Additional Information */}
+          <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-orange-600" />
