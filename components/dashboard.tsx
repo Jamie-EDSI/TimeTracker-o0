@@ -351,7 +351,7 @@ export function Dashboard() {
   }
 
   if (currentView === "active-clients") {
-    return <ActiveClientsReport onBack={handleBackToDashboard} clients={clients} />
+    return <ActiveClientsReport onBack={handleBackToDashboard} clients={clients} onViewClient={handleViewClient} />
   }
 
   if (currentView === "call-log") {

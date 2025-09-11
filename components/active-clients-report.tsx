@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Search, FileSpreadsheet, FileText } from "lucide-react"
+import { ArrowLeft, Search, FileSpreadsheet, FileText, Eye } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { FilterPanel } from "@/components/ui/filter-panel"
 import { exportToExcel, formatDateForExport } from "@/lib/excel-export"
@@ -13,9 +13,10 @@ import type { Client } from "@/types/client" // Import Client type
 interface ActiveClientsReportProps {
   onBack: () => void
   clients: Client[]
+  onViewClient?: (client: Client) => void
 }
 
-export function ActiveClientsReport({ onBack, clients }: ActiveClientsReportProps) {
+export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveClientsReportProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState<Record<string, any>>({})
 
@@ -217,6 +218,7 @@ export function ActiveClientsReport({ onBack, clients }: ActiveClientsReportProp
                     <th className="text-left py-3 px-4">Case Manager</th>
                     <th className="text-left py-3 px-4">Last Contact</th>
                     <th className="text-left py-3 px-4">Status</th>
+                    <th className="text-left py-3 px-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -248,6 +250,19 @@ export function ActiveClientsReport({ onBack, clients }: ActiveClientsReportProp
                           {client.status}
                         </span>
                       </td>
+                      <td className="py-3 px-4">
+                        {onViewClient && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onViewClient(client)}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            View
+                          </Button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -271,7 +286,7 @@ export function ActiveClientsReport({ onBack, clients }: ActiveClientsReportProp
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={handleExportToExcel} size="sm" className="bg-blue-600 hover:bg-blue-700">
+                  <Button onClick={handleExportToExcel} size="sm" className="bg-green-600 hover:bg-green-700">
                     <FileSpreadsheet className="w-3 h-3 mr-1" />
                     Excel
                   </Button>
