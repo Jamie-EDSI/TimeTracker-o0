@@ -6,8 +6,8 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "TimeTracker - EDSI",
-  description: "Client management and time tracking system",
+  title: "Time Tracker App",
+  description: "Client management and time tracking application",
     generator: 'v0.app'
 }
 
