@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import {
   Users,
   UserPlus,
@@ -16,6 +17,7 @@ import {
   Clock,
   Home,
   ChevronDown,
+  Eye,
 } from "lucide-react"
 import { ClientProfile } from "./client-profile"
 import { NewClientForm } from "./new-client-form"
@@ -67,8 +69,8 @@ export function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("")
   const [searchName, setSearchName] = useState("")
   const [searchParticipantId, setSearchParticipantId] = useState("")
-  const [searchSSN, setSearchSSN] = useState("")
   const [recordsPerPage, setRecordsPerPage] = useState("25")
+  const [quickSearch, setQuickSearch] = useState("")
   const [clients, setClients] = useState<Client[]>([
     {
       id: "1",
@@ -182,6 +184,30 @@ export function Dashboard() {
   const activeClients = clients.filter((client) => client.status === "Active")
   const pendingActions = clients.filter((client) => client.status === "Pending")
 
+  // Filter clients based on quick search
+  const filteredQuickSearchClients = clients.filter((client) => {
+    if (!quickSearch.trim()) return false
+    const searchLower = quickSearch.toLowerCase()
+    return (
+      `${client.firstName} ${client.lastName}`.toLowerCase().includes(searchLower) ||
+      client.participantId.toLowerCase().includes(searchLower) ||
+      client.program.toLowerCase().includes(searchLower)
+    )
+  })
+
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "active":
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Active</Badge>
+      case "inactive":
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Inactive</Badge>
+      case "pending":
+        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pending</Badge>
+      default:
+        return <Badge variant="secondary">{status}</Badge>
+    }
+  }
+
   if (currentView === "client-profile" && selectedClient) {
     return <ClientProfile client={selectedClient} onBack={handleBackToDashboard} onSave={handleSaveClient} />
   }
@@ -237,30 +263,45 @@ export function Dashboard() {
       <div className="p-6">
         <div className="grid grid-cols-12 gap-6">
           {/* Left Sidebar - Reports */}
-          <div className="col-span-3 space-y-4">
-            {/* Active Client Report */}
-            <Card className="border-l-4 border-l-blue-500 bg-blue-50">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-2xl font-bold text-blue-600">{activeClients.length}</div>
-                  <Clock className="w-5 h-5 text-blue-500" />
-                </div>
-                <CardTitle className="text-sm text-blue-700">Active Today</CardTitle>
+          <div className="col-span-3 space-y-6">
+            {/* Quick Stats - moved to top */}
+            <Card className="h-fit">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Quick Stats
+                </CardTitle>
               </CardHeader>
-            </Card>
-
-            <Card className="border-l-4 border-l-orange-500 bg-orange-50">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-2xl font-bold text-orange-600">{pendingActions.length}</div>
-                  <FileText className="w-5 h-5 text-orange-500" />
+              <CardContent className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Total Clients</span>
+                  <span className="font-medium">{clients.length}</span>
                 </div>
-                <CardTitle className="text-sm text-orange-700">Pending Actions</CardTitle>
-              </CardHeader>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Active Clients</span>
+                  <span className="font-medium text-green-600">{activeClients.length}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Pending Actions</span>
+                  <span className="font-medium text-orange-600">{pendingActions.length}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Active Programs</span>
+                  <span className="font-medium">12</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">This Month</span>
+                  <span className="font-medium text-green-600">+23</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Placements</span>
+                  <span className="font-medium text-blue-600">156</span>
+                </div>
+              </CardContent>
             </Card>
 
             {/* Active Client Report Card */}
-            <Card className="bg-blue-50 border-blue-200">
+            <Card className="bg-blue-50 border-blue-200 h-fit">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-blue-700 flex items-center gap-2">
                   <Users className="w-4 h-4" />
@@ -281,7 +322,7 @@ export function Dashboard() {
             </Card>
 
             {/* Call Log Report Card */}
-            <Card className="bg-green-50 border-green-200">
+            <Card className="bg-green-50 border-green-200 h-fit">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-green-700 flex items-center gap-2">
                   <Phone className="w-4 h-4" />
@@ -302,7 +343,7 @@ export function Dashboard() {
             </Card>
 
             {/* Jobs/Placements Report Card */}
-            <Card className="bg-purple-50 border-purple-200">
+            <Card className="bg-purple-50 border-purple-200 h-fit">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-purple-700 flex items-center gap-2">
                   <Briefcase className="w-4 h-4" />
@@ -319,34 +360,6 @@ export function Dashboard() {
                 >
                   View Report →
                 </Button>
-              </CardContent>
-            </Card>
-
-            {/* Quick Stats */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4" />
-                  Quick Stats
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Total Clients</span>
-                  <span className="font-medium">{clients.length}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Active Programs</span>
-                  <span className="font-medium">12</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">This Month</span>
-                  <span className="font-medium text-green-600">+23</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Placements</span>
-                  <span className="font-medium text-blue-600">156</span>
-                </div>
               </CardContent>
             </Card>
           </div>
@@ -389,8 +402,8 @@ export function Dashboard() {
               </Button>
             </div>
 
-            {/* Search Client Directory */}
-            <Card>
+            {/* Search Client Directory - Streamlined */}
+            <Card className="h-fit">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Search className="w-5 h-5" />
@@ -398,47 +411,66 @@ export function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name:</label>
-                  <Input
-                    placeholder="Enter client name"
-                    value={searchName}
-                    onChange={(e) => setSearchName(e.target.value)}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name:</label>
+                    <Input
+                      placeholder="Enter client name"
+                      value={searchName}
+                      onChange={(e) => setSearchName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Participant ID:</label>
+                    <Input
+                      placeholder="Enter participant ID"
+                      value={searchParticipantId}
+                      onChange={(e) => setSearchParticipantId(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Participant Id:</label>
-                  <Input
-                    placeholder="Enter participant ID"
-                    value={searchParticipantId}
-                    onChange={(e) => setSearchParticipantId(e.target.value)}
-                  />
+                <div className="flex items-end gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Records/Page:</label>
+                    <Input value={recordsPerPage} onChange={(e) => setRecordsPerPage(e.target.value)} />
+                  </div>
+                  <Button className="bg-blue-600 hover:bg-blue-700 px-6">
+                    <Search className="w-4 h-4 mr-2" />
+                    Search
+                  </Button>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">SSN (Last 4):</label>
-                  <Input
-                    placeholder="Last 4 digits"
-                    value={searchSSN}
-                    onChange={(e) => setSearchSSN(e.target.value)}
-                    maxLength={4}
-                  />
+              </CardContent>
+            </Card>
+
+            {/* Additional Content Spacer for Balance */}
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+              <CardContent className="p-6 text-center">
+                <div className="flex items-center justify-center mb-3">
+                  <BarChart3 className="w-8 h-8 text-blue-500" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Records/Page:</label>
-                  <Input value={recordsPerPage} onChange={(e) => setRecordsPerPage(e.target.value)} className="w-20" />
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">Dashboard Overview</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Welcome to your client management dashboard. Use the tools above to search, create, and manage client
+                  records efficiently.
+                </p>
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="bg-white/50 rounded p-2">
+                    <div className="font-medium text-blue-600">Quick Access</div>
+                    <div className="text-gray-600">Search & Create</div>
+                  </div>
+                  <div className="bg-white/50 rounded p-2">
+                    <div className="font-medium text-green-600">Reports</div>
+                    <div className="text-gray-600">Analytics & Data</div>
+                  </div>
                 </div>
-                <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                  <Search className="w-4 h-4 mr-2" />
-                  Search
-                </Button>
               </CardContent>
             </Card>
           </div>
 
           {/* Right Sidebar */}
           <div className="col-span-3 space-y-6">
-            {/* Quick Reports - moved to top */}
-            <Card>
+            {/* Quick Reports */}
+            <Card className="h-fit">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <BarChart3 className="w-5 h-5" />
@@ -473,25 +505,91 @@ export function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Client Directory - moved to middle */}
-            <Card>
+            {/* Client Directory with Quick Search */}
+            <Card className="h-fit">
               <CardHeader>
                 <CardTitle className="text-lg">Client Directory</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start bg-transparent">
-                  <Users className="w-4 h-4 mr-2" />
-                  View My Clients →
-                </Button>
-                <Button variant="outline" className="w-full justify-start bg-transparent">
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  New Client
-                </Button>
+              <CardContent className="space-y-4">
+                {/* Quick Search Input */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Quick search clients..."
+                    value={quickSearch}
+                    onChange={(e) => setQuickSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                {/* Search Results */}
+                {quickSearch.trim() && (
+                  <div className="max-h-48 overflow-y-auto border rounded-md bg-gray-50">
+                    {filteredQuickSearchClients.length > 0 ? (
+                      <div className="p-2 space-y-2">
+                        {filteredQuickSearchClients.slice(0, 5).map((client) => (
+                          <div
+                            key={client.id}
+                            className="flex items-center justify-between p-2 bg-white rounded border hover:bg-blue-50 cursor-pointer"
+                            onClick={() => handleViewClient(client)}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium truncate">
+                                  {client.firstName} {client.lastName}
+                                </p>
+                                {client.isNew && (
+                                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">New</Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500">
+                                PID: {client.participantId} • {client.program}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">{getStatusBadge(client.status)}</div>
+                            </div>
+                            <Button size="sm" variant="ghost" className="ml-2">
+                              <Eye className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                        {filteredQuickSearchClients.length > 5 && (
+                          <div className="text-xs text-gray-500 text-center p-2">
+                            Showing 5 of {filteredQuickSearchClients.length} results
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="p-4 text-center text-sm text-gray-500">No clients found</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Directory Actions */}
+                <div className="space-y-3">
+                  <Button
+                    onClick={() => {
+                      console.log("Viewing client list")
+                    }}
+                    variant="outline"
+                    className="w-full justify-start bg-transparent hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    View My Clients →
+                  </Button>
+                  <Button
+                    onClick={() => setCurrentView("new-client")}
+                    variant="outline"
+                    className="w-full justify-start bg-transparent hover:bg-green-50 hover:text-green-600 hover:border-green-300"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    New Client
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
-            {/* Recent Activity - remains at bottom */}
-            <Card>
+            {/* Recent Activity */}
+            <Card className="h-fit">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Clock className="w-5 h-5" />
