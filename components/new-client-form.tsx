@@ -40,6 +40,8 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
     caoNumber: "",
   })
 
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+
   const generatePID = () => {
     return Math.floor(1000000 + Math.random() * 9000000).toString()
   }
@@ -56,19 +58,42 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
       ...prev,
       [field]: value,
     }))
+
+    // Validate field on change
+    validateField(field, value)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     try {
-      // Validate required fields
-      if (!formData.firstName || !formData.lastName || !formData.program) {
-        alert("Please fill in all required fields")
+      // Enhanced validation
+      const requiredFields = [
+        { field: "firstName", label: "First Name" },
+        { field: "lastName", label: "Last Name" },
+        { field: "program", label: "Program" },
+      ]
+
+      const missingFields = requiredFields.filter(({ field }) => !formData[field as keyof typeof formData]?.trim())
+
+      if (missingFields.length > 0) {
+        alert(`Please fill in the following required fields: ${missingFields.map((f) => f.label).join(", ")}`)
         return
       }
 
-      // Create a clean data object with all string values
+      // Validate email format if provided
+      if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+        alert("Please enter a valid email address")
+        return
+      }
+
+      // Validate phone format if provided
+      if (formData.phone.trim() && !/^[\d\s\-$$$$]+$/.test(formData.phone.trim())) {
+        alert("Please enter a valid phone number")
+        return
+      }
+
+      // Create a clean, validated data object
       const clientData = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
@@ -81,7 +106,7 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
         email: formData.email.trim(),
         address: formData.address.trim(),
         city: formData.city.trim(),
-        state: formData.state.trim(),
+        state: formData.state,
         zipCode: formData.zipCode.trim(),
         dateOfBirth: formData.dateOfBirth,
         emergencyContact: formData.emergencyContact.trim(),
@@ -92,6 +117,7 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
         caoNumber: formData.caoNumber.trim(),
       }
 
+      // Call the parent handler with validated data
       onClientCreated(clientData)
     } catch (error) {
       console.error("Error submitting form:", error)
@@ -105,6 +131,38 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
     } catch (error) {
       console.error("Error closing form:", error)
     }
+  }
+
+  const validateField = (field: string, value: string) => {
+    const errors = { ...validationErrors }
+
+    switch (field) {
+      case "email":
+        if (value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
+          errors.email = "Please enter a valid email address"
+        } else {
+          delete errors.email
+        }
+        break
+      case "phone":
+      case "cellPhone":
+      case "emergencyPhone":
+        if (value.trim() && !/^[\d\s\-$$$$]+$/.test(value.trim())) {
+          errors[field] = "Please enter a valid phone number"
+        } else {
+          delete errors[field]
+        }
+        break
+      case "zipCode":
+        if (value.trim() && !/^\d{5}(-\d{4})?$/.test(value.trim())) {
+          errors.zipCode = "Please enter a valid ZIP code"
+        } else {
+          delete errors.zipCode
+        }
+        break
+    }
+
+    setValidationErrors(errors)
   }
 
   const usStates = [
@@ -206,6 +264,7 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     onChange={(e) => handleInputChange("firstName", e.target.value)}
                     required
                   />
+                  {validationErrors.firstName && <p className="text-red-500">{validationErrors.firstName}</p>}
                 </div>
                 <div>
                   <Label htmlFor="lastName">Last Name *</Label>
@@ -215,6 +274,7 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     onChange={(e) => handleInputChange("lastName", e.target.value)}
                     required
                   />
+                  {validationErrors.lastName && <p className="text-red-500">{validationErrors.lastName}</p>}
                 </div>
               </div>
 
@@ -279,6 +339,7 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     value={formData.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
                   />
+                  {validationErrors.phone && <p className="text-red-500">{validationErrors.phone}</p>}
                 </div>
                 <div>
                   <Label htmlFor="cellPhone">Cell Phone</Label>
@@ -288,6 +349,7 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     value={formData.cellPhone}
                     onChange={(e) => handleInputChange("cellPhone", e.target.value)}
                   />
+                  {validationErrors.cellPhone && <p className="text-red-500">{validationErrors.cellPhone}</p>}
                 </div>
               </div>
 
@@ -299,6 +361,7 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
                 />
+                {validationErrors.email && <p className="text-red-500">{validationErrors.email}</p>}
               </div>
 
               <div>
@@ -337,6 +400,7 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     value={formData.zipCode}
                     onChange={(e) => handleInputChange("zipCode", e.target.value)}
                   />
+                  {validationErrors.zipCode && <p className="text-red-500">{validationErrors.zipCode}</p>}
                 </div>
               </div>
 
@@ -357,6 +421,7 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     value={formData.emergencyPhone}
                     onChange={(e) => handleInputChange("emergencyPhone", e.target.value)}
                   />
+                  {validationErrors.emergencyPhone && <p className="text-red-500">{validationErrors.emergencyPhone}</p>}
                 </div>
               </div>
             </CardContent>

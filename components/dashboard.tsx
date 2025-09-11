@@ -131,6 +131,9 @@ export function Dashboard() {
     },
   ])
 
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [successMessage, setSuccessMessage] = useState("")
+
   const handleViewClient = (client: Client) => {
     setSelectedClient(client)
     setCurrentView("client-profile")
@@ -150,33 +153,42 @@ export function Dashboard() {
     try {
       const newClient: Client = {
         id: Date.now().toString(),
-        firstName: safeString(clientData.firstName),
-        lastName: safeString(clientData.lastName),
+        firstName: safeString(clientData.firstName).trim(),
+        lastName: safeString(clientData.lastName).trim(),
         participantId: safeString(clientData.participantId),
         program: safeString(clientData.program),
         status: safeString(clientData.status),
         enrollmentDate: safeString(clientData.enrollmentDate),
-        phone: safeString(clientData.phone),
-        cellPhone: safeString(clientData.cellPhone),
-        email: safeString(clientData.email),
-        address: safeString(clientData.address),
-        city: safeString(clientData.city),
-        state: safeString(clientData.state),
-        zipCode: safeString(clientData.zipCode),
+        phone: safeString(clientData.phone).trim(),
+        cellPhone: safeString(clientData.cellPhone).trim(),
+        email: safeString(clientData.email).trim(),
+        address: safeString(clientData.address).trim(),
+        city: safeString(clientData.city).trim(),
+        state: safeString(clientData.state).trim(),
+        zipCode: safeString(clientData.zipCode).trim(),
         dateOfBirth: safeString(clientData.dateOfBirth),
-        emergencyContact: safeString(clientData.emergencyContact),
-        emergencyPhone: safeString(clientData.emergencyPhone),
-        caseManager: safeString(clientData.caseManager),
-        responsibleEC: safeString(clientData.responsibleEC),
-        requiredHours: safeString(clientData.requiredHours),
-        caoNumber: safeString(clientData.caoNumber),
+        emergencyContact: safeString(clientData.emergencyContact).trim(),
+        emergencyPhone: safeString(clientData.emergencyPhone).trim(),
+        caseManager: safeString(clientData.caseManager).trim(),
+        responsibleEC: safeString(clientData.responsibleEC).trim(),
+        requiredHours: safeString(clientData.requiredHours).trim(),
+        caoNumber: safeString(clientData.caoNumber).trim(),
         isNew: true,
       }
 
       setClients((prevClients) => [newClient, ...prevClients])
+      setSuccessMessage(`Client ${newClient.firstName} ${newClient.lastName} has been successfully created!`)
+      setShowSuccessMessage(true)
+      setSearchName("")
+      setSearchParticipantId("")
+      setQuickSearch("")
       setCurrentView("dashboard")
+      setTimeout(() => {
+        setShowSuccessMessage(false)
+      }, 5000)
     } catch (error) {
       console.error("Error creating client:", error)
+      alert("There was an error creating the client. Please try again.")
       setCurrentView("dashboard")
     }
   }
@@ -184,16 +196,36 @@ export function Dashboard() {
   const activeClients = clients.filter((client) => client.status === "Active")
   const pendingActions = clients.filter((client) => client.status === "Pending")
 
-  // Filter clients based on quick search
-  const filteredQuickSearchClients = clients.filter((client) => {
-    if (!quickSearch.trim()) return false
-    const searchLower = quickSearch.toLowerCase()
-    return (
-      `${client.firstName} ${client.lastName}`.toLowerCase().includes(searchLower) ||
-      client.participantId.toLowerCase().includes(searchLower) ||
-      client.program.toLowerCase().includes(searchLower)
-    )
-  })
+  const getFilteredClients = () => {
+    return clients.filter((client) => {
+      if (quickSearch.trim()) {
+        const searchLower = quickSearch.toLowerCase()
+        return (
+          `${client.firstName} ${client.lastName}`.toLowerCase().includes(searchLower) ||
+          client.participantId.toLowerCase().includes(searchLower) ||
+          client.program.toLowerCase().includes(searchLower) ||
+          client.email.toLowerCase().includes(searchLower) ||
+          client.phone.toLowerCase().includes(searchLower) ||
+          client.caseManager.toLowerCase().includes(searchLower)
+        )
+      }
+
+      let matches = true
+
+      if (searchName.trim()) {
+        const nameLower = searchName.toLowerCase()
+        matches = matches && `${client.firstName} ${client.lastName}`.toLowerCase().includes(nameLower)
+      }
+
+      if (searchParticipantId.trim()) {
+        matches = matches && client.participantId.toLowerCase().includes(searchParticipantId.toLowerCase())
+      }
+
+      return matches
+    })
+  }
+
+  const filteredQuickSearchClients = quickSearch.trim() ? getFilteredClients() : []
 
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
@@ -245,6 +277,42 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Success Message */}
+      {showSuccessMessage && (
+        <div className="bg-green-50 border-l-4 border-green-400 p-4 mx-6 mt-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-green-700">{successMessage}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <div className="-mx-1.5 -my-1.5">
+                <button
+                  onClick={() => setShowSuccessMessage(false)}
+                  className="inline-flex bg-green-50 rounded-md p-1.5 text-green-500 hover:bg-green-100"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Bar */}
       <div className="bg-white border-b border-gray-200 px-6 py-2">
@@ -530,7 +598,9 @@ export function Dashboard() {
                         {filteredQuickSearchClients.slice(0, 5).map((client) => (
                           <div
                             key={client.id}
-                            className="flex items-center justify-between p-2 bg-white rounded border hover:bg-blue-50 cursor-pointer"
+                            className={`flex items-center justify-between p-2 bg-white rounded border hover:bg-blue-50 cursor-pointer ${
+                              client.isNew ? "ring-2 ring-green-200 bg-green-50" : ""
+                            }`}
                             onClick={() => handleViewClient(client)}
                           >
                             <div className="flex-1 min-w-0">
@@ -539,7 +609,9 @@ export function Dashboard() {
                                   {client.firstName} {client.lastName}
                                 </p>
                                 {client.isNew && (
-                                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">New</Badge>
+                                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs animate-pulse">
+                                    New
+                                  </Badge>
                                 )}
                               </div>
                               <p className="text-xs text-gray-500">
