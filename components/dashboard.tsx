@@ -67,9 +67,7 @@ export function Dashboard() {
   >("dashboard")
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
-  const [searchName, setSearchName] = useState("")
-  const [searchParticipantId, setSearchParticipantId] = useState("")
-  const [recordsPerPage, setRecordsPerPage] = useState("25")
+  const [participantIdSearch, setParticipantIdSearch] = useState("")
   const [quickSearch, setQuickSearch] = useState("")
   const [clients, setClients] = useState<Client[]>([
     {
@@ -179,8 +177,7 @@ export function Dashboard() {
       setClients((prevClients) => [newClient, ...prevClients])
       setSuccessMessage(`Client ${newClient.firstName} ${newClient.lastName} has been successfully created!`)
       setShowSuccessMessage(true)
-      setSearchName("")
-      setSearchParticipantId("")
+      setParticipantIdSearch("")
       setQuickSearch("")
       setCurrentView("dashboard")
       setTimeout(() => {
@@ -210,22 +207,15 @@ export function Dashboard() {
         )
       }
 
-      let matches = true
-
-      if (searchName.trim()) {
-        const nameLower = searchName.toLowerCase()
-        matches = matches && `${client.firstName} ${client.lastName}`.toLowerCase().includes(nameLower)
+      if (participantIdSearch.trim()) {
+        return client.participantId.toLowerCase().includes(participantIdSearch.toLowerCase())
       }
 
-      if (searchParticipantId.trim()) {
-        matches = matches && client.participantId.toLowerCase().includes(searchParticipantId.toLowerCase())
-      }
-
-      return matches
+      return false
     })
   }
 
-  const filteredQuickSearchClients = quickSearch.trim() ? getFilteredClients() : []
+  const filteredClients = quickSearch.trim() || participantIdSearch.trim() ? getFilteredClients() : []
 
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
@@ -303,7 +293,7 @@ export function Dashboard() {
                   <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path
                       fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 01-1.414-1.414L10 11.414l-4.293-4.293a1 1 0 010-1.414z"
                       clipRule="evenodd"
                     />
                   </svg>
@@ -331,208 +321,274 @@ export function Dashboard() {
       <div className="p-6">
         <div className="grid grid-cols-12 gap-6">
           {/* Left Sidebar - Reports */}
-          <div className="col-span-3 space-y-6">
-            {/* Quick Stats - moved to top */}
-            <Card className="h-fit">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5" />
+          <div className="col-span-3">
+            {/* Quick Stats */}
+            <Card className="h-fit mb-4">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4" />
                   Quick Stats
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between text-sm">
+              <CardContent className="space-y-2">
+                <div className="flex justify-between text-xs">
                   <span className="text-gray-600">Total Clients</span>
                   <span className="font-medium">{clients.length}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs">
                   <span className="text-gray-600">Active Clients</span>
                   <span className="font-medium text-green-600">{activeClients.length}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs">
                   <span className="text-gray-600">Pending Actions</span>
                   <span className="font-medium text-orange-600">{pendingActions.length}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs">
                   <span className="text-gray-600">Active Programs</span>
                   <span className="font-medium">12</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs">
                   <span className="text-gray-600">This Month</span>
                   <span className="font-medium text-green-600">+23</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs">
                   <span className="text-gray-600">Placements</span>
                   <span className="font-medium text-blue-600">156</span>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Active Client Report Card */}
-            <Card className="bg-blue-50 border-blue-200 h-fit">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-blue-700 flex items-center gap-2">
-                  <Users className="w-4 h-4" />
-                  Active Client Report
-                </CardTitle>
-                <p className="text-xs text-blue-600">Comprehensive overview of all currently active clients</p>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Button
-                  onClick={() => setCurrentView("active-clients")}
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-blue-600 border-blue-300 hover:bg-blue-100"
-                >
-                  View Report →
-                </Button>
-              </CardContent>
-            </Card>
+            {/* Report Cards - Elevated positioning */}
+            <div className="space-y-4">
+              {/* Active Client Report Card */}
+              <Card className="bg-blue-50 border-blue-200 h-fit">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-blue-700 flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Active Client Report
+                  </CardTitle>
+                  <p className="text-xs text-blue-600">Comprehensive overview of all currently active clients</p>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <Button
+                    onClick={() => setCurrentView("active-clients")}
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-blue-600 border-blue-300 hover:bg-blue-100"
+                  >
+                    View Report →
+                  </Button>
+                </CardContent>
+              </Card>
 
-            {/* Call Log Report Card */}
-            <Card className="bg-green-50 border-green-200 h-fit">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-green-700 flex items-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  Call Log Report
-                </CardTitle>
-                <p className="text-xs text-green-600">Recent case notes and communications</p>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Button
-                  onClick={() => setCurrentView("call-log")}
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-green-600 border-green-300 hover:bg-green-100"
-                >
-                  View Report →
-                </Button>
-              </CardContent>
-            </Card>
+              {/* Call Log Report Card */}
+              <Card className="bg-green-50 border-green-200 h-fit">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-green-700 flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    Call Log Report
+                  </CardTitle>
+                  <p className="text-xs text-green-600">Recent case notes and communications</p>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <Button
+                    onClick={() => setCurrentView("call-log")}
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-green-600 border-green-300 hover:bg-green-100"
+                  >
+                    View Report →
+                  </Button>
+                </CardContent>
+              </Card>
 
-            {/* Jobs/Placements Report Card */}
-            <Card className="bg-purple-50 border-purple-200 h-fit">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-purple-700 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4" />
-                  Jobs/Placements Report
-                </CardTitle>
-                <p className="text-xs text-purple-600">Employment placements and EVF tracking</p>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Button
-                  onClick={() => setCurrentView("jobs-placements")}
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-purple-600 border-purple-300 hover:bg-purple-100"
-                >
-                  View Report →
-                </Button>
-              </CardContent>
-            </Card>
+              {/* Jobs/Placements Report Card */}
+              <Card className="bg-purple-50 border-purple-200 h-fit">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-purple-700 flex items-center gap-2">
+                    <Briefcase className="w-4 h-4" />
+                    Jobs/Placements Report
+                  </CardTitle>
+                  <p className="text-xs text-purple-600">Employment placements and EVF tracking</p>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <Button
+                    onClick={() => setCurrentView("jobs-placements")}
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-purple-600 border-purple-300 hover:bg-purple-100"
+                  >
+                    View Report →
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {/* Center Content */}
-          <div className="col-span-6 space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-3 gap-4">
-              <Card className="text-center">
-                <CardContent className="p-4">
-                  <Users className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-                  <div className="text-2xl font-bold">{clients.length}</div>
-                  <div className="text-sm text-gray-600">Total Clients</div>
+          <div className="col-span-6">
+            {/* Top Section - Stats Cards and Create Button */}
+            <div className="space-y-6 mb-6">
+              {/* Stats Cards */}
+              <div className="grid grid-cols-3 gap-4">
+                <Card className="text-center">
+                  <CardContent className="p-4">
+                    <Users className="w-8 h-8 mx-auto mb-2 text-blue-500" />
+                    <div className="text-2xl font-bold">{clients.length}</div>
+                    <div className="text-sm text-gray-600">Total Clients</div>
+                  </CardContent>
+                </Card>
+                <Card className="text-center">
+                  <CardContent className="p-4">
+                    <Clock className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                    <div className="text-2xl font-bold">{activeClients.length}</div>
+                    <div className="text-sm text-gray-600">Active Today</div>
+                  </CardContent>
+                </Card>
+                <Card className="text-center">
+                  <CardContent className="p-4">
+                    <FileText className="w-8 h-8 mx-auto mb-2 text-orange-500" />
+                    <div className="text-2xl font-bold">{pendingActions.length}</div>
+                    <div className="text-sm text-gray-600">Pending Actions</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Create New Client Button */}
+              <div className="text-center">
+                <Button
+                  onClick={() => setCurrentView("new-client")}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3"
+                >
+                  <UserPlus className="w-5 h-5 mr-2" />
+                  Create New Client
+                </Button>
+              </div>
+            </div>
+
+            {/* Bottom Section - Aligned with Quick Stats bottom */}
+            <div className="space-y-6">
+              {/* Client Directory - Aligned with bottom of Quick Stats */}
+              <Card className="h-fit">
+                <CardHeader>
+                  <CardTitle className="text-lg">Client Directory</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Quick Search Input */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      placeholder="Quick search clients..."
+                      value={quickSearch}
+                      onChange={(e) => setQuickSearch(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+
+                  {/* Participant ID Search */}
+                  <div className="relative">
+                    <Input
+                      placeholder="Search by Participant ID..."
+                      value={participantIdSearch}
+                      onChange={(e) => setParticipantIdSearch(e.target.value)}
+                      className="font-mono"
+                    />
+                  </div>
+
+                  {/* Search Results */}
+                  {(quickSearch.trim() || participantIdSearch.trim()) && (
+                    <div className="max-h-48 overflow-y-auto border rounded-md bg-gray-50">
+                      {filteredClients.length > 0 ? (
+                        <div className="p-2 space-y-2">
+                          {filteredClients.slice(0, 5).map((client) => (
+                            <div
+                              key={client.id}
+                              className={`flex items-center justify-between p-2 bg-white rounded border hover:bg-blue-50 cursor-pointer ${
+                                client.isNew ? "ring-2 ring-green-200 bg-green-50" : ""
+                              }`}
+                              onClick={() => handleViewClient(client)}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-medium truncate">
+                                    {client.firstName} {client.lastName}
+                                  </p>
+                                  {client.isNew && (
+                                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs animate-pulse">
+                                      New
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                  PID: {client.participantId} • {client.program}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1">{getStatusBadge(client.status)}</div>
+                              </div>
+                              <Button size="sm" variant="ghost" className="ml-2">
+                                <Eye className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                          {filteredClients.length > 5 && (
+                            <div className="text-xs text-gray-500 text-center p-2">
+                              Showing 5 of {filteredClients.length} results
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-4 text-center text-sm text-gray-500">No clients found</div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Directory Actions */}
+                  <div className="space-y-3">
+                    <Button
+                      onClick={() => {
+                        console.log("Viewing client list")
+                      }}
+                      variant="outline"
+                      className="w-full justify-start bg-transparent hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
+                    >
+                      <Users className="w-4 h-4 mr-2" />
+                      View My Clients →
+                    </Button>
+                    <Button
+                      onClick={() => setCurrentView("new-client")}
+                      variant="outline"
+                      className="w-full justify-start bg-transparent hover:bg-green-50 hover:text-green-600 hover:border-green-300"
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      New Client
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
-              <Card className="text-center">
-                <CardContent className="p-4">
-                  <Clock className="w-8 h-8 mx-auto mb-2 text-green-500" />
-                  <div className="text-2xl font-bold">{activeClients.length}</div>
-                  <div className="text-sm text-gray-600">Active Today</div>
-                </CardContent>
-              </Card>
-              <Card className="text-center">
-                <CardContent className="p-4">
-                  <FileText className="w-8 h-8 mx-auto mb-2 text-orange-500" />
-                  <div className="text-2xl font-bold">{pendingActions.length}</div>
-                  <div className="text-sm text-gray-600">Pending Actions</div>
+
+              {/* Dashboard Overview */}
+              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                <CardContent className="p-6 text-center">
+                  <div className="flex items-center justify-center mb-3">
+                    <BarChart3 className="w-8 h-8 text-blue-500" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Dashboard Overview</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Welcome to your client management dashboard. Use the tools above to search, create, and manage
+                    client records efficiently.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div className="bg-white/50 rounded p-2">
+                      <div className="font-medium text-blue-600">Quick Access</div>
+                      <div className="text-gray-600">Search & Create</div>
+                    </div>
+                    <div className="bg-white/50 rounded p-2">
+                      <div className="font-medium text-green-600">Reports</div>
+                      <div className="text-gray-600">Analytics & Data</div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
-
-            {/* Create New Client Button */}
-            <div className="text-center">
-              <Button
-                onClick={() => setCurrentView("new-client")}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3"
-              >
-                <UserPlus className="w-5 h-5 mr-2" />
-                Create New Client
-              </Button>
-            </div>
-
-            {/* Search Client Directory - Streamlined */}
-            <Card className="h-fit">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Search className="w-5 h-5" />
-                  Search Client Directory
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Name:</label>
-                    <Input
-                      placeholder="Enter client name"
-                      value={searchName}
-                      onChange={(e) => setSearchName(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Participant ID:</label>
-                    <Input
-                      placeholder="Enter participant ID"
-                      value={searchParticipantId}
-                      onChange={(e) => setSearchParticipantId(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="flex items-end gap-4">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Records/Page:</label>
-                    <Input value={recordsPerPage} onChange={(e) => setRecordsPerPage(e.target.value)} />
-                  </div>
-                  <Button className="bg-blue-600 hover:bg-blue-700 px-6">
-                    <Search className="w-4 h-4 mr-2" />
-                    Search
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Additional Content Spacer for Balance */}
-            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-              <CardContent className="p-6 text-center">
-                <div className="flex items-center justify-center mb-3">
-                  <BarChart3 className="w-8 h-8 text-blue-500" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Dashboard Overview</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Welcome to your client management dashboard. Use the tools above to search, create, and manage client
-                  records efficiently.
-                </p>
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div className="bg-white/50 rounded p-2">
-                    <div className="font-medium text-blue-600">Quick Access</div>
-                    <div className="text-gray-600">Search & Create</div>
-                  </div>
-                  <div className="bg-white/50 rounded p-2">
-                    <div className="font-medium text-green-600">Reports</div>
-                    <div className="text-gray-600">Analytics & Data</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           {/* Right Sidebar */}
@@ -570,93 +626,6 @@ export function Dashboard() {
                   <Briefcase className="w-4 h-4 mr-2" />
                   Job Placements
                 </Button>
-              </CardContent>
-            </Card>
-
-            {/* Client Directory with Quick Search */}
-            <Card className="h-fit">
-              <CardHeader>
-                <CardTitle className="text-lg">Client Directory</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Quick Search Input */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Quick search clients..."
-                    value={quickSearch}
-                    onChange={(e) => setQuickSearch(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-
-                {/* Search Results */}
-                {quickSearch.trim() && (
-                  <div className="max-h-48 overflow-y-auto border rounded-md bg-gray-50">
-                    {filteredQuickSearchClients.length > 0 ? (
-                      <div className="p-2 space-y-2">
-                        {filteredQuickSearchClients.slice(0, 5).map((client) => (
-                          <div
-                            key={client.id}
-                            className={`flex items-center justify-between p-2 bg-white rounded border hover:bg-blue-50 cursor-pointer ${
-                              client.isNew ? "ring-2 ring-green-200 bg-green-50" : ""
-                            }`}
-                            onClick={() => handleViewClient(client)}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <p className="text-sm font-medium truncate">
-                                  {client.firstName} {client.lastName}
-                                </p>
-                                {client.isNew && (
-                                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs animate-pulse">
-                                    New
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-xs text-gray-500">
-                                PID: {client.participantId} • {client.program}
-                              </p>
-                              <div className="flex items-center gap-2 mt-1">{getStatusBadge(client.status)}</div>
-                            </div>
-                            <Button size="sm" variant="ghost" className="ml-2">
-                              <Eye className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ))}
-                        {filteredQuickSearchClients.length > 5 && (
-                          <div className="text-xs text-gray-500 text-center p-2">
-                            Showing 5 of {filteredQuickSearchClients.length} results
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="p-4 text-center text-sm text-gray-500">No clients found</div>
-                    )}
-                  </div>
-                )}
-
-                {/* Directory Actions */}
-                <div className="space-y-3">
-                  <Button
-                    onClick={() => {
-                      console.log("Viewing client list")
-                    }}
-                    variant="outline"
-                    className="w-full justify-start bg-transparent hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
-                  >
-                    <Users className="w-4 h-4 mr-2" />
-                    View My Clients →
-                  </Button>
-                  <Button
-                    onClick={() => setCurrentView("new-client")}
-                    variant="outline"
-                    className="w-full justify-start bg-transparent hover:bg-green-50 hover:text-green-600 hover:border-green-300"
-                  >
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    New Client
-                  </Button>
-                </div>
               </CardContent>
             </Card>
 
