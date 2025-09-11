@@ -23,6 +23,7 @@ import { NewClientForm } from "./new-client-form"
 import { ActiveClientsReport } from "./active-clients-report"
 import { CallLogReport } from "./call-log-report"
 import { JobsPlacementsReport } from "./jobs-placements-report"
+import { AllClientsReport } from "./all-clients-report"
 
 interface Client {
   id: string
@@ -109,7 +110,7 @@ const validateClientData = (clientData: any): { isValid: boolean; errors: string
 
 export function Dashboard() {
   const [currentView, setCurrentView] = useState<
-    "dashboard" | "client-profile" | "new-client" | "active-clients" | "call-log" | "jobs-placements"
+    "dashboard" | "client-profile" | "new-client" | "active-clients" | "call-log" | "jobs-placements" | "all-clients"
   >("dashboard")
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -360,6 +361,10 @@ export function Dashboard() {
 
   if (currentView === "jobs-placements") {
     return <JobsPlacementsReport onBack={handleBackToDashboard} clients={clients} />
+  }
+
+  if (currentView === "all-clients") {
+    return <AllClientsReport onBack={handleBackToDashboard} clients={clients} onViewClient={handleViewClient} />
   }
 
   return (
@@ -768,6 +773,14 @@ export function Dashboard() {
                 >
                   <Briefcase className="w-4 h-4 mr-2" />
                   Job Placements
+                </Button>
+                <Button
+                  onClick={() => setCurrentView("all-clients")}
+                  variant="outline"
+                  className="w-full justify-start text-orange-600"
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  All Clients ({clients.length})
                 </Button>
               </CardContent>
             </Card>

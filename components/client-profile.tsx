@@ -43,6 +43,7 @@ interface Client {
   certificationStatus?: string
   certificationDocuments?: Array<{ name: string; url: string; uploadDate: string }>
   certificationNotes?: string
+  lastContact?: string
 }
 
 interface ClientProfileProps {
@@ -56,6 +57,28 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   const [editedClient, setEditedClient] = useState<Client>(client)
   const [showCaseNoteForm, setShowCaseNoteForm] = useState(false)
   const [caseNote, setCaseNote] = useState("")
+  const [caseNotes, setCaseNotes] = useState<
+    Array<{
+      id: string
+      note: string
+      date: string
+      author: string
+    }>
+  >([
+    // Sample case notes - in real app, these would come from props or API
+    {
+      id: "1",
+      note: "Initial assessment completed. Client shows strong motivation for job placement.",
+      date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      author: "Case Manager",
+    },
+    {
+      id: "2",
+      note: "Enrolled in Job Readiness program. Scheduled for skills assessment next week.",
+      date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      author: "Employment Counselor",
+    },
+  ])
 
   const handleEdit = () => {
     setIsEditing(true)
@@ -85,11 +108,23 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
 
   const handleSaveCaseNote = () => {
     if (caseNote.trim()) {
-      // Here you would typically save the case note to your data store
-      console.log("Saving case note:", caseNote)
+      const newCaseNote = {
+        id: Date.now().toString(),
+        note: caseNote.trim(),
+        date: new Date().toISOString(),
+        author: "Current User", // In real app, this would be the logged-in user
+      }
+
+      setCaseNotes((prev) => [newCaseNote, ...prev])
       setCaseNote("")
       setShowCaseNoteForm(false)
-      // You could also trigger a refresh of the recent activity section
+
+      // Update the client's last contact date
+      const updatedClient = {
+        ...client,
+        lastContact: new Date().toISOString(),
+      }
+      onSave(updatedClient)
     }
   }
 
@@ -767,7 +802,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
             </Card>
           </div>
 
-          {/* Sidebar - Quick Actions and Recent Activity */}
+          {/* Sidebar - Quick Actions and Case Notes */}
           <div className="space-y-6">
             {/* Quick Actions */}
             <Card>
@@ -818,34 +853,28 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
               </Card>
             )}
 
-            {/* Recent Activity */}
+            {/* Case Notes History */}
             <Card>
               <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
+                <CardTitle>Case Notes ({caseNotes.length})</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 max-h-96 overflow-y-auto">
                 <div className="space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                    <div>
-                      <p className="text-sm font-medium">Case note added</p>
-                      <p className="text-xs text-gray-500">2 days ago</p>
+                  {caseNotes.map((note) => (
+                    <div key={note.id} className="border-l-4 border-blue-500 pl-4 py-2 bg-gray-50 rounded-r">
+                      <div className="flex items-start justify-between mb-1">
+                        <span className="text-xs font-medium text-blue-600">{note.author}</span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(note.date).toLocaleDateString()} at{" "}
+                          {new Date(note.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700">{note.note}</p>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                    <div>
-                      <p className="text-sm font-medium">Program enrollment</p>
-                      <p className="text-xs text-gray-500">1 week ago</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full mt-2"></div>
-                    <div>
-                      <p className="text-sm font-medium">Initial assessment</p>
-                      <p className="text-xs text-gray-500">2 weeks ago</p>
-                    </div>
-                  </div>
+                  ))}
+                  {caseNotes.length === 0 && (
+                    <p className="text-sm text-gray-500 italic text-center py-4">No case notes yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
