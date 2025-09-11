@@ -61,9 +61,6 @@ const initialMockClients = [
     responsibleEC: "Johnson, Sarah",
     requiredHours: "40",
     caoNumber: "CAO123456",
-    createdAt: "2023-01-15T10:00:00Z",
-    updatedAt: "2024-01-15T14:30:00Z",
-    createdBy: "System Admin",
   },
   {
     id: "2",
@@ -88,9 +85,6 @@ const initialMockClients = [
     responsibleEC: "Wilson, David",
     requiredHours: "35",
     caoNumber: "CAO123457",
-    createdAt: "2023-02-20T09:15:00Z",
-    updatedAt: "2024-01-14T16:45:00Z",
-    createdBy: "System Admin",
   },
   {
     id: "3",
@@ -115,9 +109,6 @@ const initialMockClients = [
     responsibleEC: "Taylor, Michael",
     requiredHours: "30",
     caoNumber: "CAO123458",
-    createdAt: "2023-03-10T11:30:00Z",
-    updatedAt: "2024-01-13T13:20:00Z",
-    createdBy: "System Admin",
   },
   {
     id: "4",
@@ -142,9 +133,6 @@ const initialMockClients = [
     responsibleEC: "Anderson, Lisa",
     requiredHours: "25",
     caoNumber: "CAO123459",
-    createdAt: "2023-04-05T14:20:00Z",
-    updatedAt: "2024-01-12T10:15:00Z",
-    createdBy: "System Admin",
   },
   {
     id: "5",
@@ -169,9 +157,6 @@ const initialMockClients = [
     responsibleEC: "Thompson, James",
     requiredHours: "40",
     caoNumber: "CAO123460",
-    createdAt: "2023-05-15T08:45:00Z",
-    updatedAt: "2024-01-11T15:30:00Z",
-    createdBy: "System Admin",
   },
   {
     id: "6",
@@ -196,9 +181,6 @@ const initialMockClients = [
     responsibleEC: "Martinez, Ana",
     requiredHours: "35",
     caoNumber: "CAO123461",
-    createdAt: "2023-06-01T12:00:00Z",
-    updatedAt: "2024-01-10T17:45:00Z",
-    createdBy: "System Admin",
   },
 ]
 
@@ -211,7 +193,6 @@ export function Dashboard() {
   const [searchResults, setSearchResults] = useState<typeof initialMockClients>([])
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [clients, setClients] = useState(initialMockClients)
-  const [recentlyAddedClientId, setRecentlyAddedClientId] = useState<string | null>(null)
 
   const handleSearch = () => {
     if (!searchTerm.trim()) {
@@ -233,7 +214,6 @@ export function Dashboard() {
   }
 
   const handleViewClient = (clientId: string) => {
-    console.log("Navigating to client:", clientId)
     setSelectedClientId(clientId)
     setCurrentView("clientManagement")
   }
@@ -248,79 +228,42 @@ export function Dashboard() {
     setCurrentView("dashboard")
     setSelectedClientId(null)
     clearSearch()
-    // Clear the recently added client highlight after returning to dashboard
-    if (recentlyAddedClientId) {
-      setTimeout(() => setRecentlyAddedClientId(null), 5000)
+  }
+
+  const handleClientCreated = (newClientData: any) => {
+    try {
+      // Create a flattened client object from the nested form data
+      const newClient = {
+        id: Date.now().toString(),
+        firstName: String(newClientData.personal?.firstName || ""),
+        lastName: String(newClientData.personal?.lastName || ""),
+        participantId: String(newClientData.personal?.pid || ""),
+        program: String(newClientData.program?.program || ""),
+        status: String(newClientData.personal?.status || "Active"),
+        enrollmentDate: String(newClientData.program?.enrollmentDate || ""),
+        phone: String(newClientData.contact?.phone || ""),
+        cellPhone: String(newClientData.contact?.cellPhone || ""),
+        email: String(newClientData.contact?.email || ""),
+        address: String(newClientData.contact?.address || ""),
+        city: String(newClientData.contact?.city || ""),
+        state: String(newClientData.contact?.state || ""),
+        zipCode: String(newClientData.contact?.zipCode || ""),
+        dateOfBirth: String(newClientData.personal?.dateOfBirth || ""),
+        ssn: "", // No longer using SSN
+        emergencyContact: String(newClientData.contact?.emergencyContactName || ""),
+        emergencyPhone: String(newClientData.contact?.emergencyContactPhone || ""),
+        caseManager: String(newClientData.program?.caseManager || ""),
+        responsibleEC: "",
+        requiredHours: "",
+        caoNumber: "",
+      }
+
+      setClients((prevClients) => [...prevClients, newClient])
+      handleBackToDashboard()
+    } catch (error) {
+      console.error("Error creating client:", error)
+      handleBackToDashboard()
     }
-  }
-
-  const transformNewClientToStandardFormat = (newClientData: any) => {
-    // Transform the new client form data to match the standard client format
-    return {
-      id: newClientData.id,
-      firstName: newClientData.personal?.firstName || newClientData.firstName,
-      lastName: newClientData.personal?.lastName || newClientData.lastName,
-      participantId: newClientData.participantId,
-      program: newClientData.program?.program || newClientData.program,
-      status: newClientData.personal?.status || newClientData.status || "Active",
-      enrollmentDate: newClientData.program?.enrollmentDate || newClientData.enrollmentDate,
-      phone: newClientData.contact?.phone || newClientData.phone,
-      cellPhone: newClientData.contact?.phone || newClientData.cellPhone || newClientData.phone,
-      email: newClientData.contact?.email || newClientData.email,
-      address: newClientData.contact?.address || newClientData.address || "",
-      city: newClientData.contact?.city || newClientData.city || "",
-      state: newClientData.contact?.state || newClientData.state || "",
-      zipCode: newClientData.contact?.zipCode || newClientData.zipCode || "",
-      dateOfBirth: newClientData.personal?.dateOfBirth || newClientData.dateOfBirth,
-      ssn: newClientData.personal?.ssn || newClientData.ssn,
-      emergencyContact: newClientData.contact?.emergencyContactName || newClientData.emergencyContact || "",
-      emergencyPhone: newClientData.contact?.emergencyContactPhone || newClientData.emergencyPhone || "",
-      caseManager: newClientData.program?.caseManager || newClientData.caseManager,
-      responsibleEC: newClientData.responsibleEC || "Current User",
-      requiredHours: newClientData.employment?.hoursPerWeek || newClientData.requiredHours || "40",
-      caoNumber: newClientData.caoNumber || "",
-      createdAt: newClientData.createdAt,
-      updatedAt: newClientData.updatedAt,
-      createdBy: newClientData.createdBy,
-      // Additional fields for comprehensive data
-      gender: newClientData.personal?.gender,
-      ethnicity: newClientData.personal?.ethnicity,
-      race: newClientData.personal?.race,
-      veteranStatus: newClientData.personal?.veteranStatus,
-      disabilityStatus: newClientData.personal?.disabilityStatus,
-      employment: newClientData.employment,
-      additional: newClientData.additional,
-    }
-  }
-
-  const handleClientCreated = (newClient: any) => {
-    console.log("New client created:", newClient)
-
-    // Transform the new client data to match the standard format
-    const standardizedClient = transformNewClientToStandardFormat(newClient)
-
-    // Add the new client to the beginning of the clients list (most recent first)
-    setClients((prevClients) => {
-      const updatedClients = [standardizedClient, ...prevClients]
-      console.log("Updated clients list:", updatedClients)
-      return updatedClients
-    })
-
-    // Set the recently added client ID for highlighting
-    setRecentlyAddedClientId(newClient.id)
-
-    // Show success message in console (in real app, this might be a toast notification)
-    console.log(
-      `Client ${standardizedClient.firstName} ${standardizedClient.lastName} successfully added to active client list`,
-    )
-
-    // Optionally navigate to the new client's record
-    setSelectedClientId(newClient.id)
-    setCurrentView("clientManagement")
-  }
-
-  const handleUpdateClients = (updatedClients: any[]) => {
-    setClients(updatedClients)
   }
 
   const getStatusBadge = (status: string) => {
@@ -331,23 +274,12 @@ export function Dashboard() {
     }
   }
 
-  // Calculate real-time statistics
-  const activeClientsCount = clients.filter((c) => c.status === "Active").length
-  const totalClientsCount = clients.length
-
   if (currentView === "newClient") {
-    return <NewClientForm onClose={handleBackToDashboard} onClientCreated={handleClientCreated} />
+    return <NewClientForm onClose={handleBackToDashboard} onSubmit={handleClientCreated} />
   }
 
   if (currentView === "clientManagement") {
-    return (
-      <ClientManagement
-        onBack={handleBackToDashboard}
-        clients={clients}
-        onUpdateClients={handleUpdateClients}
-        selectedClientId={selectedClientId}
-      />
-    )
+    return <ClientManagement onBack={handleBackToDashboard} clients={clients} selectedClientId={selectedClientId} />
   }
 
   if (currentView === "activeClientsReport") {
@@ -366,7 +298,6 @@ export function Dashboard() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
-        {/* Top row with logo and applications dropdown */}
         <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center">
             <img src="/images/edsi-new-logo.jpg" alt="EDSI Logo" className="h-12 w-auto" />
@@ -382,7 +313,6 @@ export function Dashboard() {
               <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel className="text-base font-semibold">Applications</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-
                 <DropdownMenuItem className="cursor-pointer py-3">
                   <div className="flex items-center w-full">
                     <CheckCircle className="w-4 h-4 mr-3 text-green-600" />
@@ -392,10 +322,8 @@ export function Dashboard() {
                     </div>
                   </div>
                 </DropdownMenuItem>
-
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-sm font-medium text-gray-600">Reports</DropdownMenuLabel>
-
                 <DropdownMenuItem onClick={() => setCurrentView("activeClientsReport")} className="cursor-pointer py-2">
                   <div className="flex items-center w-full">
                     <div className="flex items-center justify-center w-6 h-6 bg-blue-100 rounded-lg mr-2">
@@ -407,7 +335,6 @@ export function Dashboard() {
                     </div>
                   </div>
                 </DropdownMenuItem>
-
                 <DropdownMenuItem onClick={() => setCurrentView("callLogReport")} className="cursor-pointer py-2">
                   <div className="flex items-center w-full">
                     <div className="flex items-center justify-center w-6 h-6 bg-green-100 rounded-lg mr-2">
@@ -419,7 +346,6 @@ export function Dashboard() {
                     </div>
                   </div>
                 </DropdownMenuItem>
-
                 <DropdownMenuItem
                   onClick={() => setCurrentView("jobsPlacementsReport")}
                   className="cursor-pointer py-2"
@@ -434,7 +360,6 @@ export function Dashboard() {
                     </div>
                   </div>
                 </DropdownMenuItem>
-
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer py-2 text-gray-600">
                   <Activity className="w-4 h-4 mr-3" />
@@ -446,7 +371,6 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Second row with main navigation */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
           <div className="flex items-center gap-4">
             <Button variant="ghost" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50">
@@ -484,38 +408,21 @@ export function Dashboard() {
 
       {/* Main Content */}
       <div className="p-6">
-        {/* Success notification for recently added client */}
-        {recentlyAddedClientId && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              <div>
-                <p className="text-green-800 font-medium">Client Successfully Added!</p>
-                <p className="text-green-700 text-sm">
-                  The new client has been added to your active client list and is now available in all reports.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Report Cards with matching colors and Quick Stats */}
+          {/* Left Column */}
           <div className="space-y-4">
-            {/* Statistics Cards - Smaller with real-time data */}
             <div className="grid grid-cols-2 gap-3">
               <Card className="bg-blue-50 border-l-4 border-l-blue-500">
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xl font-bold text-blue-600">{activeClientsCount}</p>
+                      <p className="text-xl font-bold text-blue-600">89</p>
                       <p className="text-xs text-blue-600">Active Today</p>
                     </div>
                     <Clock className="h-6 w-6 text-blue-600" />
                   </div>
                 </CardContent>
               </Card>
-
               <Card className="bg-orange-50 border-l-4 border-l-orange-500">
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
@@ -529,72 +436,66 @@ export function Dashboard() {
               </Card>
             </div>
 
-            {/* Active Clients Report - Larger fonts */}
             <Card className="border-l-4 border-l-blue-500 bg-blue-50 hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-blue-600 text-base">
+                <CardTitle className="flex items-center gap-2 text-blue-600 text-sm">
                   <Users className="w-4 h-4" />
                   Active Client Report
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-blue-600 mb-2 text-sm">
-                  Comprehensive overview of all {activeClientsCount} currently active clients
-                </p>
+                <p className="text-blue-600 mb-2 text-xs">Comprehensive overview of all currently active clients</p>
                 <Button
                   onClick={() => setCurrentView("activeClientsReport")}
                   variant="outline"
                   size="sm"
-                  className="w-full border-blue-300 text-blue-600 hover:bg-blue-100 text-sm py-2"
+                  className="w-full border-blue-300 text-blue-600 hover:bg-blue-100 text-xs py-1"
                 >
                   View Report →
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Call Log Report - Larger fonts */}
             <Card className="border-l-4 border-l-green-500 bg-green-50 hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-green-600 text-base">
+                <CardTitle className="flex items-center gap-2 text-green-600 text-sm">
                   <Phone className="w-4 h-4" />
                   Call Log Report
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-green-600 mb-2 text-sm">Recent case notes and communications</p>
+                <p className="text-green-600 mb-2 text-xs">Recent case notes and communications</p>
                 <Button
                   onClick={() => setCurrentView("callLogReport")}
                   variant="outline"
                   size="sm"
-                  className="w-full border-green-300 text-green-600 hover:bg-green-100 text-sm py-2"
+                  className="w-full border-green-300 text-green-600 hover:bg-green-100 text-xs py-1"
                 >
                   View Report →
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Jobs/Placements Report - Larger fonts */}
             <Card className="border-l-4 border-l-purple-500 bg-purple-50 hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-purple-600 text-base">
+                <CardTitle className="flex items-center gap-2 text-purple-600 text-sm">
                   <Briefcase className="w-4 h-4" />
                   Jobs/Placements Report
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-purple-600 mb-2 text-sm">Employment placements and EVF tracking</p>
+                <p className="text-purple-600 mb-2 text-xs">Employment placements and EVF tracking</p>
                 <Button
                   onClick={() => setCurrentView("jobsPlacementsReport")}
                   variant="outline"
                   size="sm"
-                  className="w-full border-purple-300 text-purple-600 hover:bg-purple-100 text-sm py-2"
+                  className="w-full border-purple-300 text-purple-600 hover:bg-purple-100 text-xs py-1"
                 >
                   View Report →
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Quick Stats Card - Updated with real-time data */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm">
@@ -607,30 +508,18 @@ export function Dashboard() {
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-600">Total Clients</span>
                     <Badge variant="secondary" className="text-xs">
-                      {totalClientsCount}
+                      {clients.length}
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-600">Active Programs</span>
                     <Badge variant="secondary" className="text-xs">
-                      {[...new Set(clients.map((c) => c.program))].length}
+                      12
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-600">This Month</span>
-                    <Badge className="bg-green-100 text-green-800 text-xs">
-                      +
-                      {
-                        clients.filter((c) => {
-                          const createdDate = new Date(c.createdAt || c.enrollmentDate)
-                          const thisMonth = new Date()
-                          return (
-                            createdDate.getMonth() === thisMonth.getMonth() &&
-                            createdDate.getFullYear() === thisMonth.getFullYear()
-                          )
-                        }).length
-                      }
-                    </Badge>
+                    <Badge className="bg-green-100 text-green-800 text-xs">+23</Badge>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-600">Placements</span>
@@ -641,16 +530,15 @@ export function Dashboard() {
             </Card>
           </div>
 
-          {/* Center Column - Statistics Cards Above Search */}
+          {/* Center Column */}
           <div className="space-y-6">
-            {/* Statistics Cards - Updated with real-time data */}
             <div className="grid grid-cols-3 gap-4">
               <Card>
                 <CardContent className="p-4 text-center">
                   <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mx-auto mb-2">
                     <Users className="w-6 h-6 text-blue-600" />
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">{totalClientsCount}</div>
+                  <div className="text-2xl font-bold text-gray-900">{clients.length}</div>
                   <div className="text-sm text-gray-600">Total Clients</div>
                 </CardContent>
               </Card>
@@ -659,7 +547,7 @@ export function Dashboard() {
                   <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mx-auto mb-2">
                     <Clock className="w-6 h-6 text-green-600" />
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">{activeClientsCount}</div>
+                  <div className="text-2xl font-bold text-gray-900">89</div>
                   <div className="text-sm text-gray-600">Active Today</div>
                 </CardContent>
               </Card>
@@ -674,7 +562,6 @@ export function Dashboard() {
               </Card>
             </div>
 
-            {/* Create New Client Button - Positioned above Search */}
             <div className="flex justify-center">
               <Button
                 onClick={() => setCurrentView("newClient")}
@@ -685,7 +572,6 @@ export function Dashboard() {
               </Button>
             </div>
 
-            {/* Search Section - Now Below Create Button */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -745,20 +631,12 @@ export function Dashboard() {
                           <div>Actions</div>
                         </div>
                         {searchResults.map((client) => (
-                          <div
-                            key={client.id}
-                            className={`grid grid-cols-6 gap-2 text-sm items-center py-2 border-b ${
-                              client.id === recentlyAddedClientId ? "bg-green-50 border-green-200" : ""
-                            }`}
-                          >
+                          <div key={client.id} className="grid grid-cols-6 gap-2 text-sm items-center py-2 border-b">
                             <button
                               onClick={() => handleViewClient(client.id)}
                               className="text-left text-blue-600 hover:text-blue-800 hover:underline font-medium"
                             >
                               {client.lastName}, {client.firstName}
-                              {client.id === recentlyAddedClientId && (
-                                <Badge className="ml-2 bg-green-100 text-green-800 text-xs">New</Badge>
-                              )}
                             </button>
                             <div>{getStatusBadge(client.status)}</div>
                             <div>{client.participantId}</div>
@@ -784,7 +662,7 @@ export function Dashboard() {
             </Card>
           </div>
 
-          {/* Right Column - Client Directory */}
+          {/* Right Column */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -797,7 +675,7 @@ export function Dashboard() {
                   className="w-full justify-start hover:bg-blue-50"
                 >
                   <Users className="w-4 h-4 mr-2" />
-                  View My Clients ({totalClientsCount}) →
+                  View My Clients →
                 </Button>
                 <Button
                   onClick={() => setCurrentView("newClient")}
@@ -810,7 +688,6 @@ export function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Quick Reports Access */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -825,7 +702,7 @@ export function Dashboard() {
                   className="w-full justify-start hover:bg-blue-50 text-blue-600"
                 >
                   <BarChart3 className="w-4 h-4 mr-2" />
-                  Active Clients ({activeClientsCount})
+                  Active Clients
                 </Button>
                 <Button
                   onClick={() => setCurrentView("callLogReport")}
@@ -846,7 +723,6 @@ export function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Recent Activity - Updated to show recent client additions */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -855,32 +731,27 @@ export function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {clients
-                  .sort(
-                    (a, b) =>
-                      new Date(b.createdAt || b.enrollmentDate).getTime() -
-                      new Date(a.createdAt || a.enrollmentDate).getTime(),
-                  )
-                  .slice(0, 3)
-                  .map((client, index) => (
-                    <div key={client.id} className="text-sm">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Calendar className="w-3 h-3 text-gray-400" />
-                        <span className="text-gray-600">
-                          {new Date(client.createdAt || client.enrollmentDate).toLocaleDateString()}
-                        </span>
-                        {client.id === recentlyAddedClientId && (
-                          <Badge className="bg-green-100 text-green-800 text-xs">New</Badge>
-                        )}
-                      </div>
-                      <p>
-                        {index === 0 && client.id === recentlyAddedClientId
-                          ? "New client created: "
-                          : "Client enrollment: "}
-                        {client.firstName} {client.lastName}
-                      </p>
-                    </div>
-                  ))}
+                <div className="text-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar className="w-3 h-3 text-gray-400" />
+                    <span className="text-gray-600">Today, 2:30 PM</span>
+                  </div>
+                  <p>New client enrollment: Sarah Johnson</p>
+                </div>
+                <div className="text-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar className="w-3 h-3 text-gray-400" />
+                    <span className="text-gray-600">Today, 1:15 PM</span>
+                  </div>
+                  <p>Case note added for Michael Davis</p>
+                </div>
+                <div className="text-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar className="w-3 h-3 text-gray-400" />
+                    <span className="text-gray-600">Today, 11:45 AM</span>
+                  </div>
+                  <p>Employment placement: Robert Wilson</p>
+                </div>
               </CardContent>
             </Card>
           </div>
