@@ -14,9 +14,10 @@ import { ArrowLeft, Save, X, User, Phone, GraduationCap, Shield } from "lucide-r
 interface NewClientFormProps {
   onClientCreated: (client: any) => void
   onCancel: () => void
+  isLoading?: boolean
 }
 
-export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps) {
+export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: NewClientFormProps) {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -38,12 +39,18 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
     responsibleEC: "",
     requiredHours: "",
     caoNumber: "",
+    notes: "",
   })
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
   const generatePID = () => {
-    return Math.floor(1000000 + Math.random() * 9000000).toString()
+    // Generate a more robust PID with timestamp and random components
+    const timestamp = Date.now().toString().slice(-6)
+    const random = Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0")
+    return `${timestamp}${random}`
   }
 
   useState(() => {
@@ -59,41 +66,43 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
       [field]: value,
     }))
 
-    // Validate field on change
+    // Clear validation error when user starts typing
+    if (validationErrors[field]) {
+      setValidationErrors((prev) => {
+        const newErrors = { ...prev }
+        delete newErrors[field]
+        return newErrors
+      })
+    }
+
+    // Real-time validation for specific fields
     validateField(field, value)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (isLoading) return
+
     try {
-      // Enhanced validation
-      const requiredFields = [
-        { field: "firstName", label: "First Name" },
-        { field: "lastName", label: "Last Name" },
-        { field: "program", label: "Program" },
-      ]
+      // Comprehensive validation
+      const errors = validateAllFields()
 
-      const missingFields = requiredFields.filter(({ field }) => !formData[field as keyof typeof formData]?.trim())
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(errors)
 
-      if (missingFields.length > 0) {
-        alert(`Please fill in the following required fields: ${missingFields.map((f) => f.label).join(", ")}`)
+        // Focus on first error field
+        const firstErrorField = Object.keys(errors)[0]
+        const element = document.getElementById(firstErrorField)
+        if (element) {
+          element.focus()
+          element.scrollIntoView({ behavior: "smooth", block: "center" })
+        }
+
         return
       }
 
-      // Validate email format if provided
-      if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-        alert("Please enter a valid email address")
-        return
-      }
-
-      // Validate phone format if provided
-      if (formData.phone.trim() && !/^[\d\s\-$$$$]+$/.test(formData.phone.trim())) {
-        alert("Please enter a valid phone number")
-        return
-      }
-
-      // Create a clean, validated data object
+      // Create clean data object with proper formatting
       const clientData = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
@@ -103,7 +112,7 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
         enrollmentDate: formData.enrollmentDate,
         phone: formData.phone.trim(),
         cellPhone: formData.cellPhone.trim(),
-        email: formData.email.trim(),
+        email: formData.email.trim().toLowerCase(),
         address: formData.address.trim(),
         city: formData.city.trim(),
         state: formData.state,
@@ -115,10 +124,11 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
         responsibleEC: formData.responsibleEC.trim(),
         requiredHours: formData.requiredHours.trim(),
         caoNumber: formData.caoNumber.trim(),
+        notes: formData.notes.trim(),
       }
 
-      // Call the parent handler with validated data
-      onClientCreated(clientData)
+      // Call the parent handler with validated and formatted data
+      await onClientCreated(clientData)
     } catch (error) {
       console.error("Error submitting form:", error)
       alert("There was an error creating the client. Please try again.")
@@ -126,6 +136,20 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
   }
 
   const handleClose = () => {
+    if (isLoading) return
+
+    // Check if form has unsaved changes
+    const hasChanges = Object.values(formData).some(
+      (value) => value.trim() !== "" && value !== "Active" && value !== new Date().toISOString().split("T")[0],
+    )
+
+    if (hasChanges) {
+      const confirmClose = window.confirm(
+        "You have unsaved changes. Are you sure you want to close this form? All data will be lost.",
+      )
+      if (!confirmClose) return
+    }
+
     try {
       onCancel()
     } catch (error) {
@@ -137,6 +161,17 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
     const errors = { ...validationErrors }
 
     switch (field) {
+      case "firstName":
+      case "lastName":
+        if (value.trim() && value.trim().length < 2) {
+          errors[field] = "Must be at least 2 characters long"
+        } else if (value.trim() && !/^[a-zA-Z\s'-]+$/.test(value.trim())) {
+          errors[field] = "Only letters, spaces, hyphens, and apostrophes allowed"
+        } else {
+          delete errors[field]
+        }
+        break
+
       case "email":
         if (value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
           errors.email = "Please enter a valid email address"
@@ -144,25 +179,68 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
           delete errors.email
         }
         break
+
       case "phone":
       case "cellPhone":
       case "emergencyPhone":
-        if (value.trim() && !/^[\d\s\-$$$$]+$/.test(value.trim())) {
-          errors[field] = "Please enter a valid phone number"
+        // Remove strict formatting - just check if it's not empty when provided
+        if (value.trim() && value.trim().length < 3) {
+          errors[field] = "Phone number too short"
         } else {
           delete errors[field]
         }
         break
+
       case "zipCode":
         if (value.trim() && !/^\d{5}(-\d{4})?$/.test(value.trim())) {
-          errors.zipCode = "Please enter a valid ZIP code"
+          errors.zipCode = "Please enter a valid ZIP code (12345 or 12345-6789)"
         } else {
           delete errors.zipCode
+        }
+        break
+
+      case "dateOfBirth":
+        if (value.trim()) {
+          const birthDate = new Date(value)
+          const today = new Date()
+          const age = today.getFullYear() - birthDate.getFullYear()
+
+          if (birthDate > today) {
+            errors.dateOfBirth = "Birth date cannot be in the future"
+          } else if (age > 120) {
+            errors.dateOfBirth = "Please enter a valid birth date"
+          } else {
+            delete errors.dateOfBirth
+          }
+        }
+        break
+
+      case "requiredHours":
+        if (value.trim() && (isNaN(Number(value)) || Number(value) < 0)) {
+          errors.requiredHours = "Please enter a valid number of hours"
+        } else {
+          delete errors.requiredHours
         }
         break
     }
 
     setValidationErrors(errors)
+  }
+
+  const validateAllFields = () => {
+    const errors: Record<string, string> = {}
+
+    // Required fields
+    if (!formData.firstName.trim()) errors.firstName = "First Name is required"
+    if (!formData.lastName.trim()) errors.lastName = "Last Name is required"
+    if (!formData.program.trim()) errors.program = "Program is required"
+
+    // Validate all other fields
+    Object.keys(formData).forEach((field) => {
+      validateField(field, formData[field as keyof typeof formData])
+    })
+
+    return { ...errors, ...validationErrors }
   }
 
   const usStates = [
@@ -224,7 +302,7 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={handleClose} className="flex items-center gap-2">
+            <Button variant="ghost" onClick={handleClose} className="flex items-center gap-2" disabled={isLoading}>
               <ArrowLeft className="w-4 h-4" />
               Back to Dashboard
             </Button>
@@ -232,11 +310,20 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
             <h1 className="text-2xl font-bold text-gray-900">New Client Registration</h1>
           </div>
           <div className="flex items-center gap-3">
-            <Button onClick={handleSubmit} className="bg-green-600 hover:bg-green-700">
-              <Save className="w-4 h-4 mr-2" />
-              Save Client
+            <Button onClick={handleSubmit} className="bg-green-600 hover:bg-green-700" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Client
+                </>
+              )}
             </Button>
-            <Button onClick={handleClose} variant="outline">
+            <Button onClick={handleClose} variant="outline" disabled={isLoading}>
               <X className="w-4 h-4 mr-2" />
               Cancel
             </Button>
@@ -263,8 +350,12 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     value={formData.firstName}
                     onChange={(e) => handleInputChange("firstName", e.target.value)}
                     required
+                    disabled={isLoading}
+                    className={validationErrors.firstName ? "border-red-500" : ""}
                   />
-                  {validationErrors.firstName && <p className="text-red-500">{validationErrors.firstName}</p>}
+                  {validationErrors.firstName && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.firstName}</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="lastName">Last Name *</Label>
@@ -273,15 +364,35 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     value={formData.lastName}
                     onChange={(e) => handleInputChange("lastName", e.target.value)}
                     required
+                    disabled={isLoading}
+                    className={validationErrors.lastName ? "border-red-500" : ""}
                   />
-                  {validationErrors.lastName && <p className="text-red-500">{validationErrors.lastName}</p>}
+                  {validationErrors.lastName && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.lastName}</p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="participantId">Participant ID (PID)</Label>
-                  <Input id="participantId" value={formData.participantId} readOnly className="bg-gray-50 font-mono" />
+                  <div className="flex gap-2">
+                    <Input
+                      id="participantId"
+                      value={formData.participantId}
+                      readOnly
+                      className="bg-gray-50 font-mono flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleInputChange("participantId", generatePID())}
+                      disabled={isLoading}
+                    >
+                      Regenerate
+                    </Button>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="dateOfBirth">Date of Birth</Label>
@@ -290,14 +401,23 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     type="date"
                     value={formData.dateOfBirth}
                     onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                    disabled={isLoading}
+                    className={validationErrors.dateOfBirth ? "border-red-500" : ""}
                   />
+                  {validationErrors.dateOfBirth && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.dateOfBirth}</p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="status">Status</Label>
-                  <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => handleInputChange("status", value)}
+                    disabled={isLoading}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -315,6 +435,7 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     type="date"
                     value={formData.enrollmentDate}
                     onChange={(e) => handleInputChange("enrollmentDate", e.target.value)}
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -338,8 +459,11 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
+                    placeholder="Enter phone number"
+                    disabled={isLoading}
+                    className={validationErrors.phone ? "border-red-500" : ""}
                   />
-                  {validationErrors.phone && <p className="text-red-500">{validationErrors.phone}</p>}
+                  {validationErrors.phone && <p className="text-red-500 text-xs mt-1">{validationErrors.phone}</p>}
                 </div>
                 <div>
                   <Label htmlFor="cellPhone">Cell Phone</Label>
@@ -348,8 +472,13 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     type="tel"
                     value={formData.cellPhone}
                     onChange={(e) => handleInputChange("cellPhone", e.target.value)}
+                    placeholder="Enter cell phone"
+                    disabled={isLoading}
+                    className={validationErrors.cellPhone ? "border-red-500" : ""}
                   />
-                  {validationErrors.cellPhone && <p className="text-red-500">{validationErrors.cellPhone}</p>}
+                  {validationErrors.cellPhone && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.cellPhone}</p>
+                  )}
                 </div>
               </div>
 
@@ -360,8 +489,11 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
+                  placeholder="client@example.com"
+                  disabled={isLoading}
+                  className={validationErrors.email ? "border-red-500" : ""}
                 />
-                {validationErrors.email && <p className="text-red-500">{validationErrors.email}</p>}
+                {validationErrors.email && <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>}
               </div>
 
               <div>
@@ -370,17 +502,29 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                   id="address"
                   value={formData.address}
                   onChange={(e) => handleInputChange("address", e.target.value)}
+                  placeholder="123 Main Street"
+                  disabled={isLoading}
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="city">City</Label>
-                  <Input id="city" value={formData.city} onChange={(e) => handleInputChange("city", e.target.value)} />
+                  <Input
+                    id="city"
+                    value={formData.city}
+                    onChange={(e) => handleInputChange("city", e.target.value)}
+                    placeholder="Philadelphia"
+                    disabled={isLoading}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="state">State</Label>
-                  <Select value={formData.state} onValueChange={(value) => handleInputChange("state", value)}>
+                  <Select
+                    value={formData.state}
+                    onValueChange={(value) => handleInputChange("state", value)}
+                    disabled={isLoading}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select state" />
                     </SelectTrigger>
@@ -399,8 +543,11 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     id="zipCode"
                     value={formData.zipCode}
                     onChange={(e) => handleInputChange("zipCode", e.target.value)}
+                    placeholder="19102"
+                    disabled={isLoading}
+                    className={validationErrors.zipCode ? "border-red-500" : ""}
                   />
-                  {validationErrors.zipCode && <p className="text-red-500">{validationErrors.zipCode}</p>}
+                  {validationErrors.zipCode && <p className="text-red-500 text-xs mt-1">{validationErrors.zipCode}</p>}
                 </div>
               </div>
 
@@ -411,6 +558,8 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     id="emergencyContact"
                     value={formData.emergencyContact}
                     onChange={(e) => handleInputChange("emergencyContact", e.target.value)}
+                    placeholder="John Doe"
+                    disabled={isLoading}
                   />
                 </div>
                 <div>
@@ -420,8 +569,13 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     type="tel"
                     value={formData.emergencyPhone}
                     onChange={(e) => handleInputChange("emergencyPhone", e.target.value)}
+                    placeholder="Enter emergency phone"
+                    disabled={isLoading}
+                    className={validationErrors.emergencyPhone ? "border-red-500" : ""}
                   />
-                  {validationErrors.emergencyPhone && <p className="text-red-500">{validationErrors.emergencyPhone}</p>}
+                  {validationErrors.emergencyPhone && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.emergencyPhone}</p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -438,8 +592,12 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="program">Program *</Label>
-                <Select value={formData.program} onValueChange={(value) => handleInputChange("program", value)}>
-                  <SelectTrigger>
+                <Select
+                  value={formData.program}
+                  onValueChange={(value) => handleInputChange("program", value)}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger className={validationErrors.program ? "border-red-500" : ""}>
                     <SelectValue placeholder="Select program" />
                   </SelectTrigger>
                   <SelectContent>
@@ -452,6 +610,7 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     <SelectItem value="Skills Training">Skills Training</SelectItem>
                   </SelectContent>
                 </Select>
+                {validationErrors.program && <p className="text-red-500 text-xs mt-1">{validationErrors.program}</p>}
               </div>
 
               <div>
@@ -460,6 +619,8 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                   id="caseManager"
                   value={formData.caseManager}
                   onChange={(e) => handleInputChange("caseManager", e.target.value)}
+                  placeholder="Smith, John"
+                  disabled={isLoading}
                 />
               </div>
 
@@ -471,7 +632,14 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     type="number"
                     value={formData.requiredHours}
                     onChange={(e) => handleInputChange("requiredHours", e.target.value)}
+                    placeholder="40"
+                    min="0"
+                    disabled={isLoading}
+                    className={validationErrors.requiredHours ? "border-red-500" : ""}
                   />
+                  {validationErrors.requiredHours && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.requiredHours}</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="caoNumber">CAO Number</Label>
@@ -479,6 +647,8 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                     id="caoNumber"
                     value={formData.caoNumber}
                     onChange={(e) => handleInputChange("caoNumber", e.target.value)}
+                    placeholder="CAO-12345"
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -489,6 +659,8 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                   id="responsibleEC"
                   value={formData.responsibleEC}
                   onChange={(e) => handleInputChange("responsibleEC", e.target.value)}
+                  placeholder="Employment Counselor Name"
+                  disabled={isLoading}
                 />
               </div>
             </CardContent>
@@ -507,9 +679,29 @@ export function NewClientForm({ onClientCreated, onCancel }: NewClientFormProps)
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea
                   id="notes"
-                  placeholder="Enter any additional notes or comments..."
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange("notes", e.target.value)}
+                  placeholder="Enter any additional notes or comments about the client..."
                   className="min-h-[100px]"
+                  disabled={isLoading}
                 />
+              </div>
+
+              {/* Form Status Indicator */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-blue-900">Form Status</span>
+                </div>
+                <p className="text-xs text-blue-700">
+                  All client data will be securely stored in the database and immediately available across all reports
+                  and features.
+                </p>
+                {Object.keys(validationErrors).length > 0 && (
+                  <p className="text-xs text-red-600 mt-2">
+                    Please correct {Object.keys(validationErrors).length} validation error(s) before saving.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

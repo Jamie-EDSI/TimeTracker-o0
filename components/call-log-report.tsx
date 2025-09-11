@@ -9,64 +9,81 @@ import { FilterPanel } from "@/components/ui/filter-panel"
 import { exportToExcel, formatDateForExport } from "@/lib/excel-export"
 import { exportToPDF } from "@/lib/pdf-export"
 
-interface CallLogReportProps {
-  onBack: () => void
+interface Client {
+  id: string
+  firstName: string
+  lastName: string
+  participantId: string
+  program: string
+  status: string
+  enrollmentDate: string
+  phone: string
+  cellPhone?: string
+  email: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  dateOfBirth: string
+  ssn?: string
+  emergencyContact?: string
+  emergencyPhone?: string
+  caseManager: string
+  responsibleEC?: string
+  requiredHours?: string
+  caoNumber?: string
+  isNew?: boolean
+  createdAt?: string
+  lastContact?: string
 }
 
-export function CallLogReport({ onBack }: CallLogReportProps) {
+interface CallLogReportProps {
+  onBack: () => void
+  clients: Client[]
+}
+
+export function CallLogReport({ onBack, clients }: CallLogReportProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState<Record<string, any>>({})
 
-  const callLogs = [
-    {
-      id: "1",
-      clientName: "Sarah Johnson",
-      participantId: "2965145",
-      callDate: "2023-11-15",
-      callTime: "2:30 PM",
-      callType: "Outbound",
-      duration: "15 min",
-      outcome: "Successful contact",
-      notes: "Discussed job placement opportunities and upcoming interview",
-      caseManager: "Brown, Lisa",
-    },
-    {
-      id: "2",
-      clientName: "Michael Davis",
-      participantId: "2965146",
-      callDate: "2023-11-14",
-      callTime: "1:15 PM",
-      callType: "Inbound",
-      duration: "8 min",
-      outcome: "Information provided",
-      notes: "Client requested program information and schedule update",
-      caseManager: "Smith, John",
-    },
-    {
-      id: "3",
-      clientName: "Emily Rodriguez",
-      participantId: "2965147",
-      callDate: "2023-11-13",
-      callTime: "10:45 AM",
-      callType: "Outbound",
-      duration: "12 min",
-      outcome: "Follow-up scheduled",
-      notes: "Discussed training progress and next steps",
-      caseManager: "Johnson, Mary",
-    },
-    {
-      id: "4",
-      clientName: "Robert Wilson",
-      participantId: "2965148",
-      callDate: "2023-11-12",
-      callTime: "3:20 PM",
-      callType: "Inbound",
-      duration: "5 min",
-      outcome: "No answer",
-      notes: "Left voicemail regarding appointment reminder",
-      caseManager: "Brown, Lisa",
-    },
-  ]
+  // Generate call logs based on client data
+  const callLogs = useMemo(() => {
+    return clients
+      .flatMap((client, index) => {
+        // Generate 1-3 call logs per client
+        const numCalls = Math.floor(Math.random() * 3) + 1
+        return Array.from({ length: numCalls }, (_, callIndex) => {
+          const callDate = new Date()
+          callDate.setDate(callDate.getDate() - Math.floor(Math.random() * 30)) // Random date within last 30 days
+
+          const callTypes = ["Inbound", "Outbound"]
+          const outcomes = [
+            "Successful contact",
+            "Information provided",
+            "Follow-up scheduled",
+            "No answer",
+            "Voicemail left",
+          ]
+          const durations = ["5 min", "8 min", "12 min", "15 min", "20 min", "3 min"]
+
+          return {
+            id: `${client.id}_call_${callIndex}`,
+            clientName: `${client.firstName} ${client.lastName}`,
+            participantId: client.participantId,
+            callDate: callDate.toISOString().split("T")[0],
+            callTime: `${Math.floor(Math.random() * 12) + 1}:${Math.floor(Math.random() * 60)
+              .toString()
+              .padStart(2, "0")} ${Math.random() > 0.5 ? "AM" : "PM"}`,
+            callType: callTypes[Math.floor(Math.random() * callTypes.length)],
+            duration: durations[Math.floor(Math.random() * durations.length)],
+            outcome: outcomes[Math.floor(Math.random() * outcomes.length)],
+            notes: `Call regarding ${client.program} program progress and next steps`,
+            caseManager: client.caseManager,
+          }
+        })
+      })
+      .sort((a, b) => new Date(b.callDate).getTime() - new Date(a.callDate).getTime())
+  }, [clients])
 
   const filterOptions = [
     {
@@ -87,7 +104,7 @@ export function CallLogReport({ onBack }: CallLogReportProps) {
       key: "caseManager",
       label: "Case Manager",
       type: "select" as const,
-      options: ["Brown, Lisa", "Smith, John", "Johnson, Mary"],
+      options: Array.from(new Set(clients.map((c) => c.caseManager).filter(Boolean))),
       placeholder: "Select case manager",
     },
     {
@@ -139,7 +156,7 @@ export function CallLogReport({ onBack }: CallLogReportProps) {
     })
 
     return filtered
-  }, [searchTerm, filters])
+  }, [callLogs, searchTerm, filters])
 
   const handleExportToExcel = () => {
     const exportData = filteredCallLogs.map((log) => ({
@@ -154,7 +171,7 @@ export function CallLogReport({ onBack }: CallLogReportProps) {
       Notes: log.notes,
     }))
 
-    const filename = `Call_Log_Report_Filtered_${new Date().toISOString().split("T")[0]}`
+    const filename = `Call_Log_Report_${new Date().toISOString().split("T")[0]}`
     exportToExcel(exportData, filename, "Call Logs")
   }
 

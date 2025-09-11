@@ -9,75 +9,97 @@ import { FilterPanel } from "@/components/ui/filter-panel"
 import { exportToExcel, formatDateForExport } from "@/lib/excel-export"
 import { exportToPDF } from "@/lib/pdf-export"
 
-interface JobsPlacementsReportProps {
-  onBack: () => void
+interface Client {
+  id: string
+  firstName: string
+  lastName: string
+  participantId: string
+  program: string
+  status: string
+  enrollmentDate: string
+  phone: string
+  cellPhone?: string
+  email: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  dateOfBirth: string
+  ssn?: string
+  emergencyContact?: string
+  emergencyPhone?: string
+  caseManager: string
+  responsibleEC?: string
+  requiredHours?: string
+  caoNumber?: string
+  isNew?: boolean
+  createdAt?: string
+  lastContact?: string
 }
 
-export function JobsPlacementsReport({ onBack }: JobsPlacementsReportProps) {
+interface JobsPlacementsReportProps {
+  onBack: () => void
+  clients: Client[]
+}
+
+export function JobsPlacementsReport({ onBack, clients }: JobsPlacementsReportProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState<Record<string, any>>({})
 
-  const placements = [
-    {
-      id: "1",
-      clientName: "Sarah Johnson",
-      participantId: "2965145",
-      employer: "ABC Manufacturing",
-      position: "Production Assistant",
-      startDate: "2023-10-15",
-      hourlyWage: "$16.50",
-      status: "Active",
-      hoursPerWeek: "40",
-      caseManager: "Brown, Lisa",
-      placementDate: "2023-10-10",
-    },
-    {
-      id: "2",
-      clientName: "Michael Davis",
-      participantId: "2965146",
-      employer: "Tech Solutions Inc",
-      position: "Data Entry Clerk",
-      startDate: "2023-09-20",
-      hourlyWage: "$15.00",
-      status: "Active",
-      hoursPerWeek: "35",
-      caseManager: "Smith, John",
-      placementDate: "2023-09-15",
-    },
-    {
-      id: "3",
-      clientName: "Robert Wilson",
-      participantId: "2965148",
-      employer: "City Hospital",
-      position: "Maintenance Assistant",
-      startDate: "2023-11-01",
-      hourlyWage: "$17.25",
-      status: "Active",
-      hoursPerWeek: "40",
-      caseManager: "Johnson, Mary",
-      placementDate: "2023-10-25",
-    },
-    {
-      id: "4",
-      clientName: "Emily Rodriguez",
-      participantId: "2965147",
-      employer: "Local Retail Store",
-      position: "Sales Associate",
-      startDate: "2023-08-15",
-      hourlyWage: "$14.00",
-      status: "Terminated",
-      hoursPerWeek: "30",
-      caseManager: "Johnson, Mary",
-      placementDate: "2023-08-10",
-    },
-  ]
+  // Generate job placements based on active clients
+  const placements = useMemo(() => {
+    const activeClients = clients.filter((client) => client.status === "Active")
+    const employers = [
+      "ABC Manufacturing",
+      "Tech Solutions Inc",
+      "City Hospital",
+      "Local Retail Store",
+      "Green Energy Corp",
+      "Metro Transit",
+      "Community Center",
+      "Food Services LLC",
+    ]
+    const positions = [
+      "Production Assistant",
+      "Data Entry Clerk",
+      "Maintenance Assistant",
+      "Sales Associate",
+      "Customer Service Rep",
+      "Administrative Assistant",
+      "Security Guard",
+      "Kitchen Helper",
+    ]
+    const wages = ["$14.00", "$15.50", "$16.25", "$17.00", "$18.50", "$19.75", "$20.00", "$21.25"]
+
+    return activeClients.slice(0, Math.min(activeClients.length, 8)).map((client, index) => {
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() - Math.floor(Math.random() * 90)) // Random start date within last 90 days
+
+      const placementDate = new Date(startDate)
+      placementDate.setDate(placementDate.getDate() - Math.floor(Math.random() * 7)) // Placement date before start date
+
+      return {
+        id: `placement_${client.id}`,
+        clientName: `${client.firstName} ${client.lastName}`,
+        participantId: client.participantId,
+        employer: employers[index % employers.length],
+        position: positions[index % positions.length],
+        startDate: startDate.toISOString().split("T")[0],
+        hourlyWage: wages[index % wages.length],
+        status: Math.random() > 0.8 ? "Terminated" : "Active", // 20% chance of terminated
+        hoursPerWeek: ["30", "35", "40"][Math.floor(Math.random() * 3)],
+        caseManager: client.caseManager,
+        placementDate: placementDate.toISOString().split("T")[0],
+      }
+    })
+  }, [clients])
 
   const filterOptions = [
     {
       key: "employer",
       label: "Employer",
       type: "select" as const,
-      options: ["ABC Manufacturing", "Tech Solutions Inc", "City Hospital", "Local Retail Store"],
+      options: Array.from(new Set(placements.map((p) => p.employer))),
       placeholder: "Select employer",
     },
     {
@@ -97,7 +119,7 @@ export function JobsPlacementsReport({ onBack }: JobsPlacementsReportProps) {
       key: "caseManager",
       label: "Case Manager",
       type: "select" as const,
-      options: ["Brown, Lisa", "Smith, John", "Johnson, Mary"],
+      options: Array.from(new Set(clients.map((c) => c.caseManager).filter(Boolean))),
       placeholder: "Select case manager",
     },
     {
@@ -167,7 +189,7 @@ export function JobsPlacementsReport({ onBack }: JobsPlacementsReportProps) {
     })
 
     return filtered
-  }, [searchTerm, filters])
+  }, [placements, searchTerm, filters])
 
   const handleExportToExcel = () => {
     const exportData = filteredPlacements.map((placement) => ({
@@ -183,7 +205,7 @@ export function JobsPlacementsReport({ onBack }: JobsPlacementsReportProps) {
       "Placement Date": formatDateForExport(placement.placementDate),
     }))
 
-    const filename = `Jobs_Placements_Report_Filtered_${new Date().toISOString().split("T")[0]}`
+    const filename = `Jobs_Placements_Report_${new Date().toISOString().split("T")[0]}`
     exportToExcel(exportData, filename, "Job Placements")
   }
 

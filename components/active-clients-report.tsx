@@ -8,79 +8,41 @@ import { Input } from "@/components/ui/input"
 import { FilterPanel } from "@/components/ui/filter-panel"
 import { exportToExcel, formatDateForExport } from "@/lib/excel-export"
 import { exportToPDF } from "@/lib/pdf-export"
+import type { Client } from "@/types/client" // Import Client type
 
 interface ActiveClientsReportProps {
   onBack: () => void
+  clients: Client[]
 }
 
-export function ActiveClientsReport({ onBack }: ActiveClientsReportProps) {
+export function ActiveClientsReport({ onBack, clients }: ActiveClientsReportProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState<Record<string, any>>({})
 
-  const activeClients = [
-    {
-      id: "1",
-      name: "Sarah Johnson",
-      participantId: "2965145",
-      program: "EARN",
-      enrollmentDate: "2023-02-20",
-      caseManager: "Brown, Lisa",
-      lastContact: "2023-11-15",
-      status: "Active",
-      phone: "484-555-0201",
-      email: "sarah.johnson@email.com",
-    },
-    {
-      id: "2",
-      name: "Michael Davis",
-      participantId: "2965146",
-      program: "Job Readiness",
-      enrollmentDate: "2023-03-15",
-      caseManager: "Smith, John",
-      lastContact: "2023-11-14",
-      status: "Active",
-      phone: "215-555-0102",
-      email: "michael.davis@email.com",
-    },
-    {
-      id: "3",
-      name: "Emily Rodriguez",
-      participantId: "2965147",
-      program: "YOUTH",
-      enrollmentDate: "2023-04-01",
-      caseManager: "Johnson, Mary",
-      lastContact: "2023-11-13",
-      status: "Active",
-      phone: "267-555-0301",
-      email: "emily.rodriguez@email.com",
-    },
-    {
-      id: "4",
-      name: "Robert Wilson",
-      participantId: "2965148",
-      program: "Ex-Offender",
-      enrollmentDate: "2023-01-15",
-      caseManager: "Brown, Lisa",
-      lastContact: "2023-11-12",
-      status: "Inactive",
-      phone: "215-555-0401",
-      email: "robert.wilson@email.com",
-    },
-  ]
+  // Filter to show only active clients from the passed clients data
+  const activeClients = clients.filter((client) => client.status === "Active")
 
   const filterOptions = [
     {
       key: "program",
       label: "Program",
       type: "select" as const,
-      options: ["EARN", "Job Readiness", "YOUTH", "Ex-Offender", "Next Step Program"],
+      options: [
+        "EARN",
+        "Job Readiness",
+        "YOUTH",
+        "Ex-Offender",
+        "Next Step Program",
+        "Career Development",
+        "Skills Training",
+      ],
       placeholder: "Select program",
     },
     {
       key: "caseManager",
       label: "Case Manager",
       type: "select" as const,
-      options: ["Brown, Lisa", "Smith, John", "Johnson, Mary"],
+      options: Array.from(new Set(clients.map((c) => c.caseManager).filter(Boolean))),
       placeholder: "Select case manager",
     },
     {
@@ -109,7 +71,7 @@ export function ActiveClientsReport({ onBack }: ActiveClientsReportProps) {
     if (searchTerm) {
       filtered = filtered.filter(
         (client) =>
-          client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          `${client.firstName} ${client.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
           client.participantId.toLowerCase().includes(searchTerm.toLowerCase()) ||
           client.program.toLowerCase().includes(searchTerm.toLowerCase()) ||
           client.caseManager.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -133,42 +95,42 @@ export function ActiveClientsReport({ onBack }: ActiveClientsReportProps) {
       }
 
       if (key === "lastContact_from") {
-        filtered = filtered.filter((client) => new Date(client.lastContact) >= new Date(value))
+        filtered = filtered.filter((client) => client.lastContact && new Date(client.lastContact) >= new Date(value))
       }
 
       if (key === "lastContact_to") {
-        filtered = filtered.filter((client) => new Date(client.lastContact) <= new Date(value))
+        filtered = filtered.filter((client) => client.lastContact && new Date(client.lastContact) <= new Date(value))
       }
     })
 
     return filtered
-  }, [searchTerm, filters])
+  }, [activeClients, searchTerm, filters])
 
   const handleExportToExcel = () => {
     const exportData = filteredClients.map((client) => ({
-      "Client Name": client.name,
+      "Client Name": `${client.firstName} ${client.lastName}`,
       "Participant ID": client.participantId,
       Program: client.program,
       "Enrollment Date": formatDateForExport(client.enrollmentDate),
       "Case Manager": client.caseManager,
-      "Last Contact": formatDateForExport(client.lastContact),
+      "Last Contact": client.lastContact ? formatDateForExport(client.lastContact) : "N/A",
       Status: client.status,
       Phone: client.phone,
       Email: client.email,
     }))
 
-    const filename = `Active_Clients_Report_Filtered_${new Date().toISOString().split("T")[0]}`
+    const filename = `Active_Clients_Report_${new Date().toISOString().split("T")[0]}`
     exportToExcel(exportData, filename, "Active Clients")
   }
 
   const handleExportToPDF = () => {
     const pdfData = filteredClients.map((client) => ({
-      "Client Name": client.name,
+      "Client Name": `${client.firstName} ${client.lastName}`,
       "Participant ID": client.participantId,
       Program: client.program,
       "Enrollment Date": client.enrollmentDate,
       "Case Manager": client.caseManager,
-      "Last Contact": client.lastContact,
+      "Last Contact": client.lastContact || "N/A",
       Status: client.status,
     }))
 
@@ -260,12 +222,23 @@ export function ActiveClientsReport({ onBack }: ActiveClientsReportProps) {
                 <tbody>
                   {filteredClients.map((client) => (
                     <tr key={client.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4 font-medium">{client.name}</td>
+                      <td className="py-3 px-4 font-medium">
+                        <div className="flex items-center gap-2">
+                          {client.firstName} {client.lastName}
+                          {client.isNew && (
+                            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full animate-pulse">
+                              New
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-3 px-4 font-mono">{client.participantId}</td>
                       <td className="py-3 px-4">{client.program}</td>
                       <td className="py-3 px-4">{new Date(client.enrollmentDate).toLocaleDateString()}</td>
                       <td className="py-3 px-4">{client.caseManager}</td>
-                      <td className="py-3 px-4">{new Date(client.lastContact).toLocaleDateString()}</td>
+                      <td className="py-3 px-4">
+                        {client.lastContact ? new Date(client.lastContact).toLocaleDateString() : "N/A"}
+                      </td>
                       <td className="py-3 px-4">
                         <span
                           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -283,7 +256,7 @@ export function ActiveClientsReport({ onBack }: ActiveClientsReportProps) {
 
             {filteredClients.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                No clients match the current filters. Try adjusting your search criteria.
+                No active clients match the current filters. Try adjusting your search criteria.
               </div>
             )}
 
@@ -293,7 +266,7 @@ export function ActiveClientsReport({ onBack }: ActiveClientsReportProps) {
                 <div>
                   <h3 className="text-sm font-medium text-blue-900">Export Summary</h3>
                   <p className="text-xs text-blue-700">
-                    Ready to export {filteredClients.length} filtered client records
+                    Ready to export {filteredClients.length} filtered active client records
                     {Object.keys(filters).length > 0 && " (filters applied)"}
                   </p>
                 </div>
