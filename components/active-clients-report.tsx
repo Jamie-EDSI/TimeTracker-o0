@@ -8,7 +8,41 @@ import { Input } from "@/components/ui/input"
 import { FilterPanel } from "@/components/ui/filter-panel"
 import { exportToExcel, formatDateForExport } from "@/lib/excel-export"
 import { exportToPDF } from "@/lib/pdf-export"
-import type { Client } from "@/types/client" // Import Client type
+
+interface Client {
+  id: string
+  firstName: string
+  lastName: string
+  participantId: string
+  program: string
+  status: string
+  enrollmentDate: string
+  phone: string
+  cellPhone?: string
+  email: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  dateOfBirth: string
+  ssn?: string
+  emergencyContact?: string
+  emergencyPhone?: string
+  caseManager: string
+  responsibleEC?: string
+  requiredHours?: string
+  caoNumber?: string
+  isNew?: boolean
+  createdAt?: string
+  lastContact?: string
+  // Add case notes field
+  caseNotes?: Array<{
+    id: string
+    note: string
+    date: string
+    author: string
+  }>
+}
 
 interface ActiveClientsReportProps {
   onBack: () => void
@@ -20,7 +54,7 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState<Record<string, any>>({})
 
-  // Filter to show only active clients from the passed clients data
+  // Filter to only show active clients
   const activeClients = clients.filter((client) => client.status === "Active")
 
   const filterOptions = [
@@ -43,15 +77,8 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
       key: "caseManager",
       label: "Case Manager",
       type: "select" as const,
-      options: Array.from(new Set(clients.map((c) => c.caseManager).filter(Boolean))),
+      options: Array.from(new Set(activeClients.map((c) => c.caseManager).filter(Boolean))),
       placeholder: "Select case manager",
-    },
-    {
-      key: "status",
-      label: "Status",
-      type: "select" as const,
-      options: ["Active", "Inactive", "Pending"],
-      placeholder: "Select status",
     },
     {
       key: "enrollmentDate",
@@ -62,6 +89,18 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
       key: "lastContact",
       label: "Last Contact",
       type: "dateRange" as const,
+    },
+    {
+      key: "city",
+      label: "City",
+      type: "text" as const,
+      placeholder: "Enter city name",
+    },
+    {
+      key: "state",
+      label: "State",
+      type: "text" as const,
+      placeholder: "Enter state",
     },
   ]
 
@@ -75,7 +114,9 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
           `${client.firstName} ${client.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
           client.participantId.toLowerCase().includes(searchTerm.toLowerCase()) ||
           client.program.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          client.caseManager.toLowerCase().includes(searchTerm.toLowerCase()),
+          client.caseManager.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          client.phone.toLowerCase().includes(searchTerm.toLowerCase()),
       )
     }
 
@@ -83,8 +124,14 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
     Object.entries(filters).forEach(([key, value]) => {
       if (!value) return
 
-      if (key === "program" || key === "caseManager" || key === "status") {
+      if (key === "program" || key === "caseManager") {
         filtered = filtered.filter((client) => client[key as keyof typeof client] === value)
+      }
+
+      if (key === "city" || key === "state") {
+        filtered = filtered.filter((client) =>
+          client[key as keyof typeof client]?.toLowerCase().includes(value.toLowerCase()),
+        )
       }
 
       if (key === "enrollmentDate_from") {
@@ -114,10 +161,18 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
       Program: client.program,
       "Enrollment Date": formatDateForExport(client.enrollmentDate),
       "Case Manager": client.caseManager,
-      "Last Contact": client.lastContact ? formatDateForExport(client.lastContact) : "N/A",
-      Status: client.status,
+      "Last Contact": client.lastContact
+        ? formatDateForExport(client.lastContact)
+        : client.caseNotes && client.caseNotes.length > 0
+          ? formatDateForExport(client.caseNotes[0].date)
+          : "N/A",
       Phone: client.phone,
       Email: client.email,
+      City: client.city,
+      State: client.state,
+      "ZIP Code": client.zipCode,
+      "Emergency Contact": client.emergencyContact || "N/A",
+      "Emergency Phone": client.emergencyPhone || "N/A",
     }))
 
     const filename = `Active_Clients_Report_${new Date().toISOString().split("T")[0]}`
@@ -131,8 +186,8 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
       Program: client.program,
       "Enrollment Date": client.enrollmentDate,
       "Case Manager": client.caseManager,
-      "Last Contact": client.lastContact || "N/A",
-      Status: client.status,
+      Phone: client.phone,
+      Email: client.email,
     }))
 
     const columns = [
@@ -140,9 +195,9 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
       { key: "Participant ID", label: "PID", width: "12%" },
       { key: "Program", label: "Program", width: "15%" },
       { key: "Enrollment Date", label: "Enrolled", width: "12%" },
-      { key: "Case Manager", label: "Case Manager", width: "18%" },
-      { key: "Last Contact", label: "Last Contact", width: "12%" },
-      { key: "Status", label: "Status", width: "11%" },
+      { key: "Case Manager", label: "Case Manager", width: "15%" },
+      { key: "Phone", label: "Phone", width: "13%" },
+      { key: "Email", label: "Email", width: "13%" },
     ]
 
     exportToPDF(pdfData, "Active Clients Report", columns, filters)
@@ -197,7 +252,7 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
-                    placeholder="Search clients..."
+                    placeholder="Search active clients..."
                     className="pl-10 w-64"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -217,7 +272,7 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
                     <th className="text-left py-3 px-4">Enrollment Date</th>
                     <th className="text-left py-3 px-4">Case Manager</th>
                     <th className="text-left py-3 px-4">Last Contact</th>
-                    <th className="text-left py-3 px-4">Status</th>
+                    <th className="text-left py-3 px-4">Contact Info</th>
                     <th className="text-left py-3 px-4">Actions</th>
                   </tr>
                 </thead>
@@ -239,16 +294,15 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
                       <td className="py-3 px-4">{new Date(client.enrollmentDate).toLocaleDateString()}</td>
                       <td className="py-3 px-4">{client.caseManager}</td>
                       <td className="py-3 px-4">
-                        {client.lastContact ? new Date(client.lastContact).toLocaleDateString() : "N/A"}
+                        {client.lastContact
+                          ? new Date(client.lastContact).toLocaleDateString()
+                          : client.caseNotes && client.caseNotes.length > 0
+                            ? new Date(client.caseNotes[0].date).toLocaleDateString()
+                            : "N/A"}
                       </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            client.status === "Active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {client.status}
-                        </span>
+                      <td className="py-3 px-4 text-sm">
+                        <div>{client.phone}</div>
+                        <div className="text-gray-500">{client.email}</div>
                       </td>
                       <td className="py-3 px-4">
                         {onViewClient && (
@@ -281,7 +335,7 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
                 <div>
                   <h3 className="text-sm font-medium text-blue-900">Export Summary</h3>
                   <p className="text-xs text-blue-700">
-                    Ready to export {filteredClients.length} filtered active client records
+                    Ready to export {filteredClients.length} active client records
                     {Object.keys(filters).length > 0 && " (filters applied)"}
                   </p>
                 </div>

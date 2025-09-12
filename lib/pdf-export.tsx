@@ -1,34 +1,65 @@
-// PDF export utility functions
-export const exportToPDF = (
-  data: any[],
-  title: string,
-  columns: { key: string; label: string; width?: string }[],
-  filters?: Record<string, any>,
-) => {
-  if (!data || data.length === 0) {
-    alert("No data to export")
-    return
+interface Column {
+  key: string
+  label: string
+  width?: string
+}
+
+// Mock PDF export functionality
+export const exportToPDF = (data: any[], title: string, columns?: any[], filters?: any) => {
+  console.log(`Exporting ${data.length} records to PDF:`, title)
+  console.log("Data:", data)
+  console.log("Columns:", columns)
+  console.log("Applied filters:", filters)
+
+  // In a real application, you would use a library like jsPDF or react-pdf
+  // For now, we'll simulate the export by creating a simple text download
+  const textContent = convertToPDFText(data, title, columns)
+  downloadText(textContent, `${title.replace(/\s+/g, "_")}.txt`)
+}
+
+const convertToPDFText = (data: any[], title: string, columns?: any[]) => {
+  let content = `${title}\n${"=".repeat(title.length)}\n\n`
+
+  if (data.length === 0) {
+    content += "No data to display.\n"
+    return content
   }
 
-  // Create HTML content for PDF
-  const htmlContent = generatePDFHTML(data, title, columns, filters)
+  // Use provided columns or infer from data
+  const headers = columns ? columns.map((col) => col.label) : Object.keys(data[0])
+  const keys = columns ? columns.map((col) => col.key) : Object.keys(data[0])
 
-  // Create a new window for PDF generation
-  const printWindow = window.open("", "_blank")
-  if (!printWindow) {
-    alert("Please allow popups to export PDF")
-    return
+  // Add headers
+  content += headers.join(" | ") + "\n"
+  content += headers.map(() => "---").join(" | ") + "\n"
+
+  // Add data rows
+  for (const row of data) {
+    const values = keys.map((key) => {
+      const value = row[key]
+      return value ? String(value).substring(0, 20) : ""
+    })
+    content += values.join(" | ") + "\n"
   }
 
-  printWindow.document.write(htmlContent)
-  printWindow.document.close()
+  content += `\nTotal records: ${data.length}\n`
+  content += `Generated on: ${new Date().toLocaleString()}\n`
 
-  // Wait for content to load, then print
-  printWindow.onload = () => {
-    setTimeout(() => {
-      printWindow.print()
-      printWindow.close()
-    }, 250)
+  return content
+}
+
+const downloadText = (textContent: string, filename: string) => {
+  const blob = new Blob([textContent], { type: "text/plain;charset=utf-8;" })
+  const link = document.createElement("a")
+
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", filename)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 }
 

@@ -35,6 +35,13 @@ interface Client {
   isNew?: boolean
   createdAt?: string
   lastContact?: string
+  // Add case notes field
+  caseNotes?: Array<{
+    id: string
+    note: string
+    date: string
+    author: string
+  }>
 }
 
 interface AllClientsReportProps {
@@ -237,7 +244,7 @@ export function AllClientsReport({ onBack, clients, onViewClient }: AllClientsRe
               Back to Dashboard
             </Button>
             <div className="h-6 w-px bg-gray-300" />
-            <h1 className="text-2xl font-bold text-gray-900">All Clients Report</h1>
+            <h1 className="text-2xl font-bold text-gray-900">My Clients - Complete Directory</h1>
           </div>
           <div className="flex items-center gap-3">
             <Button onClick={handleExportToExcel} className="bg-green-600 hover:bg-green-700">
@@ -299,7 +306,7 @@ export function AllClientsReport({ onBack, clients, onViewClient }: AllClientsRe
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>
-                All Clients ({filteredClients.length} of {clients.length})
+                My Complete Client Directory ({filteredClients.length} of {clients.length})
               </CardTitle>
               <div className="flex items-center gap-2">
                 <div className="relative">
@@ -351,7 +358,11 @@ export function AllClientsReport({ onBack, clients, onViewClient }: AllClientsRe
                       <td className="py-3 px-4">{new Date(client.enrollmentDate).toLocaleDateString()}</td>
                       <td className="py-3 px-4">{client.caseManager}</td>
                       <td className="py-3 px-4">
-                        {client.lastContact ? new Date(client.lastContact).toLocaleDateString() : "N/A"}
+                        {client.lastContact
+                          ? new Date(client.lastContact).toLocaleDateString()
+                          : client.caseNotes && client.caseNotes.length > 0
+                            ? new Date(client.caseNotes[0].date).toLocaleDateString()
+                            : "N/A"}
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-600">
                         {client.city}, {client.state}

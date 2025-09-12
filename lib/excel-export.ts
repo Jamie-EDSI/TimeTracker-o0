@@ -1,37 +1,46 @@
-// Excel export utility functions
-export const exportToExcel = (data: any[], filename: string, sheetName = "Sheet1") => {
-  // Create a simple CSV-like structure that can be downloaded
-  // Since we're in a browser environment, we'll create a CSV file instead of XLSX
-  // but name it with .xlsx extension for user experience
+export const exportToExcel = (data: any[], filename: string, sheetName?: string) => {
+  console.log(`Exporting ${data.length} records to Excel:`, filename)
+  console.log("Data:", data)
 
-  if (!data || data.length === 0) {
-    alert("No data to export")
-    return
+  // In a real application, you would use a library like xlsx or exceljs
+  // For now, we'll simulate the export by creating a CSV download
+  const csvContent = convertToCSV(data)
+  downloadCSV(csvContent, filename)
+}
+
+export const formatDateForExport = (dateString: string) => {
+  try {
+    return new Date(dateString).toLocaleDateString()
+  } catch {
+    return dateString
+  }
+}
+
+const convertToCSV = (data: any[]) => {
+  if (data.length === 0) return ""
+
+  const headers = Object.keys(data[0])
+  const csvRows = []
+
+  // Add headers
+  csvRows.push(headers.join(","))
+
+  // Add data rows
+  for (const row of data) {
+    const values = headers.map((header) => {
+      const value = row[header]
+      // Escape commas and quotes in CSV
+      return typeof value === "string" && (value.includes(",") || value.includes('"'))
+        ? `"${value.replace(/"/g, '""')}"`
+        : value
+    })
+    csvRows.push(values.join(","))
   }
 
-  // Get headers from the first object
-  const headers = Object.keys(data[0])
+  return csvRows.join("\n")
+}
 
-  // Create CSV content
-  const csvContent = [
-    // Header row
-    headers.join(","),
-    // Data rows
-    ...data.map((row) =>
-      headers
-        .map((header) => {
-          const value = row[header]
-          // Handle values that might contain commas or quotes
-          if (typeof value === "string" && (value.includes(",") || value.includes('"'))) {
-            return `"${value.replace(/"/g, '""')}"`
-          }
-          return value || ""
-        })
-        .join(","),
-    ),
-  ].join("\n")
-
-  // Create and download the file
+const downloadCSV = (csvContent: string, filename: string) => {
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
   const link = document.createElement("a")
 
@@ -46,10 +55,16 @@ export const exportToExcel = (data: any[], filename: string, sheetName = "Sheet1
   }
 }
 
-export const formatDateForExport = (dateString: string): string => {
-  try {
-    return new Date(dateString).toLocaleDateString()
-  } catch {
-    return dateString
+export const formatPhoneForExport = (phone: string): string => {
+  if (!phone) return "N/A"
+
+  // Remove all non-digit characters
+  const digits = phone.replace(/\D/g, "")
+
+  // Format as (XXX) XXX-XXXX if 10 digits
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
   }
+
+  return phone
 }

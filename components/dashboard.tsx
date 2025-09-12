@@ -51,6 +51,13 @@ interface Client {
   isNew?: boolean
   createdAt?: string
   lastContact?: string
+  // Add case notes field
+  caseNotes?: Array<{
+    id: string
+    note: string
+    date: string
+    author: string
+  }>
 }
 
 const safeString = (value: any): string => {
@@ -74,8 +81,8 @@ const saveClientToDatabase = async (client: Client): Promise<Client> => {
   // Return the client with database-generated fields
   return {
     ...client,
-    createdAt: new Date().toISOString(),
-    lastContact: new Date().toISOString(),
+    createdAt: client.createdAt || new Date().toISOString(),
+    lastContact: client.lastContact || new Date().toISOString(),
   }
 }
 
@@ -138,6 +145,20 @@ export function Dashboard() {
       caseManager: "Brown, Lisa",
       createdAt: "2023-02-20T10:00:00Z",
       lastContact: "2023-11-15T14:30:00Z",
+      caseNotes: [
+        {
+          id: "note_1",
+          note: "Initial assessment completed. Client shows strong motivation for job placement.",
+          date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          author: "Case Manager",
+        },
+        {
+          id: "note_2",
+          note: "Enrolled in Job Readiness program. Scheduled for skills assessment next week.",
+          date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          author: "Employment Counselor",
+        },
+      ],
     },
     {
       id: "2",
@@ -159,6 +180,14 @@ export function Dashboard() {
       caseManager: "Smith, John",
       createdAt: "2023-03-15T09:00:00Z",
       lastContact: "2023-11-14T13:15:00Z",
+      caseNotes: [
+        {
+          id: "note_3",
+          note: "Client completed job readiness workshop. Showing excellent progress in interview skills.",
+          date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          author: "Employment Counselor",
+        },
+      ],
     },
     {
       id: "3",
@@ -180,6 +209,7 @@ export function Dashboard() {
       caseManager: "Johnson, Mary",
       createdAt: "2023-04-01T11:00:00Z",
       lastContact: "2023-11-13T10:45:00Z",
+      caseNotes: [],
     },
   ])
 
@@ -196,6 +226,15 @@ export function Dashboard() {
     setSelectedClient(null)
   }
 
+  const handleViewMyClients = () => {
+    // Clear any existing search terms for a fresh view
+    setSearchTerm("")
+    setParticipantIdSearch("")
+    setQuickSearch("")
+    // Navigate to the All Clients report
+    setCurrentView("all-clients")
+  }
+
   const handleSaveClient = async (updatedClient: Client) => {
     try {
       setIsLoading(true)
@@ -210,8 +249,14 @@ export function Dashboard() {
       // Save to database (simulated)
       const savedClient = await saveClientToDatabase(updatedClient)
 
-      // Update local state
-      setClients((prevClients) => prevClients.map((client) => (client.id === savedClient.id ? savedClient : client)))
+      // Update local state with the saved client data, including case notes
+      setClients((prevClients) =>
+        prevClients.map((client) =>
+          client.id === savedClient.id
+            ? { ...savedClient, caseNotes: updatedClient.caseNotes || client.caseNotes }
+            : client,
+        ),
+      )
 
       setSelectedClient(savedClient)
       setSuccessMessage(`Client ${savedClient.firstName} ${savedClient.lastName} has been successfully updated!`)
@@ -691,11 +736,9 @@ export function Dashboard() {
                   {/* Directory Actions */}
                   <div className="space-y-3">
                     <Button
-                      onClick={() => {
-                        console.log("Viewing client list")
-                      }}
+                      onClick={handleViewMyClients}
                       variant="outline"
-                      className="w-full justify-start bg-transparent hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
+                      className="w-full justify-start bg-transparent hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-all duration-200"
                     >
                       <Users className="w-4 h-4 mr-2" />
                       View My Clients →

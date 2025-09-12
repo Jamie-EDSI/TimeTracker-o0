@@ -1,10 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Eye, Edit, Phone, Mail, Calendar, User, Briefcase } from "lucide-react"
+import { Dashboard } from "./dashboard"
+import { ClientProfile } from "./client-profile"
+import { NewClientForm } from "./new-client-form"
+import { ActiveClientsReport } from "./active-clients-report"
+import { CallLogReport } from "./call-log-report"
+import { JobsPlacementsReport } from "./jobs-placements-report"
+import { AllClientsReport } from "./all-clients-report"
 
 interface Client {
   id: string
@@ -22,271 +25,179 @@ interface Client {
   state: string
   zipCode: string
   dateOfBirth: string
-  ssn?: string
-  emergencyContact: string
-  emergencyPhone: string
+  emergencyContact?: string
+  emergencyPhone?: string
   caseManager: string
   responsibleEC?: string
   requiredHours?: string
   caoNumber?: string
+  isNew?: boolean
+  createdAt?: string
+  lastContact?: string
+  caseNotes?: Array<{
+    id: string
+    note: string
+    date: string
+    author: string
+  }>
 }
 
-interface ClientManagementProps {
-  onBack: () => void
-  clients: Client[]
-  selectedClientId?: string | null
-}
+export function ClientManagement() {
+  const [currentView, setCurrentView] = useState<
+    "dashboard" | "client-profile" | "new-client" | "active-clients" | "call-log" | "jobs-placements" | "all-clients"
+  >("dashboard")
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [clients, setClients] = useState<Client[]>([
+    {
+      id: "1",
+      firstName: "Sarah",
+      lastName: "Johnson",
+      participantId: "2965145",
+      program: "EARN",
+      status: "Active",
+      enrollmentDate: "2023-02-20",
+      phone: "484-555-0201",
+      email: "sarah.johnson@email.com",
+      address: "456 Oak Ave",
+      city: "Philadelphia",
+      state: "PA",
+      zipCode: "19102",
+      dateOfBirth: "1990-07-15",
+      emergencyContact: "Mike Johnson",
+      emergencyPhone: "484-555-0203",
+      caseManager: "Brown, Lisa",
+      createdAt: "2023-02-20T10:00:00Z",
+      lastContact: "2023-11-15T14:30:00Z",
+      caseNotes: [
+        {
+          id: "note_1",
+          note: "Initial assessment completed. Client shows strong motivation for job placement.",
+          date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          author: "Case Manager",
+        },
+        {
+          id: "note_2",
+          note: "Enrolled in Job Readiness program. Scheduled for skills assessment next week.",
+          date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          author: "Employment Counselor",
+        },
+      ],
+    },
+    {
+      id: "2",
+      firstName: "Michael",
+      lastName: "Davis",
+      participantId: "2965146",
+      program: "Job Readiness",
+      status: "Active",
+      enrollmentDate: "2023-03-15",
+      phone: "215-555-0102",
+      email: "michael.davis@email.com",
+      address: "789 Pine St",
+      city: "Philadelphia",
+      state: "PA",
+      zipCode: "19103",
+      dateOfBirth: "1985-12-03",
+      emergencyContact: "Jennifer Davis",
+      emergencyPhone: "215-555-0104",
+      caseManager: "Smith, John",
+      createdAt: "2023-03-15T09:00:00Z",
+      lastContact: "2023-11-14T13:15:00Z",
+      caseNotes: [
+        {
+          id: "note_3",
+          note: "Client completed job readiness workshop. Showing excellent progress in interview skills.",
+          date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          author: "Employment Counselor",
+        },
+      ],
+    },
+    {
+      id: "3",
+      firstName: "Emily",
+      lastName: "Rodriguez",
+      participantId: "2965147",
+      program: "YOUTH",
+      status: "Pending",
+      enrollmentDate: "2023-04-01",
+      phone: "267-555-0301",
+      email: "emily.rodriguez@email.com",
+      address: "321 Maple Dr",
+      city: "Philadelphia",
+      state: "PA",
+      zipCode: "19104",
+      dateOfBirth: "2001-09-22",
+      emergencyContact: "Carlos Rodriguez",
+      emergencyPhone: "267-555-0302",
+      caseManager: "Johnson, Mary",
+      createdAt: "2023-04-01T11:00:00Z",
+      lastContact: "2023-11-13T10:45:00Z",
+      caseNotes: [],
+    },
+  ])
 
-export function ClientManagement({ onBack, clients, selectedClientId }: ClientManagementProps) {
-  const [selectedClient, setSelectedClient] = useState<Client | null>(
-    selectedClientId ? clients.find((c) => c.id === selectedClientId) || null : null,
-  )
-
-  const safeString = (value: any): string => {
-    if (value === null || value === undefined) {
-      return "Not provided"
-    }
-    if (typeof value === "object") {
-      return "Not provided"
-    }
-    return String(value)
+  const handleNavigate = (view: string) => {
+    setCurrentView(view as any)
   }
 
-  const getStatusBadge = (status: string) => {
-    if (status === "Active") {
-      return <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
-    } else {
-      return <Badge className="bg-red-100 text-red-800 border-red-200">Inactive</Badge>
-    }
+  const handleViewClient = (client: Client) => {
+    setSelectedClient(client)
+    setCurrentView("client-profile")
   }
 
-  if (selectedClient) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center gap-4 mb-6">
-            <Button variant="outline" onClick={() => setSelectedClient(null)}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Client List
-            </Button>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {safeString(selectedClient.firstName)} {safeString(selectedClient.lastName)}
-            </h1>
-            {getStatusBadge(selectedClient.status)}
-          </div>
+  const handleBackToDashboard = () => {
+    setCurrentView("dashboard")
+    setSelectedClient(null)
+  }
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="w-5 h-5" />
-                    Personal Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">First Name</label>
-                      <p className="text-gray-900">{safeString(selectedClient.firstName)}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Last Name</label>
-                      <p className="text-gray-900">{safeString(selectedClient.lastName)}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Participant ID</label>
-                      <p className="text-gray-900">{safeString(selectedClient.participantId)}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Date of Birth</label>
-                      <p className="text-gray-900">{safeString(selectedClient.dateOfBirth)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+  const handleSaveClient = (updatedClient: Client) => {
+    setClients((prevClients) => prevClients.map((client) => (client.id === updatedClient.id ? updatedClient : client)))
+    setSelectedClient(updatedClient)
+  }
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Phone className="w-5 h-5" />
-                    Contact Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Phone</label>
-                      <p className="text-gray-900">{safeString(selectedClient.phone)}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Email</label>
-                      <p className="text-gray-900">{safeString(selectedClient.email)}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Address</label>
-                    <p className="text-gray-900">
-                      {safeString(selectedClient.address)}
-                      <br />
-                      {safeString(selectedClient.city)}, {safeString(selectedClient.state)}{" "}
-                      {safeString(selectedClient.zipCode)}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Emergency Contact</label>
-                      <p className="text-gray-900">{safeString(selectedClient.emergencyContact)}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Emergency Phone</label>
-                      <p className="text-gray-900">{safeString(selectedClient.emergencyPhone)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+  const handleClientCreated = (clientData: any) => {
+    const newClient: Client = {
+      id: `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      ...clientData,
+      isNew: true,
+      createdAt: new Date().toISOString(),
+      lastContact: new Date().toISOString(),
+    }
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Briefcase className="w-5 h-5" />
-                    Program Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Program</label>
-                      <p className="text-gray-900">{safeString(selectedClient.program)}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Enrollment Date</label>
-                      <p className="text-gray-900">{safeString(selectedClient.enrollmentDate)}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Case Manager</label>
-                    <p className="text-gray-900">{safeString(selectedClient.caseManager)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+    setClients((prevClients) => [newClient, ...prevClients])
+    setCurrentView("dashboard")
+  }
 
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button className="w-full justify-start bg-transparent" variant="outline">
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit Client
-                  </Button>
-                  <Button className="w-full justify-start bg-transparent" variant="outline">
-                    <Phone className="w-4 h-4 mr-2" />
-                    Add Case Note
-                  </Button>
-                  <Button className="w-full justify-start bg-transparent" variant="outline">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Schedule Appointment
-                  </Button>
-                  <Button className="w-full justify-start bg-transparent" variant="outline">
-                    <Mail className="w-4 h-4 mr-2" />
-                    Send Email
-                  </Button>
-                </CardContent>
-              </Card>
+  const handleSearch = (query: string) => {
+    // Implement search functionality
+    console.log("Searching for:", query)
+  }
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-start gap-2">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                      <div>
-                        <p className="font-medium">Case note added</p>
-                        <p className="text-gray-500">2 days ago</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                      <div>
-                        <p className="font-medium">Program enrollment</p>
-                        <p className="text-gray-500">1 week ago</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full mt-2"></div>
-                      <div>
-                        <p className="font-medium">Initial assessment</p>
-                        <p className="text-gray-500">2 weeks ago</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+  if (currentView === "client-profile" && selectedClient) {
+    return <ClientProfile client={selectedClient} onBack={handleBackToDashboard} onSave={handleSaveClient} />
+  }
+
+  if (currentView === "new-client") {
+    return <NewClientForm onClientCreated={handleClientCreated} onCancel={handleBackToDashboard} isLoading={false} />
+  }
+
+  if (currentView === "active-clients") {
+    return <ActiveClientsReport onBack={handleBackToDashboard} clients={clients} onViewClient={handleViewClient} />
+  }
+
+  if (currentView === "call-log") {
+    return <CallLogReport onBack={handleBackToDashboard} clients={clients} />
+  }
+
+  if (currentView === "jobs-placements") {
+    return <JobsPlacementsReport onBack={handleBackToDashboard} clients={clients} />
+  }
+
+  if (currentView === "all-clients") {
+    return <AllClientsReport onBack={handleBackToDashboard} clients={clients} onViewClient={handleViewClient} />
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="outline" onClick={onBack}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          <h1 className="text-2xl font-bold text-gray-900">Client Management</h1>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>All Clients ({clients.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-7 gap-4 text-sm font-medium text-gray-500 border-b pb-2">
-                <div>Name</div>
-                <div>PID</div>
-                <div>Program</div>
-                <div>Status</div>
-                <div>Enrollment</div>
-                <div>Case Manager</div>
-                <div>Actions</div>
-              </div>
-              {clients.map((client) => (
-                <div
-                  key={client.id}
-                  className="grid grid-cols-7 gap-4 text-sm items-center py-3 border-b hover:bg-gray-50"
-                >
-                  <div className="font-medium">
-                    {safeString(client.lastName)}, {safeString(client.firstName)}
-                  </div>
-                  <div>{safeString(client.participantId)}</div>
-                  <div>{safeString(client.program)}</div>
-                  <div>{getStatusBadge(client.status)}</div>
-                  <div>{safeString(client.enrollmentDate)}</div>
-                  <div>{safeString(client.caseManager)}</div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setSelectedClient(client)}>
-                      <Eye className="w-3 h-3 mr-1" />
-                      View
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <Dashboard onNavigate={handleNavigate} onSearch={handleSearch} clients={clients} onViewClient={handleViewClient} />
   )
 }

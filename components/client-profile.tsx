@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Edit, Save, X, User, Phone, GraduationCap, FileText } from "lucide-react"
@@ -21,7 +21,6 @@ interface Client {
   state: string
   zipCode: string
   dateOfBirth: string
-  ssn?: string
   emergencyContact?: string
   emergencyPhone?: string
   caseManager: string
@@ -41,9 +40,15 @@ interface Client {
   licenses?: string
   industryCertifications?: string
   certificationStatus?: string
-  certificationDocuments?: Array<{ name: string; url: string; uploadDate: string }>
   certificationNotes?: string
   lastContact?: string
+  // Case notes field
+  caseNotes?: Array<{
+    id: string
+    note: string
+    date: string
+    author: string
+  }>
 }
 
 interface ClientProfileProps {
@@ -64,21 +69,30 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       date: string
       author: string
     }>
-  >([
-    // Sample case notes - in real app, these would come from props or API
-    {
-      id: "1",
-      note: "Initial assessment completed. Client shows strong motivation for job placement.",
-      date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      author: "Case Manager",
-    },
-    {
-      id: "2",
-      note: "Enrolled in Job Readiness program. Scheduled for skills assessment next week.",
-      date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-      author: "Employment Counselor",
-    },
-  ])
+  >(
+    client.caseNotes || [
+      // Sample case notes - in real app, these would come from props or API
+      {
+        id: "1",
+        note: "Initial assessment completed. Client shows strong motivation for job placement.",
+        date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        author: "Case Manager",
+      },
+      {
+        id: "2",
+        note: "Enrolled in Job Readiness program. Scheduled for skills assessment next week.",
+        date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+        author: "Employment Counselor",
+      },
+    ],
+  )
+  const [showNoteSuccess, setShowNoteSuccess] = useState(false)
+
+  useEffect(() => {
+    if (client.caseNotes) {
+      setCaseNotes(client.caseNotes)
+    }
+  }, [client.caseNotes])
 
   const handleEdit = () => {
     setIsEditing(true)
@@ -112,19 +126,23 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
         id: Date.now().toString(),
         note: caseNote.trim(),
         date: new Date().toISOString(),
-        author: "Current User", // In real app, this would be the logged-in user
+        author: "Current User",
       }
 
       setCaseNotes((prev) => [newCaseNote, ...prev])
       setCaseNote("")
       setShowCaseNoteForm(false)
 
-      // Update the client's last contact date
       const updatedClient = {
         ...client,
         lastContact: new Date().toISOString(),
+        caseNotes: [newCaseNote, ...(client.caseNotes || [])],
       }
+
       onSave(updatedClient)
+
+      setShowNoteSuccess(true)
+      setTimeout(() => setShowNoteSuccess(false), 3000)
     }
   }
 
@@ -205,18 +223,18 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       </div>
 
       <div className="p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content - Personal Information */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Main Content - Smaller Information Cards */}
+          <div className="space-y-3">
+            <Card className="border border-gray-200">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle className="flex items-center gap-2 text-base">
                   <User className="w-5 h-5 text-blue-600" />
                   Personal Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <CardContent className="space-y-3 px-4 pb-3 pt-0">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-600">First Name</label>
                     {isEditing ? (
@@ -224,10 +242,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="text"
                         value={editedClient.firstName}
                         onChange={(e) => handleInputChange("firstName", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.firstName}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.firstName}</p>
                     )}
                   </div>
                   <div>
@@ -237,18 +255,18 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="text"
                         value={editedClient.lastName}
                         onChange={(e) => handleInputChange("lastName", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.lastName}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.lastName}</p>
                     )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Participant ID</label>
-                    <p className="text-gray-900 font-mono">{currentClient.participantId}</p>
+                    <p className="text-gray-900 font-mono text-sm">{currentClient.participantId}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Date of Birth</label>
@@ -257,22 +275,22 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="date"
                         value={editedClient.dateOfBirth}
                         onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{formatDate(currentClient.dateOfBirth)}</p>
+                      <p className="text-gray-900 text-sm">{formatDate(currentClient.dateOfBirth)}</p>
                     )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Status</label>
                     {isEditing ? (
                       <select
                         value={editedClient.status}
                         onChange={(e) => handleInputChange("status", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
@@ -289,25 +307,24 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="date"
                         value={editedClient.enrollmentDate}
                         onChange={(e) => handleInputChange("enrollmentDate", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{formatDate(currentClient.enrollmentDate)}</p>
+                      <p className="text-gray-900 text-sm">{formatDate(currentClient.enrollmentDate)}</p>
                     )}
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Contact Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+            <Card className="border border-gray-200">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle className="flex items-center gap-2 text-base">
                   <Phone className="w-5 h-5 text-green-600" />
                   Contact Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 px-4 pb-3 pt-0">
                 <div>
                   <label className="text-sm font-medium text-gray-600">Phone Number</label>
                   {isEditing ? (
@@ -315,10 +332,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       type="tel"
                       value={editedClient.phone}
                       onChange={(e) => handleInputChange("phone", e.target.value)}
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   ) : (
-                    <p className="text-gray-900">{currentClient.phone}</p>
+                    <p className="text-gray-900 text-sm">{currentClient.phone}</p>
                   )}
                 </div>
 
@@ -329,10 +346,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       type="email"
                       value={editedClient.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   ) : (
-                    <p className="text-gray-900">{currentClient.email}</p>
+                    <p className="text-gray-900 text-sm">{currentClient.email}</p>
                   )}
                 </div>
 
@@ -343,14 +360,14 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       type="text"
                       value={editedClient.address}
                       onChange={(e) => handleInputChange("address", e.target.value)}
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   ) : (
-                    <p className="text-gray-900">{currentClient.address}</p>
+                    <p className="text-gray-900 text-sm">{currentClient.address}</p>
                   )}
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-600">City</label>
                     {isEditing ? (
@@ -358,10 +375,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="text"
                         value={editedClient.city}
                         onChange={(e) => handleInputChange("city", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.city}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.city}</p>
                     )}
                   </div>
                   <div>
@@ -371,10 +388,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="text"
                         value={editedClient.state}
                         onChange={(e) => handleInputChange("state", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.state}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.state}</p>
                     )}
                   </div>
                   <div>
@@ -384,15 +401,15 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="text"
                         value={editedClient.zipCode}
                         onChange={(e) => handleInputChange("zipCode", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.zipCode}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.zipCode}</p>
                     )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Emergency Contact</label>
                     {isEditing ? (
@@ -400,10 +417,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="text"
                         value={editedClient.emergencyContact || ""}
                         onChange={(e) => handleInputChange("emergencyContact", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.emergencyContact || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.emergencyContact || "Not provided"}</p>
                     )}
                   </div>
                   <div>
@@ -413,32 +430,31 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="tel"
                         value={editedClient.emergencyPhone || ""}
                         onChange={(e) => handleInputChange("emergencyPhone", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.emergencyPhone || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.emergencyPhone || "Not provided"}</p>
                     )}
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Program Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+            <Card className="border border-gray-200">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle className="flex items-center gap-2 text-base">
                   <GraduationCap className="w-5 h-5 text-purple-600" />
                   Program Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 px-4 pb-3 pt-0">
                 <div>
                   <label className="text-sm font-medium text-gray-600">Program</label>
                   {isEditing ? (
                     <select
                       value={editedClient.program}
                       onChange={(e) => handleInputChange("program", e.target.value)}
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="Job Readiness">Job Readiness</option>
                       <option value="EARN">EARN</option>
@@ -449,7 +465,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       <option value="Skills Training">Skills Training</option>
                     </select>
                   ) : (
-                    <p className="text-gray-900">{currentClient.program}</p>
+                    <p className="text-gray-900 text-sm">{currentClient.program}</p>
                   )}
                 </div>
 
@@ -460,14 +476,14 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       type="text"
                       value={editedClient.caseManager}
                       onChange={(e) => handleInputChange("caseManager", e.target.value)}
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   ) : (
-                    <p className="text-gray-900">{currentClient.caseManager}</p>
+                    <p className="text-gray-900 text-sm">{currentClient.caseManager}</p>
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Required Hours</label>
                     {isEditing ? (
@@ -475,10 +491,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="number"
                         value={editedClient.requiredHours || ""}
                         onChange={(e) => handleInputChange("requiredHours", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.requiredHours || "Not specified"}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.requiredHours || "Not specified"}</p>
                     )}
                   </div>
                   <div>
@@ -488,33 +504,32 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="text"
                         value={editedClient.caoNumber || ""}
                         onChange={(e) => handleInputChange("caoNumber", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.caoNumber || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.caoNumber || "Not provided"}</p>
                     )}
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Education Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+            <Card className="border border-gray-200">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle className="flex items-center gap-2 text-base">
                   <GraduationCap className="w-5 h-5 text-indigo-600" />
                   Education Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <CardContent className="space-y-3 px-4 pb-3 pt-0">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Highest Education Level</label>
                     {isEditing ? (
                       <select
                         value={editedClient.educationLevel || ""}
                         onChange={(e) => handleInputChange("educationLevel", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="">Select education level</option>
                         <option value="Less than High School">Less than High School</option>
@@ -527,7 +542,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         <option value="Professional Degree">Professional Degree</option>
                       </select>
                     ) : (
-                      <p className="text-gray-900">{currentClient.educationLevel || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.educationLevel || "Not provided"}</p>
                     )}
                   </div>
                   <div>
@@ -539,16 +554,16 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         max={new Date().getFullYear()}
                         value={editedClient.graduationYear || ""}
                         onChange={(e) => handleInputChange("graduationYear", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="e.g., 2020"
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.graduationYear || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.graduationYear || "Not provided"}</p>
                     )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-600">School/Institution Name</label>
                     {isEditing ? (
@@ -556,11 +571,11 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="text"
                         value={editedClient.schoolName || ""}
                         onChange={(e) => handleInputChange("schoolName", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Enter school or institution name"
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.schoolName || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.schoolName || "Not provided"}</p>
                     )}
                   </div>
                   <div>
@@ -570,11 +585,11 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="text"
                         value={editedClient.fieldOfStudy || ""}
                         onChange={(e) => handleInputChange("fieldOfStudy", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Enter field of study or major"
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.fieldOfStudy || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.fieldOfStudy || "Not provided"}</p>
                     )}
                   </div>
                 </div>
@@ -585,29 +600,31 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                     <textarea
                       value={editedClient.educationNotes || ""}
                       onChange={(e) => handleInputChange("educationNotes", e.target.value)}
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      rows={3}
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      rows={2}
                       placeholder="Enter any additional education details, honors, relevant coursework, etc."
                     />
                   ) : (
-                    <p className="text-gray-900">{currentClient.educationNotes || "Not provided"}</p>
+                    <p className="text-gray-900 text-sm whitespace-pre-line">
+                      {currentClient.educationNotes || "Not provided"}
+                    </p>
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Currently Enrolled</label>
                     {isEditing ? (
                       <select
                         value={editedClient.currentlyEnrolled || "No"}
                         onChange={(e) => handleInputChange("currentlyEnrolled", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="No">No</option>
                         <option value="Yes">Yes</option>
                       </select>
                     ) : (
-                      <p className="text-gray-900">{currentClient.currentlyEnrolled || "No"}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.currentlyEnrolled || "No"}</p>
                     )}
                   </div>
                   <div>
@@ -620,39 +637,38 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         step="0.01"
                         value={editedClient.gpa || ""}
                         onChange={(e) => handleInputChange("gpa", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="e.g., 3.5"
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.gpa || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.gpa || "Not provided"}</p>
                     )}
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Certifications */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+            <Card className="border border-gray-200">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle className="flex items-center gap-2 text-base">
                   <FileText className="w-5 h-5 text-orange-600" />
                   Certifications & Licenses
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <CardContent className="space-y-3 px-4 pb-3 pt-0">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Professional Certifications</label>
                     {isEditing ? (
                       <textarea
                         value={editedClient.certifications || ""}
                         onChange={(e) => handleInputChange("certifications", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        rows={3}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        rows={2}
                         placeholder="List professional certifications (e.g., CompTIA A+, Microsoft Office Specialist, etc.)"
                       />
                     ) : (
-                      <p className="text-gray-900 whitespace-pre-line">
+                      <p className="text-gray-900 text-sm whitespace-pre-line">
                         {currentClient.certifications || "Not provided"}
                       </p>
                     )}
@@ -663,17 +679,19 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       <textarea
                         value={editedClient.licenses || ""}
                         onChange={(e) => handleInputChange("licenses", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        rows={3}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        rows={2}
                         placeholder="List professional licenses (e.g., Driver's License, CDL, Professional License, etc.)"
                       />
                     ) : (
-                      <p className="text-gray-900 whitespace-pre-line">{currentClient.licenses || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm whitespace-pre-line">
+                        {currentClient.licenses || "Not provided"}
+                      </p>
                     )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Industry Certifications</label>
                     {isEditing ? (
@@ -681,11 +699,11 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         type="text"
                         value={editedClient.industryCertifications || ""}
                         onChange={(e) => handleInputChange("industryCertifications", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="e.g., OSHA 10, Food Handler's License, etc."
                       />
                     ) : (
-                      <p className="text-gray-900">{currentClient.industryCertifications || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.industryCertifications || "Not provided"}</p>
                     )}
                   </div>
                   <div>
@@ -694,7 +712,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       <select
                         value={editedClient.certificationStatus || ""}
                         onChange={(e) => handleInputChange("certificationStatus", e.target.value)}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="">Select status</option>
                         <option value="Current">Current</option>
@@ -703,85 +721,48 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         <option value="Renewal Required">Renewal Required</option>
                       </select>
                     ) : (
-                      <p className="text-gray-900">{currentClient.certificationStatus || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{currentClient.certificationStatus || "Not provided"}</p>
                     )}
                   </div>
                 </div>
 
                 {/* File Upload Section */}
-                <div className="border-t pt-4">
-                  <label className="text-sm font-medium text-gray-600 mb-3 block">Certification Documents</label>
-
-                  {isEditing ? (
-                    <div className="space-y-3">
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                        <input
-                          type="file"
-                          multiple
-                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                          className="hidden"
-                          id="certification-upload"
-                          onChange={(e) => {
-                            // Handle file upload logic here
-                            const files = Array.from(e.target.files || [])
-                            console.log("Uploaded files:", files)
-                            // In a real application, you would upload these files to a server
-                          }}
-                        />
-                        <label htmlFor="certification-upload" className="cursor-pointer">
-                          <div className="flex flex-col items-center">
-                            <svg
-                              className="w-8 h-8 text-gray-400 mb-2"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                              />
-                            </svg>
-                            <span className="text-sm text-gray-600">Click to upload certification documents</span>
-                            <span className="text-xs text-gray-500 mt-1">PDF, JPG, PNG, DOC, DOCX (Max 10MB each)</span>
-                          </div>
-                        </label>
+                <div>
+                  <label className="mb-3 block text-sm font-medium text-gray-600">Certification Documents</label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                      className="hidden"
+                      id="certification-upload"
+                      onChange={(e) => {
+                        // Handle file upload logic here
+                        const files = Array.from(e.target.files || [])
+                        console.log("Uploaded files:", files)
+                        // In a real application, you would upload these files to a server
+                      }}
+                    />
+                    <label htmlFor="certification-upload" className="cursor-pointer">
+                      <div className="flex flex-col items-center">
+                        <svg
+                          className="w-8 h-8 text-gray-400 mb-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
+                        </svg>
+                        <span className="text-sm text-gray-600">Click to upload certification documents</span>
+                        <span className="text-xs text-gray-500 mt-1">PDF, JPG, PNG, DOC, DOCX (Max 10MB each)</span>
                       </div>
-
-                      {/* Display uploaded files (placeholder) */}
-                      <div className="space-y-2">
-                        {/* This would be populated with actual uploaded files */}
-                        <div className="flex items-center justify-between p-2 bg-gray-50 rounded border">
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm text-gray-700">Sample_Certificate.pdf</span>
-                            <span className="text-xs text-gray-500">(2.3 MB)</span>
-                          </div>
-                          <button className="text-red-500 hover:text-red-700 text-sm">Remove</button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {/* Display existing certification documents */}
-                      <div className="text-sm text-gray-500">
-                        {currentClient.certificationDocuments && currentClient.certificationDocuments.length > 0 ? (
-                          <div className="space-y-2">
-                            {currentClient.certificationDocuments.map((doc: any, index: number) => (
-                              <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded border">
-                                <FileText className="w-4 h-4 text-gray-500" />
-                                <span className="text-sm text-gray-700">{doc.name}</span>
-                                <button className="text-blue-500 hover:text-blue-700 text-sm ml-auto">Download</button>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-gray-500 italic">No certification documents uploaded</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                    </label>
+                  </div>
                 </div>
 
                 <div>
@@ -790,12 +771,12 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                     <textarea
                       value={editedClient.certificationNotes || ""}
                       onChange={(e) => handleInputChange("certificationNotes", e.target.value)}
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                       rows={2}
                       placeholder="Additional notes about certifications, renewal dates, etc."
                     />
                   ) : (
-                    <p className="text-gray-900">{currentClient.certificationNotes || "Not provided"}</p>
+                    <p className="text-gray-900 text-sm">{currentClient.certificationNotes || "Not provided"}</p>
                   )}
                 </div>
               </CardContent>
@@ -803,13 +784,13 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
           </div>
 
           {/* Sidebar - Quick Actions and Case Notes */}
-          <div className="space-y-6">
+          <div className="space-y-3">
             {/* Quick Actions */}
-            <Card>
-              <CardHeader>
+            <Card className="border border-gray-200">
+              <CardHeader className="pb-2 px-4 pt-3">
                 <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 px-4 pb-3 pt-0">
                 <Button
                   onClick={handleEdit}
                   className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white"
@@ -830,16 +811,16 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
 
             {/* Case Note Form */}
             {showCaseNoteForm && (
-              <Card>
-                <CardHeader>
+              <Card className="border border-gray-200">
+                <CardHeader className="pb-2 px-4 pt-3">
                   <CardTitle>Add Case Note</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 px-4 pb-3 pt-0">
                   <textarea
                     value={caseNote}
                     onChange={(e) => setCaseNote(e.target.value)}
                     placeholder="Enter case note details..."
-                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    className="w-full h-32 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   />
                   <div className="flex gap-2">
                     <Button onClick={handleSaveCaseNote} size="sm" className="bg-green-600 hover:bg-green-700">
@@ -853,28 +834,35 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
               </Card>
             )}
 
-            {/* Case Notes History */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Case Notes ({caseNotes.length})</CardTitle>
+            {/* Case Notes History - Large and Prominent */}
+            <Card className="border border-gray-200 min-h-[700px]">
+              <CardHeader className="pb-3 px-4 pt-4">
+                <CardTitle className="text-xl font-bold">Case Notes ({caseNotes.length})</CardTitle>
+                {showNoteSuccess && (
+                  <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded-md">
+                    <p className="text-sm text-green-700">✓ Case note added successfully</p>
+                  </div>
+                )}
               </CardHeader>
-              <CardContent className="space-y-4 max-h-96 overflow-y-auto">
-                <div className="space-y-3">
-                  {caseNotes.map((note) => (
-                    <div key={note.id} className="border-l-4 border-blue-500 pl-4 py-2 bg-gray-50 rounded-r">
-                      <div className="flex items-start justify-between mb-1">
-                        <span className="text-xs font-medium text-blue-600">{note.author}</span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(note.date).toLocaleDateString()} at{" "}
-                          {new Date(note.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
+              <CardContent className="px-4 pb-4 pt-0">
+                <div className="space-y-4 max-h-[600px] overflow-y-auto">
+                  <div className="space-y-3">
+                    {caseNotes.map((note) => (
+                      <div key={note.id} className="border-l-4 border-blue-500 pl-4 py-2 bg-gray-50 rounded-r">
+                        <div className="flex items-start justify-between mb-1">
+                          <span className="text-sm font-medium text-blue-600">{note.author}</span>
+                          <span className="text-sm text-gray-500">
+                            {new Date(note.date).toLocaleDateString()} at{" "}
+                            {new Date(note.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700">{note.note}</p>
                       </div>
-                      <p className="text-sm text-gray-700">{note.note}</p>
-                    </div>
-                  ))}
-                  {caseNotes.length === 0 && (
-                    <p className="text-sm text-gray-500 italic text-center py-4">No case notes yet</p>
-                  )}
+                    ))}
+                    {caseNotes.length === 0 && (
+                      <p className="text-sm text-gray-500 italic text-center py-4">No case notes yet</p>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

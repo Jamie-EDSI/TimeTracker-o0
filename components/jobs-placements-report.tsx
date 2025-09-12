@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Search, FileSpreadsheet, FileText } from "lucide-react"
+import { ArrowLeft, Search, FileSpreadsheet, FileText, Briefcase, TrendingUp } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { FilterPanel } from "@/components/ui/filter-panel"
 import { exportToExcel, formatDateForExport } from "@/lib/excel-export"
@@ -35,6 +35,12 @@ interface Client {
   isNew?: boolean
   createdAt?: string
   lastContact?: string
+  caseNotes?: Array<{
+    id: string
+    note: string
+    date: string
+    author: string
+  }>
 }
 
 interface JobsPlacementsReportProps {
@@ -42,78 +48,103 @@ interface JobsPlacementsReportProps {
   clients: Client[]
 }
 
+// Generate sample job placement data
+const generateJobPlacementData = (clients: Client[]) => {
+  const jobTitles = [
+    "Customer Service Representative",
+    "Administrative Assistant",
+    "Warehouse Associate",
+    "Retail Sales Associate",
+    "Food Service Worker",
+    "Security Guard",
+    "Data Entry Clerk",
+    "Maintenance Technician",
+    "Receptionist",
+    "Delivery Driver",
+    "Cashier",
+    "Office Assistant",
+  ]
+
+  const companies = [
+    "ABC Corporation",
+    "XYZ Industries",
+    "Global Solutions Inc",
+    "Metro Services LLC",
+    "City Hospital",
+    "Downtown Retail",
+    "Tech Solutions",
+    "Manufacturing Plus",
+    "Service Excellence",
+    "Community Center",
+    "Local Government",
+    "Healthcare Partners",
+  ]
+
+  const placementStatuses = ["Placed", "Interview Scheduled", "Application Submitted", "Follow-up Required"]
+  const salaryRanges = ["$12-15/hr", "$15-18/hr", "$18-22/hr", "$22-25/hr", "$25-30/hr", "$30-35/hr"]
+
+  const placements = []
+
+  // Generate placements for about 60% of active clients
+  const activeClients = clients.filter((c) => c.status === "Active")
+  const placementCount = Math.floor(activeClients.length * 0.6)
+
+  for (let i = 0; i < placementCount; i++) {
+    const client = activeClients[i % activeClients.length]
+    const daysAgo = Math.floor(Math.random() * 90)
+    const placementDate = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000)
+
+    placements.push({
+      id: `placement_${client.id}_${i}`,
+      clientId: client.id,
+      clientName: `${client.firstName} ${client.lastName}`,
+      participantId: client.participantId,
+      program: client.program,
+      caseManager: client.caseManager,
+      jobTitle: jobTitles[Math.floor(Math.random() * jobTitles.length)],
+      company: companies[Math.floor(Math.random() * companies.length)],
+      placementDate: placementDate.toISOString(),
+      status: placementStatuses[Math.floor(Math.random() * placementStatuses.length)],
+      salaryRange: salaryRanges[Math.floor(Math.random() * salaryRanges.length)],
+      hoursPerWeek: Math.floor(Math.random() * 20) + 20, // 20-40 hours
+      startDate: new Date(placementDate.getTime() + Math.random() * 14 * 24 * 60 * 60 * 1000).toISOString(),
+      notes: `Placement ${Math.random() > 0.5 ? "successful" : "in progress"}. Client ${Math.random() > 0.5 ? "very satisfied" : "meeting expectations"} with position.`,
+      phone: client.phone,
+      clientStatus: client.status,
+    })
+  }
+
+  return placements.sort((a, b) => new Date(b.placementDate).getTime() - new Date(a.placementDate).getTime())
+}
+
 export function JobsPlacementsReport({ onBack, clients }: JobsPlacementsReportProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState<Record<string, any>>({})
 
-  // Generate job placements based on active clients
-  const placements = useMemo(() => {
-    const activeClients = clients.filter((client) => client.status === "Active")
-    const employers = [
-      "ABC Manufacturing",
-      "Tech Solutions Inc",
-      "City Hospital",
-      "Local Retail Store",
-      "Green Energy Corp",
-      "Metro Transit",
-      "Community Center",
-      "Food Services LLC",
-    ]
-    const positions = [
-      "Production Assistant",
-      "Data Entry Clerk",
-      "Maintenance Assistant",
-      "Sales Associate",
-      "Customer Service Rep",
-      "Administrative Assistant",
-      "Security Guard",
-      "Kitchen Helper",
-    ]
-    const wages = ["$14.00", "$15.50", "$16.25", "$17.00", "$18.50", "$19.75", "$20.00", "$21.25"]
-
-    return activeClients.slice(0, Math.min(activeClients.length, 8)).map((client, index) => {
-      const startDate = new Date()
-      startDate.setDate(startDate.getDate() - Math.floor(Math.random() * 90)) // Random start date within last 90 days
-
-      const placementDate = new Date(startDate)
-      placementDate.setDate(placementDate.getDate() - Math.floor(Math.random() * 7)) // Placement date before start date
-
-      return {
-        id: `placement_${client.id}`,
-        clientName: `${client.firstName} ${client.lastName}`,
-        participantId: client.participantId,
-        employer: employers[index % employers.length],
-        position: positions[index % positions.length],
-        startDate: startDate.toISOString().split("T")[0],
-        hourlyWage: wages[index % wages.length],
-        status: Math.random() > 0.8 ? "Terminated" : "Active", // 20% chance of terminated
-        hoursPerWeek: ["30", "35", "40"][Math.floor(Math.random() * 3)],
-        caseManager: client.caseManager,
-        placementDate: placementDate.toISOString().split("T")[0],
-      }
-    })
-  }, [clients])
+  const placements = useMemo(() => generateJobPlacementData(clients), [clients])
 
   const filterOptions = [
     {
-      key: "employer",
-      label: "Employer",
-      type: "select" as const,
-      options: Array.from(new Set(placements.map((p) => p.employer))),
-      placeholder: "Select employer",
-    },
-    {
-      key: "position",
-      label: "Position Type",
-      type: "text" as const,
-      placeholder: "e.g., Assistant, Clerk",
-    },
-    {
       key: "status",
-      label: "Status",
+      label: "Placement Status",
       type: "select" as const,
-      options: ["Active", "Terminated", "On Hold"],
-      placeholder: "Select status",
+      options: ["Placed", "Interview Scheduled", "Application Submitted", "Follow-up Required"],
+      placeholder: "Select placement status",
+    },
+    {
+      key: "program",
+      label: "Program",
+      type: "select" as const,
+      options: [
+        "EARN",
+        "Job Readiness",
+        "YOUTH",
+        "Ex-Offender",
+        "Next Step Program",
+        "Career Development",
+        "Skills Training",
+      ],
+      placeholder: "Select program",
     },
     {
       key: "caseManager",
@@ -123,16 +154,20 @@ export function JobsPlacementsReport({ onBack, clients }: JobsPlacementsReportPr
       placeholder: "Select case manager",
     },
     {
+      key: "placementDate",
+      label: "Placement Date",
+      type: "dateRange" as const,
+    },
+    {
       key: "startDate",
       label: "Start Date",
       type: "dateRange" as const,
     },
     {
-      key: "wageRange",
-      label: "Wage Range",
-      type: "select" as const,
-      options: ["$10-$15", "$15-$20", "$20+"],
-      placeholder: "Select wage range",
+      key: "company",
+      label: "Company",
+      type: "text" as const,
+      placeholder: "Enter company name",
     },
   ]
 
@@ -145,8 +180,8 @@ export function JobsPlacementsReport({ onBack, clients }: JobsPlacementsReportPr
         (placement) =>
           placement.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           placement.participantId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          placement.employer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          placement.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          placement.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          placement.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
           placement.caseManager.toLowerCase().includes(searchTerm.toLowerCase()),
       )
     }
@@ -155,28 +190,20 @@ export function JobsPlacementsReport({ onBack, clients }: JobsPlacementsReportPr
     Object.entries(filters).forEach(([key, value]) => {
       if (!value) return
 
-      if (key === "employer" || key === "status" || key === "caseManager") {
+      if (key === "status" || key === "program" || key === "caseManager") {
         filtered = filtered.filter((placement) => placement[key as keyof typeof placement] === value)
       }
 
-      if (key === "position") {
-        filtered = filtered.filter((placement) => placement.position.toLowerCase().includes(value.toLowerCase()))
+      if (key === "company") {
+        filtered = filtered.filter((placement) => placement.company.toLowerCase().includes(value.toLowerCase()))
       }
 
-      if (key === "wageRange") {
-        filtered = filtered.filter((placement) => {
-          const wage = Number.parseFloat(placement.hourlyWage.replace("$", ""))
-          switch (value) {
-            case "$10-$15":
-              return wage >= 10 && wage <= 15
-            case "$15-$20":
-              return wage > 15 && wage <= 20
-            case "$20+":
-              return wage > 20
-            default:
-              return true
-          }
-        })
+      if (key === "placementDate_from") {
+        filtered = filtered.filter((placement) => new Date(placement.placementDate) >= new Date(value))
+      }
+
+      if (key === "placementDate_to") {
+        filtered = filtered.filter((placement) => new Date(placement.placementDate) <= new Date(value))
       }
 
       if (key === "startDate_from") {
@@ -195,17 +222,20 @@ export function JobsPlacementsReport({ onBack, clients }: JobsPlacementsReportPr
     const exportData = filteredPlacements.map((placement) => ({
       "Client Name": placement.clientName,
       "Participant ID": placement.participantId,
-      Employer: placement.employer,
-      Position: placement.position,
-      "Start Date": formatDateForExport(placement.startDate),
-      "Hourly Wage": placement.hourlyWage,
-      "Hours Per Week": placement.hoursPerWeek,
-      Status: placement.status,
-      "Case Manager": placement.caseManager,
+      "Job Title": placement.jobTitle,
+      Company: placement.company,
       "Placement Date": formatDateForExport(placement.placementDate),
+      "Start Date": formatDateForExport(placement.startDate),
+      Status: placement.status,
+      "Salary Range": placement.salaryRange,
+      "Hours/Week": placement.hoursPerWeek,
+      Program: placement.program,
+      "Case Manager": placement.caseManager,
+      Phone: placement.phone,
+      Notes: placement.notes,
     }))
 
-    const filename = `Jobs_Placements_Report_${new Date().toISOString().split("T")[0]}`
+    const filename = `Job_Placements_Report_${new Date().toISOString().split("T")[0]}`
     exportToExcel(exportData, filename, "Job Placements")
   }
 
@@ -213,29 +243,55 @@ export function JobsPlacementsReport({ onBack, clients }: JobsPlacementsReportPr
     const pdfData = filteredPlacements.map((placement) => ({
       "Client Name": placement.clientName,
       "Participant ID": placement.participantId,
-      Employer: placement.employer,
-      Position: placement.position,
-      "Start Date": placement.startDate,
-      "Hourly Wage": placement.hourlyWage,
+      "Job Title": placement.jobTitle,
+      Company: placement.company,
+      "Placement Date": placement.placementDate,
       Status: placement.status,
+      Salary: placement.salaryRange,
+      "Case Manager": placement.caseManager,
     }))
 
     const columns = [
-      { key: "Client Name", label: "Client Name", width: "18%" },
-      { key: "Participant ID", label: "PID", width: "12%" },
-      { key: "Employer", label: "Employer", width: "20%" },
-      { key: "Position", label: "Position", width: "18%" },
-      { key: "Start Date", label: "Start Date", width: "12%" },
-      { key: "Hourly Wage", label: "Wage", width: "10%" },
-      { key: "Status", label: "Status", width: "10%" },
+      { key: "Client Name", label: "Client Name", width: "15%" },
+      { key: "Participant ID", label: "PID", width: "10%" },
+      { key: "Job Title", label: "Job Title", width: "15%" },
+      { key: "Company", label: "Company", width: "15%" },
+      { key: "Placement Date", label: "Placed", width: "10%" },
+      { key: "Status", label: "Status", width: "12%" },
+      { key: "Salary", label: "Salary", width: "10%" },
+      { key: "Case Manager", label: "Case Manager", width: "13%" },
     ]
 
-    exportToPDF(pdfData, "Jobs & Placements Report", columns, filters)
+    exportToPDF(pdfData, "Job Placements Report", columns, filters)
   }
 
   const handleClearFilters = () => {
     setFilters({})
     setSearchTerm("")
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Placed":
+        return "bg-green-100 text-green-800"
+      case "Interview Scheduled":
+        return "bg-blue-100 text-blue-800"
+      case "Application Submitted":
+        return "bg-yellow-100 text-yellow-800"
+      case "Follow-up Required":
+        return "bg-orange-100 text-orange-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  // Calculate statistics
+  const stats = {
+    totalPlacements: placements.length,
+    placed: placements.filter((p) => p.status === "Placed").length,
+    interviews: placements.filter((p) => p.status === "Interview Scheduled").length,
+    applications: placements.filter((p) => p.status === "Application Submitted").length,
+    followUps: placements.filter((p) => p.status === "Follow-up Required").length,
   }
 
   return (
@@ -264,6 +320,40 @@ export function JobsPlacementsReport({ onBack, clients }: JobsPlacementsReportPr
       </div>
 
       <div className="p-6">
+        {/* Statistics Overview */}
+        <div className="grid grid-cols-5 gap-4 mb-6">
+          <Card className="text-center">
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-gray-900">{stats.totalPlacements}</div>
+              <div className="text-sm text-gray-600">Total Placements</div>
+            </CardContent>
+          </Card>
+          <Card className="text-center">
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-green-600">{stats.placed}</div>
+              <div className="text-sm text-gray-600">Placed</div>
+            </CardContent>
+          </Card>
+          <Card className="text-center">
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-blue-600">{stats.interviews}</div>
+              <div className="text-sm text-gray-600">Interviews</div>
+            </CardContent>
+          </Card>
+          <Card className="text-center">
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-yellow-600">{stats.applications}</div>
+              <div className="text-sm text-gray-600">Applications</div>
+            </CardContent>
+          </Card>
+          <Card className="text-center">
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-orange-600">{stats.followUps}</div>
+              <div className="text-sm text-gray-600">Follow-ups</div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Filter Panel */}
         <FilterPanel
           filters={filterOptions}
@@ -296,33 +386,54 @@ export function JobsPlacementsReport({ onBack, clients }: JobsPlacementsReportPr
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4">Client Name</th>
-                    <th className="text-left py-3 px-4">Participant ID</th>
-                    <th className="text-left py-3 px-4">Employer</th>
-                    <th className="text-left py-3 px-4">Position</th>
-                    <th className="text-left py-3 px-4">Start Date</th>
-                    <th className="text-left py-3 px-4">Hourly Wage</th>
+                    <th className="text-left py-3 px-4">Client</th>
+                    <th className="text-left py-3 px-4">Job Details</th>
+                    <th className="text-left py-3 px-4">Company</th>
                     <th className="text-left py-3 px-4">Status</th>
+                    <th className="text-left py-3 px-4">Placement Date</th>
+                    <th className="text-left py-3 px-4">Start Date</th>
+                    <th className="text-left py-3 px-4">Compensation</th>
+                    <th className="text-left py-3 px-4">Case Manager</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredPlacements.map((placement) => (
                     <tr key={placement.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4 font-medium">{placement.clientName}</td>
-                      <td className="py-3 px-4 font-mono">{placement.participantId}</td>
-                      <td className="py-3 px-4">{placement.employer}</td>
-                      <td className="py-3 px-4">{placement.position}</td>
-                      <td className="py-3 px-4">{new Date(placement.startDate).toLocaleDateString()}</td>
-                      <td className="py-3 px-4 font-medium text-green-600">{placement.hourlyWage}</td>
+                      <td className="py-3 px-4">
+                        <div>
+                          <p className="font-medium text-gray-900">{placement.clientName}</p>
+                          <p className="text-sm text-gray-600">PID: {placement.participantId}</p>
+                          <p className="text-sm text-gray-600">{placement.program}</p>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div>
+                          <p className="font-medium text-gray-900">{placement.jobTitle}</p>
+                          <p className="text-sm text-gray-600">{placement.hoursPerWeek} hrs/week</p>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <Briefcase className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm">{placement.company}</span>
+                        </div>
+                      </td>
                       <td className="py-3 px-4">
                         <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            placement.status === "Active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                          }`}
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(placement.status)}`}
                         >
                           {placement.status}
                         </span>
                       </td>
+                      <td className="py-3 px-4 text-sm">{new Date(placement.placementDate).toLocaleDateString()}</td>
+                      <td className="py-3 px-4 text-sm">{new Date(placement.startDate).toLocaleDateString()}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3 text-green-500" />
+                          <span className="text-sm font-medium">{placement.salaryRange}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-sm">{placement.caseManager}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -341,12 +452,12 @@ export function JobsPlacementsReport({ onBack, clients }: JobsPlacementsReportPr
                 <div>
                   <h3 className="text-sm font-medium text-purple-900">Export Summary</h3>
                   <p className="text-xs text-purple-700">
-                    Ready to export {filteredPlacements.length} filtered job placement records
+                    Ready to export {filteredPlacements.length} job placement records
                     {Object.keys(filters).length > 0 && " (filters applied)"}
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={handleExportToExcel} size="sm" className="bg-purple-600 hover:bg-purple-700">
+                  <Button onClick={handleExportToExcel} size="sm" className="bg-green-600 hover:bg-green-700">
                     <FileSpreadsheet className="w-3 h-3 mr-1" />
                     Excel
                   </Button>
