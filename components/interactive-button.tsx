@@ -4,29 +4,33 @@ import { Button } from "@/components/ui/button"
 import type { LucideIcon } from "lucide-react"
 
 interface InteractiveButtonProps {
-  onClick: () => void
   icon: LucideIcon
-  label: string
+  title: string
   description: string
-  variant: "primary" | "secondary"
+  onClick: () => void
+  variant?: "default" | "outline"
+  className?: string
 }
 
-export function InteractiveButton({ onClick, icon: Icon, label, description, variant }: InteractiveButtonProps) {
-  const baseClasses = "w-full justify-start text-left p-4 h-auto"
-  const variantClasses = {
-    primary: "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200",
-    secondary: "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200",
-  }
-
+export function InteractiveButton({
+  icon: Icon,
+  title,
+  description,
+  onClick,
+  variant = "default",
+  className = "",
+}: InteractiveButtonProps) {
   return (
-    <Button onClick={onClick} variant="outline" className={`${baseClasses} ${variantClasses[variant]}`}>
-      <div className="flex items-center space-x-3">
-        <Icon className="w-5 h-5 flex-shrink-0" />
-        <div className="flex-1 text-left">
-          <div className="font-medium">{label}</div>
-          <div className="text-sm opacity-75">{description}</div>
-        </div>
+    <Button
+      onClick={onClick}
+      variant={variant}
+      className={`h-auto p-4 flex flex-col items-start gap-2 text-left ${className}`}
+    >
+      <div className="flex items-center gap-2">
+        <Icon className="w-5 h-5" />
+        <span className="font-medium">{title}</span>
       </div>
+      <span className="text-sm opacity-80">{description}</span>
     </Button>
   )
 }

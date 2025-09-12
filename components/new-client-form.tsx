@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Save, X, User, Phone, MapPin, Briefcase, Hash } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { ArrowLeft, Save, X, User, Phone, GraduationCap, FileText, Upload } from "lucide-react"
 
 interface NewClientFormProps {
   onClientCreated: (clientData: any) => void
@@ -15,11 +17,16 @@ interface NewClientFormProps {
   isLoading: boolean
 }
 
+// Generate a random participant ID
+const generateParticipantId = () => {
+  return Math.floor(2900000 + Math.random() * 100000).toString()
+}
+
 export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClientFormProps) {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    participantId: "",
+    participantId: generateParticipantId(),
     program: "",
     status: "Active",
     enrollmentDate: new Date().toISOString().split("T")[0],
@@ -37,64 +44,92 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
     responsibleEC: "",
     requiredHours: "",
     caoNumber: "",
+    // Education fields
+    educationLevel: "",
+    graduationYear: "",
+    schoolName: "",
+    fieldOfStudy: "",
+    educationNotes: "",
+    currentlyEnrolled: "No",
+    gpa: "",
+    // Certification fields
+    certifications: "",
+    licenses: "",
+    industryCertifications: "",
+    certificationStatus: "",
+    certificationNotes: "",
   })
 
-  const [errors, setErrors] = useState<Record<string, string>>({})
-
-  // Generate a random participant ID
-  const generateParticipantId = () => {
-    const randomId = Math.floor(Math.random() * 9000000) + 1000000
-    setFormData((prev) => ({ ...prev, participantId: randomId.toString() }))
-  }
+  const [errors, setErrors] = useState<string[]>([])
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+    // Clear errors when user starts typing
+    if (errors.length > 0) {
+      setErrors([])
     }
   }
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: string[] = []
 
-    // Required fields
-    if (!formData.firstName.trim()) newErrors.firstName = "First name is required"
-    if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
-    if (!formData.participantId.trim()) newErrors.participantId = "Participant ID is required"
-    if (!formData.program.trim()) newErrors.program = "Program is required"
-    if (!formData.dateOfBirth.trim()) newErrors.dateOfBirth = "Date of birth is required"
-    if (!formData.phone.trim()) newErrors.phone = "Phone number is required"
-    if (!formData.email.trim()) newErrors.email = "Email is required"
-    if (!formData.caseManager.trim()) newErrors.caseManager = "Case manager is required"
+    if (!formData.firstName.trim()) newErrors.push("First Name is required")
+    if (!formData.lastName.trim()) newErrors.push("Last Name is required")
+    if (!formData.program.trim()) newErrors.push("Program is required")
 
     // Email validation
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address"
+    if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      newErrors.push("Please enter a valid email address")
     }
 
-    // Phone validation
-    if (formData.phone && !/^[\d\s\-()]+$/.test(formData.phone)) {
-      newErrors.phone = "Please enter a valid phone number"
+    // Phone validation - allow various formats
+    if (formData.phone.trim() && !/^[\d\s\-()]+$/.test(formData.phone.trim())) {
+      newErrors.push("Please enter a valid phone number")
     }
 
     // ZIP code validation
-    if (formData.zipCode && !/^\d{5}(-\d{4})?$/.test(formData.zipCode)) {
-      newErrors.zipCode = "Please enter a valid ZIP code"
+    if (formData.zipCode.trim() && !/^\d{5}(-\d{4})?$/.test(formData.zipCode.trim())) {
+      newErrors.push("Please enter a valid ZIP code")
     }
 
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    return newErrors.length === 0
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (validateForm()) {
-      onClientCreated(formData)
+
+    if (!validateForm()) {
+      return
     }
+
+    // Create client data with initial case note
+    const clientDataWithCaseNotes = {
+      ...formData,
+      caseNotes: [
+        {
+          id: `note_${Date.now()}`,
+          note: "Client record created. Initial enrollment completed.",
+          date: new Date().toISOString(),
+          author: "System",
+        },
+      ],
+    }
+
+    onClientCreated(clientDataWithCaseNotes)
   }
 
-  const states = [
+  const handleRegenerateId = () => {
+    setFormData((prev) => ({
+      ...prev,
+      participantId: generateParticipantId(),
+    }))
+  }
+
+  const allStates = [
     "AL",
     "AK",
     "AZ",
@@ -147,33 +182,13 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
     "WY",
   ]
 
-  const programs = [
-    "Job Readiness",
-    "EARN",
-    "Ex-Offender",
-    "YOUTH",
-    "Next Step Program",
-    "Career Development",
-    "Skills Training",
-  ]
-
-  const caseManagers = [
-    "Brown, Lisa",
-    "Smith, John",
-    "Johnson, Mary",
-    "Davis, Robert",
-    "Wilson, Sarah",
-    "Miller, James",
-    "Garcia, Maria",
-  ]
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={onCancel} className="flex items-center gap-2">
+            <Button variant="ghost" onClick={onCancel} className="flex items-center gap-2" disabled={isLoading}>
               <ArrowLeft className="w-4 h-4" />
               Back to Dashboard
             </Button>
@@ -184,12 +199,7 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button
-              type="submit"
-              form="client-form"
-              className="bg-green-600 hover:bg-green-700 text-white"
-              disabled={isLoading}
-            >
+            <Button onClick={handleSubmit} className="bg-green-600 hover:bg-green-700" disabled={isLoading}>
               <Save className="w-4 h-4 mr-2" />
               {isLoading ? "Creating..." : "Create Client"}
             </Button>
@@ -201,331 +211,577 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
         </div>
       </div>
 
+      {/* Form Content */}
       <div className="p-6">
-        <form id="client-form" onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-6">
-          {/* Personal Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5 text-blue-600" />
-                Personal Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) => handleInputChange("firstName", e.target.value)}
-                    className={errors.firstName ? "border-red-500" : ""}
-                    placeholder="Enter first name"
-                  />
-                  {errors.firstName && <p className="text-sm text-red-600 mt-1">{errors.firstName}</p>}
-                </div>
+        {/* Error Messages */}
+        {errors.length > 0 && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+            <h3 className="text-sm font-medium text-red-800 mb-2">Please correct the following errors:</h3>
+            <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+              {errors.map((error, index) => (
+                <li key={index}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-                <div>
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) => handleInputChange("lastName", e.target.value)}
-                    className={errors.lastName ? "border-red-500" : ""}
-                    placeholder="Enter last name"
-                  />
-                  {errors.lastName && <p className="text-sm text-red-600 mt-1">{errors.lastName}</p>}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="participantId">Participant ID *</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="participantId"
-                      value={formData.participantId}
-                      onChange={(e) => handleInputChange("participantId", e.target.value)}
-                      className={errors.participantId ? "border-red-500" : ""}
-                      placeholder="Enter participant ID"
-                    />
-                    <Button
-                      type="button"
-                      onClick={generateParticipantId}
-                      variant="outline"
-                      className="flex items-center gap-1 bg-transparent"
-                    >
-                      <Hash className="w-4 h-4" />
-                      Generate
-                    </Button>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column */}
+            <div className="space-y-6">
+              {/* Personal Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-blue-600" />
+                    Personal Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="firstName">First Name *</Label>
+                      <Input
+                        id="firstName"
+                        value={formData.firstName}
+                        onChange={(e) => handleInputChange("firstName", e.target.value)}
+                        className={errors.some((e) => e.includes("First Name")) ? "border-red-500" : ""}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="lastName">Last Name *</Label>
+                      <Input
+                        id="lastName"
+                        value={formData.lastName}
+                        onChange={(e) => handleInputChange("lastName", e.target.value)}
+                        className={errors.some((e) => e.includes("Last Name")) ? "border-red-500" : ""}
+                        disabled={isLoading}
+                      />
+                    </div>
                   </div>
-                  {errors.participantId && <p className="text-sm text-red-600 mt-1">{errors.participantId}</p>}
-                </div>
 
-                <div>
-                  <Label htmlFor="dateOfBirth">Date of Birth *</Label>
-                  <Input
-                    id="dateOfBirth"
-                    type="date"
-                    value={formData.dateOfBirth}
-                    onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
-                    className={errors.dateOfBirth ? "border-red-500" : ""}
-                  />
-                  {errors.dateOfBirth && <p className="text-sm text-red-600 mt-1">{errors.dateOfBirth}</p>}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="participantId">Participant ID</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="participantId"
+                          value={formData.participantId}
+                          onChange={(e) => handleInputChange("participantId", e.target.value)}
+                          className="font-mono"
+                          disabled={isLoading}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleRegenerateId}
+                          disabled={isLoading}
+                          className="whitespace-nowrap bg-transparent"
+                        >
+                          Regenerate
+                        </Button>
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                      <Input
+                        id="dateOfBirth"
+                        type="date"
+                        value={formData.dateOfBirth}
+                        onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
 
-          {/* Contact Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="w-5 h-5 text-green-600" />
-                Contact Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="phone">Phone Number *</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    className={errors.phone ? "border-red-500" : ""}
-                    placeholder="(555) 123-4567"
-                  />
-                  {errors.phone && <p className="text-sm text-red-600 mt-1">{errors.phone}</p>}
-                </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="status">Status</Label>
+                      <Select
+                        value={formData.status}
+                        onValueChange={(value) => handleInputChange("status", value)}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Active">Active</SelectItem>
+                          <SelectItem value="Inactive">Inactive</SelectItem>
+                          <SelectItem value="Pending">Pending</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="enrollmentDate">Enrollment Date</Label>
+                      <Input
+                        id="enrollmentDate"
+                        type="date"
+                        value={formData.enrollmentDate}
+                        onChange={(e) => handleInputChange("enrollmentDate", e.target.value)}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <div>
-                  <Label htmlFor="cellPhone">Cell Phone</Label>
-                  <Input
-                    id="cellPhone"
-                    value={formData.cellPhone}
-                    onChange={(e) => handleInputChange("cellPhone", e.target.value)}
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
-              </div>
+              {/* Contact Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Phone className="w-5 h-5 text-green-600" />
+                    Contact Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange("phone", e.target.value)}
+                        placeholder="(555) 123-4567"
+                        className={errors.some((e) => e.includes("phone number")) ? "border-red-500" : ""}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cellPhone">Cell Phone</Label>
+                      <Input
+                        id="cellPhone"
+                        type="tel"
+                        value={formData.cellPhone}
+                        onChange={(e) => handleInputChange("cellPhone", e.target.value)}
+                        placeholder="(555) 123-4567"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <Label htmlFor="email">Email Address *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  className={errors.email ? "border-red-500" : ""}
-                  placeholder="client@example.com"
-                />
-                {errors.email && <p className="text-sm text-red-600 mt-1">{errors.email}</p>}
-              </div>
+                  <div>
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      placeholder="client@example.com"
+                      className={errors.some((e) => e.includes("email")) ? "border-red-500" : ""}
+                      disabled={isLoading}
+                    />
+                  </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="emergencyContact">Emergency Contact</Label>
-                  <Input
-                    id="emergencyContact"
-                    value={formData.emergencyContact}
-                    onChange={(e) => handleInputChange("emergencyContact", e.target.value)}
-                    placeholder="Contact name"
-                  />
-                </div>
+                  <div>
+                    <Label htmlFor="address">Address</Label>
+                    <Input
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) => handleInputChange("address", e.target.value)}
+                      placeholder="123 Main Street"
+                      disabled={isLoading}
+                    />
+                  </div>
 
-                <div>
-                  <Label htmlFor="emergencyPhone">Emergency Phone</Label>
-                  <Input
-                    id="emergencyPhone"
-                    value={formData.emergencyPhone}
-                    onChange={(e) => handleInputChange("emergencyPhone", e.target.value)}
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        value={formData.city}
+                        onChange={(e) => handleInputChange("city", e.target.value)}
+                        placeholder="Philadelphia"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="state">State</Label>
+                      <Select
+                        value={formData.state}
+                        onValueChange={(value) => handleInputChange("state", value)}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allStates.map((state) => (
+                            <SelectItem key={state} value={state}>
+                              {state}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="zipCode">ZIP Code</Label>
+                      <Input
+                        id="zipCode"
+                        value={formData.zipCode}
+                        onChange={(e) => handleInputChange("zipCode", e.target.value)}
+                        placeholder="19102"
+                        className={errors.some((e) => e.includes("ZIP code")) ? "border-red-500" : ""}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
 
-          {/* Address Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-purple-600" />
-                Address Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="address">Street Address</Label>
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange("address", e.target.value)}
-                  placeholder="123 Main Street"
-                />
-              </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="emergencyContact">Emergency Contact</Label>
+                      <Input
+                        id="emergencyContact"
+                        value={formData.emergencyContact}
+                        onChange={(e) => handleInputChange("emergencyContact", e.target.value)}
+                        placeholder="Contact Name"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="emergencyPhone">Emergency Phone</Label>
+                      <Input
+                        id="emergencyPhone"
+                        type="tel"
+                        value={formData.emergencyPhone}
+                        onChange={(e) => handleInputChange("emergencyPhone", e.target.value)}
+                        placeholder="(555) 123-4567"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="city">City</Label>
-                  <Input
-                    id="city"
-                    value={formData.city}
-                    onChange={(e) => handleInputChange("city", e.target.value)}
-                    placeholder="Philadelphia"
-                  />
-                </div>
+              {/* Program Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <GraduationCap className="w-5 h-5 text-purple-600" />
+                    Program Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="program">Program *</Label>
+                    <Select
+                      value={formData.program}
+                      onValueChange={(value) => handleInputChange("program", value)}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger className={errors.some((e) => e.includes("Program")) ? "border-red-500" : ""}>
+                        <SelectValue placeholder="Select a program" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Job Readiness">Job Readiness</SelectItem>
+                        <SelectItem value="EARN">EARN</SelectItem>
+                        <SelectItem value="Ex-Offender">Ex-Offender</SelectItem>
+                        <SelectItem value="YOUTH">YOUTH</SelectItem>
+                        <SelectItem value="Next Step Program">Next Step Program</SelectItem>
+                        <SelectItem value="Career Development">Career Development</SelectItem>
+                        <SelectItem value="Skills Training">Skills Training</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div>
-                  <Label htmlFor="state">State</Label>
-                  <select
-                    id="state"
-                    value={formData.state}
-                    onChange={(e) => handleInputChange("state", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {states.map((state) => (
-                      <option key={state} value={state}>
-                        {state}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div>
+                    <Label htmlFor="caseManager">Case Manager</Label>
+                    <Select
+                      value={formData.caseManager}
+                      onValueChange={(value) => handleInputChange("caseManager", value)}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select case manager" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Brown, Lisa">Brown, Lisa</SelectItem>
+                        <SelectItem value="Smith, John">Smith, John</SelectItem>
+                        <SelectItem value="Johnson, Mary">Johnson, Mary</SelectItem>
+                        <SelectItem value="Davis, Sarah">Davis, Sarah</SelectItem>
+                        <SelectItem value="Wilson, Michael">Wilson, Michael</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div>
-                  <Label htmlFor="zipCode">ZIP Code</Label>
-                  <Input
-                    id="zipCode"
-                    value={formData.zipCode}
-                    onChange={(e) => handleInputChange("zipCode", e.target.value)}
-                    className={errors.zipCode ? "border-red-500" : ""}
-                    placeholder="19102"
-                  />
-                  {errors.zipCode && <p className="text-sm text-red-600 mt-1">{errors.zipCode}</p>}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="responsibleEC">Responsible EC</Label>
+                      <Input
+                        id="responsibleEC"
+                        value={formData.responsibleEC}
+                        onChange={(e) => handleInputChange("responsibleEC", e.target.value)}
+                        placeholder="Employment Counselor"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="requiredHours">Required Hours</Label>
+                      <Input
+                        id="requiredHours"
+                        type="number"
+                        value={formData.requiredHours}
+                        onChange={(e) => handleInputChange("requiredHours", e.target.value)}
+                        placeholder="40"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
 
-          {/* Program Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-orange-600" />
-                Program Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="program">Program *</Label>
-                  <select
-                    id="program"
-                    value={formData.program}
-                    onChange={(e) => handleInputChange("program", e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.program ? "border-red-500" : "border-gray-300"
-                    }`}
-                  >
-                    <option value="">Select a program</option>
-                    {programs.map((program) => (
-                      <option key={program} value={program}>
-                        {program}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.program && <p className="text-sm text-red-600 mt-1">{errors.program}</p>}
-                </div>
+                  <div>
+                    <Label htmlFor="caoNumber">CAO Number</Label>
+                    <Input
+                      id="caoNumber"
+                      value={formData.caoNumber}
+                      onChange={(e) => handleInputChange("caoNumber", e.target.value)}
+                      placeholder="CAO-2023-001"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <select
-                    id="status"
-                    value={formData.status}
-                    onChange={(e) => handleInputChange("status", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="Pending">Pending</option>
-                  </select>
-                </div>
-              </div>
+            {/* Right Column */}
+            <div className="space-y-6">
+              {/* Education Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <GraduationCap className="w-5 h-5 text-indigo-600" />
+                    Education Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="educationLevel">Highest Education Level</Label>
+                      <Select
+                        value={formData.educationLevel}
+                        onValueChange={(value) => handleInputChange("educationLevel", value)}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select education level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Less than High School">Less than High School</SelectItem>
+                          <SelectItem value="High School Diploma/GED">High School Diploma/GED</SelectItem>
+                          <SelectItem value="Some College">Some College</SelectItem>
+                          <SelectItem value="Associate Degree">Associate Degree</SelectItem>
+                          <SelectItem value="Bachelor's Degree">Bachelor's Degree</SelectItem>
+                          <SelectItem value="Master's Degree">Master's Degree</SelectItem>
+                          <SelectItem value="Doctoral Degree">Doctoral Degree</SelectItem>
+                          <SelectItem value="Professional Degree">Professional Degree</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="graduationYear">Graduation Year</Label>
+                      <Input
+                        id="graduationYear"
+                        type="number"
+                        min="1950"
+                        max={new Date().getFullYear()}
+                        value={formData.graduationYear}
+                        onChange={(e) => handleInputChange("graduationYear", e.target.value)}
+                        placeholder="2020"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="caseManager">Case Manager *</Label>
-                  <select
-                    id="caseManager"
-                    value={formData.caseManager}
-                    onChange={(e) => handleInputChange("caseManager", e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.caseManager ? "border-red-500" : "border-gray-300"
-                    }`}
-                  >
-                    <option value="">Select a case manager</option>
-                    {caseManagers.map((manager) => (
-                      <option key={manager} value={manager}>
-                        {manager}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.caseManager && <p className="text-sm text-red-600 mt-1">{errors.caseManager}</p>}
-                </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="schoolName">School/Institution Name</Label>
+                      <Input
+                        id="schoolName"
+                        value={formData.schoolName}
+                        onChange={(e) => handleInputChange("schoolName", e.target.value)}
+                        placeholder="University Name"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="fieldOfStudy">Field of Study/Major</Label>
+                      <Input
+                        id="fieldOfStudy"
+                        value={formData.fieldOfStudy}
+                        onChange={(e) => handleInputChange("fieldOfStudy", e.target.value)}
+                        placeholder="Business Administration"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
 
-                <div>
-                  <Label htmlFor="enrollmentDate">Enrollment Date</Label>
-                  <Input
-                    id="enrollmentDate"
-                    type="date"
-                    value={formData.enrollmentDate}
-                    onChange={(e) => handleInputChange("enrollmentDate", e.target.value)}
-                  />
-                </div>
-              </div>
+                  <div>
+                    <Label htmlFor="educationNotes">Additional Education Details</Label>
+                    <Textarea
+                      id="educationNotes"
+                      value={formData.educationNotes}
+                      onChange={(e) => handleInputChange("educationNotes", e.target.value)}
+                      placeholder="Enter any additional education details, honors, relevant coursework, etc."
+                      rows={3}
+                      disabled={isLoading}
+                    />
+                  </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="responsibleEC">Responsible EC</Label>
-                  <Input
-                    id="responsibleEC"
-                    value={formData.responsibleEC}
-                    onChange={(e) => handleInputChange("responsibleEC", e.target.value)}
-                    placeholder="Employment Counselor"
-                  />
-                </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="currentlyEnrolled">Currently Enrolled</Label>
+                      <Select
+                        value={formData.currentlyEnrolled}
+                        onValueChange={(value) => handleInputChange("currentlyEnrolled", value)}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="No">No</SelectItem>
+                          <SelectItem value="Yes">Yes</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="gpa">GPA (if applicable)</Label>
+                      <Input
+                        id="gpa"
+                        type="number"
+                        min="0"
+                        max="4"
+                        step="0.01"
+                        value={formData.gpa}
+                        onChange={(e) => handleInputChange("gpa", e.target.value)}
+                        placeholder="3.5"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <div>
-                  <Label htmlFor="requiredHours">Required Hours</Label>
-                  <Input
-                    id="requiredHours"
-                    type="number"
-                    value={formData.requiredHours}
-                    onChange={(e) => handleInputChange("requiredHours", e.target.value)}
-                    placeholder="40"
-                  />
-                </div>
+              {/* Certifications */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-orange-600" />
+                    Certifications & Licenses
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="certifications">Professional Certifications</Label>
+                      <Textarea
+                        id="certifications"
+                        value={formData.certifications}
+                        onChange={(e) => handleInputChange("certifications", e.target.value)}
+                        placeholder="List professional certifications (e.g., CompTIA A+, Microsoft Office Specialist, etc.)"
+                        rows={3}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="licenses">Licenses</Label>
+                      <Textarea
+                        id="licenses"
+                        value={formData.licenses}
+                        onChange={(e) => handleInputChange("licenses", e.target.value)}
+                        placeholder="List professional licenses (e.g., Driver's License, CDL, Professional License, etc.)"
+                        rows={3}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
 
-                <div>
-                  <Label htmlFor="caoNumber">CAO Number</Label>
-                  <Input
-                    id="caoNumber"
-                    value={formData.caoNumber}
-                    onChange={(e) => handleInputChange("caoNumber", e.target.value)}
-                    placeholder="CAO-12345"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="industryCertifications">Industry Certifications</Label>
+                      <Input
+                        id="industryCertifications"
+                        value={formData.industryCertifications}
+                        onChange={(e) => handleInputChange("industryCertifications", e.target.value)}
+                        placeholder="e.g., OSHA 10, Food Handler's License, etc."
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="certificationStatus">Certification Status</Label>
+                      <Select
+                        value={formData.certificationStatus}
+                        onValueChange={(value) => handleInputChange("certificationStatus", value)}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Current">Current</SelectItem>
+                          <SelectItem value="Expired">Expired</SelectItem>
+                          <SelectItem value="In Progress">In Progress</SelectItem>
+                          <SelectItem value="Renewal Required">Renewal Required</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* File Upload Section */}
+                  <div>
+                    <Label className="mb-3 block">Certification Documents</Label>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                      <input
+                        type="file"
+                        multiple
+                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                        className="hidden"
+                        id="certification-upload"
+                        disabled={isLoading}
+                        onChange={(e) => {
+                          // Handle file upload logic here
+                          const files = Array.from(e.target.files || [])
+                          console.log("Uploaded files:", files)
+                          // In a real application, you would upload these files to a server
+                        }}
+                      />
+                      <label
+                        htmlFor="certification-upload"
+                        className={`cursor-pointer ${isLoading ? "pointer-events-none opacity-50" : ""}`}
+                      >
+                        <div className="flex flex-col items-center">
+                          <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                          <span className="text-sm text-gray-600">Click to upload certification documents</span>
+                          <span className="text-xs text-gray-500 mt-1">PDF, JPG, PNG, DOC, DOCX (Max 10MB each)</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="certificationNotes">Certification Notes</Label>
+                    <Textarea
+                      id="certificationNotes"
+                      value={formData.certificationNotes}
+                      onChange={(e) => handleInputChange("certificationNotes", e.target.value)}
+                      placeholder="Additional notes about certifications, renewal dates, etc."
+                      rows={2}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
 
           {/* Form Actions */}
-          <div className="flex justify-end gap-4 pt-6">
-            <Button type="button" onClick={onCancel} variant="outline" disabled={isLoading}>
+          <div className="flex justify-end gap-4 pt-6 border-t">
+            <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white" disabled={isLoading}>
+            <Button type="submit" className="bg-green-600 hover:bg-green-700" disabled={isLoading}>
+              <Save className="w-4 h-4 mr-2" />
               {isLoading ? "Creating Client..." : "Create Client"}
             </Button>
           </div>

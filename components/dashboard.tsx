@@ -17,9 +17,6 @@ import {
   Clock,
   Home,
   Eye,
-  Trash2,
-  RotateCcw,
-  X,
 } from "lucide-react"
 import { ClientProfile } from "./client-profile"
 import { NewClientForm } from "./new-client-form"
@@ -54,8 +51,6 @@ interface Client {
   isNew?: boolean
   createdAt?: string
   lastContact?: string
-  deletedAt?: string
-  deletedBy?: string
   // Add case notes field
   caseNotes?: Array<{
     id: string
@@ -122,14 +117,7 @@ const validateClientData = (clientData: any): { isValid: boolean; errors: string
 
 export function Dashboard() {
   const [currentView, setCurrentView] = useState<
-    | "dashboard"
-    | "client-profile"
-    | "new-client"
-    | "active-clients"
-    | "call-log"
-    | "jobs-placements"
-    | "all-clients"
-    | "recycle-bin"
+    "dashboard" | "client-profile" | "new-client" | "active-clients" | "call-log" | "jobs-placements" | "all-clients"
   >("dashboard")
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -225,8 +213,6 @@ export function Dashboard() {
     },
   ])
 
-  const [recycleBin, setRecycleBin] = useState<Client[]>([])
-  const [showRecycleBin, setShowRecycleBin] = useState(false)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
 
@@ -360,77 +346,6 @@ export function Dashboard() {
     }
   }
 
-  const handleDeleteClient = async (clientId: string) => {
-    try {
-      const clientToDelete = clients.find((client) => client.id === clientId)
-      if (!clientToDelete) return
-
-      // Add deleted timestamp and move to recycle bin
-      const deletedClient = {
-        ...clientToDelete,
-        deletedAt: new Date().toISOString(),
-        deletedBy: "Current User",
-      }
-
-      // Remove from active clients and add to recycle bin
-      setClients((prevClients) => prevClients.filter((client) => client.id !== clientId))
-      setRecycleBin((prevBin) => [deletedClient, ...prevBin])
-
-      // Show success message
-      setSuccessMessage(
-        `Client ${deletedClient.firstName} ${deletedClient.lastName} has been moved to the recycle bin.`,
-      )
-      setShowSuccessMessage(true)
-
-      setTimeout(() => {
-        setShowSuccessMessage(false)
-      }, 5000)
-    } catch (error) {
-      console.error("Error deleting client:", error)
-      throw error
-    }
-  }
-
-  const handleRestoreClient = (clientId: string) => {
-    const clientToRestore = recycleBin.find((client) => client.id === clientId)
-    if (!clientToRestore) return
-
-    // Remove deleted fields and restore to active clients
-    const { deletedAt, deletedBy, ...restoredClient } = clientToRestore
-
-    setRecycleBin((prevBin) => prevBin.filter((client) => client.id !== clientId))
-    setClients((prevClients) => [restoredClient, ...prevClients])
-
-    setSuccessMessage(
-      `Client ${restoredClient.firstName} ${restoredClient.lastName} has been restored from the recycle bin.`,
-    )
-    setShowSuccessMessage(true)
-
-    setTimeout(() => {
-      setShowSuccessMessage(false)
-    }, 5000)
-  }
-
-  const handlePermanentDelete = (clientId: string) => {
-    const clientToDelete = recycleBin.find((client) => client.id === clientId)
-    if (!clientToDelete) return
-
-    if (
-      confirm(
-        `Are you sure you want to permanently delete ${clientToDelete.firstName} ${clientToDelete.lastName}? This action cannot be undone.`,
-      )
-    ) {
-      setRecycleBin((prevBin) => prevBin.filter((client) => client.id !== clientId))
-
-      setSuccessMessage(`Client ${clientToDelete.firstName} ${clientToDelete.lastName} has been permanently deleted.`)
-      setShowSuccessMessage(true)
-
-      setTimeout(() => {
-        setShowSuccessMessage(false)
-      }, 5000)
-    }
-  }
-
   const activeClients = clients.filter((client) => client.status === "Active")
   const pendingActions = clients.filter((client) => client.status === "Pending")
 
@@ -472,14 +387,7 @@ export function Dashboard() {
   }
 
   if (currentView === "client-profile" && selectedClient) {
-    return (
-      <ClientProfile
-        client={selectedClient}
-        onBack={handleBackToDashboard}
-        onSave={handleSaveClient}
-        onDelete={handleDeleteClient}
-      />
-    )
+    return <ClientProfile client={selectedClient} onBack={handleBackToDashboard} onSave={handleSaveClient} />
   }
 
   if (currentView === "new-client") {
@@ -502,97 +410,6 @@ export function Dashboard() {
 
   if (currentView === "all-clients") {
     return <AllClientsReport onBack={handleBackToDashboard} clients={clients} onViewClient={handleViewClient} />
-  }
-
-  if (currentView === "recycle-bin") {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Recycle Bin ({recycleBin.length} items)</h3>
-            <Button onClick={() => setShowRecycleBin(false)} variant="ghost" size="sm">
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <div className="overflow-y-auto max-h-[60vh]">
-            {recycleBin.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Trash2 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>Recycle bin is empty</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recycleBin.map((client) => (
-                  <div key={client.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-gray-900">
-                          {client.firstName} {client.lastName}
-                        </p>
-                        <Badge variant="secondary">Deleted</Badge>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        PID: {client.participantId} • {client.program}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Deleted: {client.deletedAt ? new Date(client.deletedAt).toLocaleDateString() : "Unknown"} by{" "}
-                        {client.deletedBy || "Unknown"}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => handleRestoreClient(client.id)}
-                        size="sm"
-                        variant="outline"
-                        className="text-green-600 hover:text-green-700"
-                      >
-                        <RotateCcw className="w-3 h-3 mr-1" />
-                        Restore
-                      </Button>
-                      <Button
-                        onClick={() => handlePermanentDelete(client.id)}
-                        size="sm"
-                        variant="outline"
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-3 h-3 mr-1" />
-                        Delete Forever
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {recycleBin.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <Button
-                onClick={() => {
-                  if (
-                    confirm(
-                      `Are you sure you want to permanently delete all ${recycleBin.length} items? This action cannot be undone.`,
-                    )
-                  ) {
-                    setRecycleBin([])
-                    setShowRecycleBin(false)
-                    setSuccessMessage("All items have been permanently deleted from the recycle bin.")
-                    setShowSuccessMessage(true)
-                    setTimeout(() => setShowSuccessMessage(false), 5000)
-                  }
-                }}
-                variant="outline"
-                className="text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Empty Recycle Bin
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -794,27 +611,6 @@ export function Dashboard() {
                     className="w-full text-purple-600 border-purple-300 hover:bg-purple-100"
                   >
                     View Report →
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Recycle Bin Report Card */}
-              <Card className="bg-gray-50 border-gray-200 h-fit">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-gray-700 flex items-center gap-2">
-                    <Trash2 className="w-4 h-4" />
-                    Recycle Bin
-                  </CardTitle>
-                  <p className="text-xs text-gray-600">Manage deleted clients</p>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <Button
-                    onClick={() => setShowRecycleBin(true)}
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-gray-600 border-gray-300 hover:bg-gray-100"
-                  >
-                    View Recycle Bin →
                   </Button>
                 </CardContent>
               </Card>
@@ -1028,14 +824,6 @@ export function Dashboard() {
                 >
                   <Users className="w-4 h-4 mr-2" />
                   All Clients ({clients.length})
-                </Button>
-                <Button
-                  onClick={() => setShowRecycleBin(true)}
-                  variant="outline"
-                  className="w-full justify-start text-gray-600"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Recycle Bin ({recycleBin.length})
                 </Button>
               </CardContent>
             </Card>
