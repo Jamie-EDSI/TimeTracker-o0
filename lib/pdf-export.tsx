@@ -1,20 +1,75 @@
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
+
 interface Column {
   key: string
   label: string
   width?: string
 }
 
-// Mock PDF export functionality
-export const exportToPDF = (data: any[], title: string, columns?: any[], filters?: any) => {
-  console.log(`Exporting ${data.length} records to PDF:`, title)
-  console.log("Data:", data)
-  console.log("Columns:", columns)
-  console.log("Applied filters:", filters)
+interface Client {
+  id: string
+  firstName: string
+  lastName: string
+  participantId: string
+  program: string
+  status: string
+  enrollmentDate: string
+  phone: string
+  email: string
+  caseManager: string
+  lastContact?: string
+}
 
-  // In a real application, you would use a library like jsPDF or react-pdf
-  // For now, we'll simulate the export by creating a simple text download
-  const textContent = convertToPDFText(data, title, columns)
-  downloadText(textContent, `${title.replace(/\s+/g, "_")}.txt`)
+// Mock PDF export functionality
+export const exportToPDF = async (clients: Client[], title: string, filename: string) => {
+  const doc = new jsPDF()
+
+  // Add title
+  doc.setFontSize(20)
+  doc.text(title, 20, 20)
+
+  // Add generation date
+  doc.setFontSize(10)
+  doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 30)
+
+  // Prepare table data
+  const tableData = clients.map((client) => [
+    `${client.firstName} ${client.lastName}`,
+    client.participantId,
+    client.program,
+    client.status,
+    new Date(client.enrollmentDate).toLocaleDateString(),
+    client.phone,
+    client.email,
+    client.caseManager,
+    client.lastContact ? new Date(client.lastContact).toLocaleDateString() : "N/A",
+  ])
+
+  // Add table
+  autoTable(doc, {
+    head: [["Name", "PID", "Program", "Status", "Enrollment", "Phone", "Email", "Case Manager", "Last Contact"]],
+    body: tableData,
+    startY: 40,
+    styles: {
+      fontSize: 8,
+      cellPadding: 2,
+    },
+    headStyles: {
+      fillColor: [66, 139, 202],
+      textColor: 255,
+    },
+    alternateRowStyles: {
+      fillColor: [245, 245, 245],
+    },
+  })
+
+  // Generate filename with timestamp
+  const timestamp = new Date().toISOString().split("T")[0]
+  const finalFilename = `${filename}_${timestamp}.pdf`
+
+  // Save the PDF
+  doc.save(finalFilename)
 }
 
 const convertToPDFText = (data: any[], title: string, columns?: any[]) => {

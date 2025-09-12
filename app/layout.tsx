@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "TimeTracker - Client Management System",
-  description: "EDSI Client Management and Time Tracking System",
+  description: "Comprehensive client management system for workforce development programs",
     generator: 'v0.app'
 }
 

@@ -55,9 +55,10 @@ interface ClientProfileProps {
   client: Client
   onBack: () => void
   onSave: (updatedClient: Client) => void
+  onDelete?: (clientId: string) => Promise<void>
 }
 
-export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
+export function ClientProfile({ client, onBack, onSave, onDelete }: ClientProfileProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedClient, setEditedClient] = useState<Client>(client)
   const [showCaseNoteForm, setShowCaseNoteForm] = useState(false)
@@ -87,6 +88,8 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
     ],
   )
   const [showNoteSuccess, setShowNoteSuccess] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     if (client.caseNotes) {
@@ -149,6 +152,36 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   const handleCancelCaseNote = () => {
     setCaseNote("")
     setShowCaseNoteForm(false)
+  }
+
+  const handleDelete = async () => {
+    try {
+      setIsDeleting(true)
+
+      // Move client to recycle bin instead of permanent deletion
+      const deletedClient = {
+        ...client,
+        deletedAt: new Date().toISOString(),
+        deletedBy: "Current User",
+      }
+
+      // In a real application, this would call an API to move to recycle bin
+      console.log("Moving client to recycle bin:", deletedClient)
+
+      // Call the onDelete callback to handle the deletion in the parent component
+      if (onDelete) {
+        await onDelete(client.id)
+      }
+
+      // Navigate back to dashboard
+      onBack()
+    } catch (error) {
+      console.error("Error deleting client:", error)
+      alert("There was an error deleting the client. Please try again.")
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -215,8 +248,14 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                 Edit Client
               </Button>
             )}
-            <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 bg-transparent">
-              Delete
+            <Button
+              onClick={() => setShowDeleteConfirm(true)}
+              variant="outline"
+              size="sm"
+              className="text-red-600 hover:text-red-700 bg-transparent"
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
             </Button>
           </div>
         </div>
@@ -869,6 +908,27 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm Deletion</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete {client.firstName} {client.lastName}? This record will be moved to the
+              recycle bin and can be recovered later.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button onClick={() => setShowDeleteConfirm(false)} variant="outline" disabled={isDeleting}>
+                Cancel
+              </Button>
+              <Button onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white" disabled={isDeleting}>
+                {isDeleting ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

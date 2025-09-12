@@ -1,11 +1,53 @@
-export const exportToExcel = (data: any[], filename: string, sheetName?: string) => {
-  console.log(`Exporting ${data.length} records to Excel:`, filename)
-  console.log("Data:", data)
+import * as XLSX from "xlsx"
 
-  // In a real application, you would use a library like xlsx or exceljs
-  // For now, we'll simulate the export by creating a CSV download
-  const csvContent = convertToCSV(data)
-  downloadCSV(csvContent, filename)
+interface Client {
+  id: string
+  firstName: string
+  lastName: string
+  participantId: string
+  program: string
+  status: string
+  enrollmentDate: string
+  phone: string
+  email: string
+  caseManager: string
+  lastContact?: string
+}
+
+export const exportToExcel = async (clients: Client[], filename: string) => {
+  // Prepare data for export
+  const exportData = clients.map((client) => ({
+    "First Name": client.firstName,
+    "Last Name": client.lastName,
+    "Participant ID": client.participantId,
+    Program: client.program,
+    Status: client.status,
+    "Enrollment Date": new Date(client.enrollmentDate).toLocaleDateString(),
+    Phone: client.phone,
+    Email: client.email,
+    "Case Manager": client.caseManager,
+    "Last Contact": client.lastContact ? new Date(client.lastContact).toLocaleDateString() : "N/A",
+  }))
+
+  // Create workbook and worksheet
+  const workbook = XLSX.utils.book_new()
+  const worksheet = XLSX.utils.json_to_sheet(exportData)
+
+  // Auto-size columns
+  const columnWidths = Object.keys(exportData[0] || {}).map((key) => ({
+    wch: Math.max(key.length, 15),
+  }))
+  worksheet["!cols"] = columnWidths
+
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Clients")
+
+  // Generate filename with timestamp
+  const timestamp = new Date().toISOString().split("T")[0]
+  const finalFilename = `${filename}_${timestamp}.xlsx`
+
+  // Write file
+  XLSX.writeFile(workbook, finalFilename)
 }
 
 export const formatDateForExport = (dateString: string) => {
