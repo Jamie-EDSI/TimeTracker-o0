@@ -430,7 +430,7 @@ export function Dashboard() {
                 <div className="grid grid-cols-3 gap-4 w-full max-w-md">
                   <div></div> {/* Empty space for Total Clients alignment */}
                   <div className="flex justify-center">
-                    <h1 className="text-2xl font-bold text-gray-900 tracking-wide whitespace-nowrap">TimeTracker</h1>
+                    <h1 className="text-2xl font-bold text-blue-800 tracking-wide whitespace-nowrap">TimeTracker</h1>
                   </div>
                   <div></div> {/* Empty space for Pending Actions alignment */}
                 </div>
