@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { SupabaseDebugger, NetworkMonitor, DataValidator } from "./supabase-debug"
 
-// Environment variable validation with detailed logging
+// Environment variable validation with fallbacks for development
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 
@@ -611,9 +611,4 @@ export const testSupabaseSync = async () => {
     console.error("❌ Sync test failed:", error.message)
     return false
   }
-}
-
-// Make test function available globally
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-  ;(window as any).testSupabaseSync = testSupabaseSync
 }

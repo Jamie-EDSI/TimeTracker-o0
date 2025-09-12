@@ -1,4 +1,4 @@
-import { clientsApi, caseNotesApi, isSupabaseConfigured, getSupabaseStatus } from "./supabase"
+import { clientsApi, caseNotesApi, isSupabaseConfigured, getSupabaseStatus, testSupabaseSync } from "./supabase"
 
 // Test function to verify Supabase connection
 export async function testSupabase() {
@@ -68,9 +68,73 @@ export async function testSupabase() {
   }
 }
 
-// Make test function available globally in development
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+// Check setup configuration
+export async function checkSupabaseSetup() {
+  console.log("🔧 Checking Supabase Setup...")
+  console.log("==============================")
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  console.log("1️⃣ Environment Variables:")
+  console.log(`   NEXT_PUBLIC_SUPABASE_URL: ${url || "❌ Not set"}`)
+  console.log(`   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${key ? "✅ Set" : "❌ Not set"}`)
+
+  if (!url || !key) {
+    console.log("\n❌ Missing environment variables!")
+    console.log("💡 Create a .env.local file with:")
+    console.log("   NEXT_PUBLIC_SUPABASE_URL=your-project-url")
+    console.log("   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key")
+    return false
+  }
+
+  console.log("\n2️⃣ Configuration Validation:")
+  const status = getSupabaseStatus()
+  const configured = isSupabaseConfigured()
+
+  console.log(`   Status: ${status}`)
+  console.log(`   Valid: ${configured ? "✅ Yes" : "❌ No"}`)
+
+  if (!configured) {
+    console.log("\n❌ Configuration issues detected!")
+    if (url === "your-supabase-url") {
+      console.log("💡 Replace placeholder URL with your actual Supabase project URL")
+    }
+    if (key === "your-supabase-anon-key") {
+      console.log("💡 Replace placeholder key with your actual anon/public key")
+    }
+    return false
+  }
+
+  console.log("\n3️⃣ Testing Connection...")
+  try {
+    const clients = await clientsApi.getAll()
+    console.log(`   ✅ Connection successful - ${clients.length} clients found`)
+
+    console.log("\n🎉 Setup is complete and working!")
+    return true
+  } catch (error: any) {
+    console.log(`   ❌ Connection failed: ${error.message}`)
+    console.log("\n💡 Possible issues:")
+    console.log("   - Database tables not created")
+    console.log("   - Incorrect API key or URL")
+    console.log("   - Project paused in Supabase dashboard")
+    console.log("   - Network connectivity issues")
+    return false
+  }
+}
+
+// Make test functions available globally in development
+if (typeof window !== "undefined") {
   ;(window as any).testSupabase = testSupabase
+  ;(window as any).testSupabaseSync = testSupabaseSync
+  ;(window as any).checkSupabaseSetup = checkSupabaseSetup
+
+  console.log("🧪 Supabase test functions loaded!")
+  console.log("Available commands:")
+  console.log("  - testSupabase()")
+  console.log("  - testSupabaseSync()")
+  console.log("  - checkSupabaseSetup()")
 }
 
 export default testSupabase

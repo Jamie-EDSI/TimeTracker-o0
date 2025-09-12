@@ -1,110 +1,69 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, XCircle, AlertCircle, Wifi, WifiOff, Database, Activity, RefreshCw } from "lucide-react"
-import { getSupabaseStatus, isSupabaseConfigured } from "@/lib/supabase"
-import { NetworkMonitor, SupabaseDebugger } from "@/lib/supabase-debug"
-
-interface ConnectionStatus {
-  isOnline: boolean
-  supabaseReachable: boolean
-  latency: number
-  error?: string
-}
+import { ChevronDown, ChevronUp, Database, AlertCircle, CheckCircle } from "lucide-react"
+import { isSupabaseConfigured, getSupabaseStatus, getConfigError } from "@/lib/supabase"
 
 export function SupabaseStatusIndicator() {
-  const [status, setStatus] = useState<"not_configured" | "error" | "connected">("not_configured")
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [lastChecked, setLastChecked] = useState<Date | null>(null)
-
-  const checkStatus = async () => {
-    setIsRefreshing(true)
-
-    try {
-      const supabaseStatus = getSupabaseStatus()
-      setStatus(supabaseStatus)
-
-      if (supabaseStatus === "connected") {
-        const networkTest = await NetworkMonitor.testConnection()
-        setConnectionStatus(networkTest)
-      }
-
-      setLastChecked(new Date())
-    } catch (error) {
-      console.error("Status check failed:", error)
-    } finally {
-      setIsRefreshing(false)
-    }
-  }
+  const [status, setStatus] = useState<string>("checking")
+  const [configured, setConfigured] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Check status on mount
+    const checkStatus = () => {
+      const currentStatus = getSupabaseStatus()
+      const isConfigured = isSupabaseConfigured()
+      const configError = getConfigError()
+
+      setStatus(currentStatus)
+      setConfigured(isConfigured)
+      setError(configError)
+    }
+
     checkStatus()
 
-    // Check status every 30 seconds
+    // Recheck every 30 seconds
     const interval = setInterval(checkStatus, 30000)
-
     return () => clearInterval(interval)
   }, [])
 
   const getStatusColor = () => {
-    switch (status) {
-      case "connected":
-        return connectionStatus?.supabaseReachable ? "bg-green-500" : "bg-yellow-500"
-      case "error":
-        return "bg-red-500"
-      case "not_configured":
-        return "bg-blue-500"
-      default:
-        return "bg-gray-500"
-    }
-  }
-
-  const getStatusText = () => {
-    switch (status) {
-      case "connected":
-        return connectionStatus?.supabaseReachable ? "Connected" : "Connection Issues"
-      case "error":
-        return "Error"
-      case "not_configured":
-        return "Demo Mode"
-      default:
-        return "Unknown"
-    }
+    if (configured) return "bg-green-500"
+    if (status === "not_configured") return "bg-yellow-500"
+    return "bg-red-500"
   }
 
   const getStatusIcon = () => {
-    switch (status) {
-      case "connected":
-        return connectionStatus?.supabaseReachable ? (
-          <CheckCircle className="w-4 h-4" />
-        ) : (
-          <AlertCircle className="w-4 h-4" />
-        )
-      case "error":
-        return <XCircle className="w-4 h-4" />
-      case "not_configured":
-        return <Database className="w-4 h-4" />
-      default:
-        return <AlertCircle className="w-4 h-4" />
-    }
+    if (configured) return <CheckCircle className="h-4 w-4" />
+    if (status === "not_configured") return <AlertCircle className="h-4 w-4" />
+    return <AlertCircle className="h-4 w-4" />
   }
 
-  const showDebugInfo = () => {
-    console.group("🔍 Supabase Debug Information")
-    console.log("Status:", status)
-    console.log("Configured:", isSupabaseConfigured())
-    console.log("Connection:", connectionStatus)
-    console.log("Environment Variables:", {
-      url: process.env.NEXT_PUBLIC_SUPABASE_URL ? "Set" : "Missing",
-      key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "Set" : "Missing",
-    })
-    SupabaseDebugger.printSummary()
-    console.groupEnd()
+  const getStatusText = () => {
+    if (configured) return "Connected"
+    if (status === "not_configured") return "Demo Mode"
+    return "Error"
+  }
+
+  const runTest = async (testName: string) => {
+    try {
+      if (testName === "basic" && (window as any).testSupabase) {
+        await (window as any).testSupabase()
+      } else if (testName === "sync" && (window as any).testSupabaseSync) {
+        await (window as any).testSupabaseSync()
+      } else if (testName === "setup" && (window as any).checkSupabaseSetup) {
+        await (window as any).checkSupabaseSetup()
+      } else {
+        console.log(`Test function ${testName} not available yet. Try refreshing the page.`)
+      }
+    } catch (error) {
+      console.error(`Test ${testName} failed:`, error)
+    }
   }
 
   // Only show in development mode
@@ -114,109 +73,76 @@ export function SupabaseStatusIndicator() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      {!isExpanded ? (
-        <Badge
-          className={`${getStatusColor()} text-white cursor-pointer hover:opacity-80 transition-opacity`}
-          onClick={() => setIsExpanded(true)}
-        >
-          {getStatusIcon()}
-          <span className="ml-1">{getStatusText()}</span>
-        </Badge>
-      ) : (
-        <Card className="w-80 shadow-lg border-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <Database className="w-4 h-4" />
+      <Card className="w-80 shadow-lg border-2">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${getStatusColor()}`} />
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Database className="h-4 w-4" />
                 Supabase Status
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setIsExpanded(false)} className="h-6 w-6 p-0">
-                ×
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* Main Status */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {getStatusIcon()}
-                <span className="font-medium">{getStatusText()}</span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={checkStatus} disabled={isRefreshing} className="h-6 w-6 p-0">
-                <RefreshCw className={`w-3 h-3 ${isRefreshing ? "animate-spin" : ""}`} />
-              </Button>
+              </CardTitle>
             </div>
+            <Button variant="ghost" size="sm" onClick={() => setIsExpanded(!isExpanded)} className="h-6 w-6 p-0">
+              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </div>
+        </CardHeader>
 
-            {/* Connection Details */}
-            {connectionStatus && (
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    {connectionStatus.isOnline ? (
-                      <Wifi className="w-3 h-3 text-green-500" />
-                    ) : (
-                      <WifiOff className="w-3 h-3 text-red-500" />
-                    )}
-                    <span>Internet</span>
-                  </div>
-                  <span className={connectionStatus.isOnline ? "text-green-600" : "text-red-600"}>
-                    {connectionStatus.isOnline ? "Online" : "Offline"}
+        <CardContent className="pt-0">
+          <div className="flex items-center gap-2 mb-2">
+            {getStatusIcon()}
+            <Badge variant={configured ? "default" : "secondary"}>{getStatusText()}</Badge>
+          </div>
+
+          {isExpanded && (
+            <div className="space-y-3 mt-4">
+              <div className="text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span>URL:</span>
+                  <span className={process.env.NEXT_PUBLIC_SUPABASE_URL ? "text-green-600" : "text-red-600"}>
+                    {process.env.NEXT_PUBLIC_SUPABASE_URL ? "✅" : "❌"}
                   </span>
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <Activity className="w-3 h-3" />
-                    <span>Latency</span>
-                  </div>
-                  <span className="text-gray-600">{connectionStatus.latency}ms</span>
+                <div className="flex justify-between">
+                  <span>API Key:</span>
+                  <span className={process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "text-green-600" : "text-red-600"}>
+                    {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✅" : "❌"}
+                  </span>
                 </div>
-
-                {connectionStatus.error && (
-                  <div className="text-red-600 text-xs bg-red-50 p-2 rounded">{connectionStatus.error}</div>
-                )}
+                <div className="flex justify-between">
+                  <span>Status:</span>
+                  <span className={configured ? "text-green-600" : "text-yellow-600"}>{status}</span>
+                </div>
               </div>
-            )}
 
-            {/* Configuration Info */}
-            <div className="space-y-1 text-xs text-gray-600">
-              <div className="flex justify-between">
-                <span>URL:</span>
-                <span>{process.env.NEXT_PUBLIC_SUPABASE_URL ? "✅" : "❌"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>API Key:</span>
-                <span>{process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✅" : "❌"}</span>
-              </div>
-            </div>
-
-            {/* Last Checked */}
-            {lastChecked && (
-              <div className="text-xs text-gray-500">Last checked: {lastChecked.toLocaleTimeString()}</div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={showDebugInfo} className="flex-1 text-xs bg-transparent">
-                Debug Info
-              </Button>
-              {status === "not_configured" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    console.log("📖 Setup Guide: Check SUPABASE_SETUP_GUIDE.md")
-                    console.log("🧪 Test Connection: Run testSupabase() in console")
-                  }}
-                  className="flex-1 text-xs"
-                >
-                  Setup Help
-                </Button>
+              {error && (
+                <div className="text-xs p-2 bg-yellow-50 border border-yellow-200 rounded">
+                  <div className="font-medium text-yellow-800">Configuration Issue:</div>
+                  <div className="text-yellow-700">{error}</div>
+                </div>
               )}
+
+              <div className="space-y-2">
+                <div className="text-xs font-medium">Debug Tools:</div>
+                <div className="grid grid-cols-1 gap-1">
+                  <Button variant="outline" size="sm" onClick={() => runTest("basic")} className="text-xs h-7">
+                    Test Connection
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => runTest("sync")} className="text-xs h-7">
+                    Test CRUD Operations
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => runTest("setup")} className="text-xs h-7">
+                    Check Setup
+                  </Button>
+                </div>
+              </div>
+
+              <div className="text-xs text-gray-500">Open browser console for detailed logs</div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
