@@ -1,57 +1,76 @@
-// Test utility to verify Supabase connection
+import { clientsApi, caseNotesApi, isSupabaseConfigured, getSupabaseStatus } from "./supabase"
+
+// Test function to verify Supabase connection
 export async function testSupabase() {
-  console.log("🧪 Testing Supabase Connection...")
+  console.log("🧪 Testing Supabase Configuration...")
+  console.log("=====================================")
+
+  // Check environment variables
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  console.log("📋 Environment Variables:")
+  console.log(`   URL: ${url ? "✅ Set" : "❌ Missing"}`)
+  console.log(`   Key: ${key ? "✅ Set" : "❌ Missing"}`)
+
+  if (!url || !key) {
+    console.log("❌ Environment variables not configured")
+    console.log("💡 Please check your .env.local file")
+    return false
+  }
+
+  // Check configuration status
+  const status = getSupabaseStatus()
+  const configured = isSupabaseConfigured()
+
+  console.log("\n🔧 Configuration Status:")
+  console.log(`   Status: ${status}`)
+  console.log(`   Configured: ${configured ? "✅ Yes" : "❌ No"}`)
+
+  if (!configured) {
+    console.log("❌ Supabase not properly configured")
+    console.log("💡 Check your URL format and API key")
+    return false
+  }
+
+  // Test database connection
+  console.log("\n🔌 Testing Database Connection...")
 
   try {
-    // Check environment variables
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    // Test clients API
+    console.log("   Testing clients table...")
+    const clients = await clientsApi.getAll()
+    console.log(`   ✅ Clients loaded: ${clients.length} records`)
 
-    console.log("📋 Environment Variables:")
-    console.log("- SUPABASE_URL:", supabaseUrl ? "✅ Set" : "❌ Missing")
-    console.log("- SUPABASE_ANON_KEY:", supabaseKey ? "✅ Set" : "❌ Missing")
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.error("❌ Missing environment variables. Check your .env.local file")
-      return false
+    if (clients.length > 0) {
+      // Test case notes API
+      console.log("   Testing case notes table...")
+      const caseNotes = await caseNotesApi.getByClientId(clients[0].id)
+      console.log(`   ✅ Case notes loaded: ${caseNotes.length} records`)
     }
 
-    // Test database connection
-    const { createClient } = await import("@supabase/supabase-js")
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
-    console.log("🔌 Testing database connection...")
-
-    // Test basic query
-    const { data, error } = await supabase.from("clients").select("count(*)").limit(1)
-
-    if (error) {
-      console.error("❌ Database connection failed:", error.message)
-      return false
-    }
-
-    console.log("✅ Database connection successful!")
-    console.log("📊 Found", data?.[0]?.count || 0, "clients in database")
-
-    // Test table structure
-    const { data: tableData, error: tableError } = await supabase.from("clients").select("*").limit(1)
-
-    if (tableError) {
-      console.error("❌ Table query failed:", tableError.message)
-      return false
-    }
-
-    console.log("✅ Table structure verified")
-    console.log("🎉 Supabase setup is working correctly!")
+    console.log("\n🎉 SUCCESS: Supabase is properly configured!")
+    console.log("✅ Database connection working")
+    console.log("✅ Tables accessible")
+    console.log("✅ Data can be read")
 
     return true
-  } catch (error) {
-    console.error("❌ Test failed:", error)
+  } catch (error: any) {
+    console.log("\n❌ FAILED: Database connection error")
+    console.log(`   Error: ${error.message}`)
+    console.log("\n💡 Troubleshooting tips:")
+    console.log("   1. Check your API key is correct")
+    console.log("   2. Verify your project URL")
+    console.log("   3. Ensure database schema is set up")
+    console.log("   4. Check if project is paused in Supabase dashboard")
+
     return false
   }
 }
 
-// Make function available globally for easy testing
-if (typeof window !== "undefined") {
+// Make test function available globally in development
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   ;(window as any).testSupabase = testSupabase
 }
+
+export default testSupabase

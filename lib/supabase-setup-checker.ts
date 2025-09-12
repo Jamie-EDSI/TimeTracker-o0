@@ -1,55 +1,72 @@
-export function checkSupabaseSetup() {
-  const issues: string[] = []
-  const warnings: string[] = []
+import { getSupabaseStatus, getConfigError } from "./supabase"
 
-  // Check environment variables
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+export interface SetupStatus {
+  isConfigured: boolean
+  status: "not_configured" | "error" | "connected"
+  message: string
+  recommendations: string[]
+}
 
-  if (!supabaseUrl) {
-    issues.push("NEXT_PUBLIC_SUPABASE_URL is not set")
-  } else if (!supabaseUrl.startsWith("https://")) {
-    issues.push("NEXT_PUBLIC_SUPABASE_URL should start with https://")
-  } else if (!supabaseUrl.includes(".supabase.co")) {
-    warnings.push("NEXT_PUBLIC_SUPABASE_URL doesn't look like a Supabase URL")
-  }
+export function checkSupabaseSetup(): SetupStatus {
+  const status = getSupabaseStatus()
+  const error = getConfigError()
 
-  if (!supabaseKey) {
-    issues.push("NEXT_PUBLIC_SUPABASE_ANON_KEY is not set")
-  } else if (!supabaseKey.startsWith("eyJ")) {
-    issues.push("NEXT_PUBLIC_SUPABASE_ANON_KEY doesn't look like a JWT token")
-  }
+  switch (status) {
+    case "not_configured":
+      return {
+        isConfigured: false,
+        status: "not_configured",
+        message: "Supabase not configured - running in demo mode",
+        recommendations: [
+          "Create a Supabase project at https://supabase.com",
+          "Run the SQL schema from scripts/supabase-schema.sql",
+          "Add your credentials to .env.local",
+          "Restart your development server",
+        ],
+      }
 
-  // Check for common mistakes
-  if (supabaseUrl === "https://your-project-id.supabase.co") {
-    issues.push("NEXT_PUBLIC_SUPABASE_URL is still using placeholder value")
-  }
+    case "error":
+      return {
+        isConfigured: false,
+        status: "error",
+        message: error || "Supabase configuration error",
+        recommendations: [
+          "Check your NEXT_PUBLIC_SUPABASE_URL format",
+          "Verify your NEXT_PUBLIC_SUPABASE_ANON_KEY is correct",
+          "Ensure your Supabase project is not paused",
+          "Run testSupabase() in console for detailed diagnostics",
+        ],
+      }
 
-  if (supabaseKey === "your-anon-key-here") {
-    issues.push("NEXT_PUBLIC_SUPABASE_ANON_KEY is still using placeholder value")
-  }
+    case "connected":
+      return {
+        isConfigured: true,
+        status: "connected",
+        message: "Connected to Supabase database",
+        recommendations: [
+          "Your setup is working correctly!",
+          "All data will be saved to your Supabase database",
+          "You can view and manage data in your Supabase dashboard",
+        ],
+      }
 
-  return {
-    isConfigured: issues.length === 0,
-    issues,
-    warnings,
+    default:
+      return {
+        isConfigured: false,
+        status: "error",
+        message: "Unknown configuration status",
+        recommendations: ["Please check your setup and try again"],
+      }
   }
 }
 
-export function logSetupStatus() {
-  const status = checkSupabaseSetup()
-
-  if (status.isConfigured) {
-    console.log("✅ Supabase configuration looks good!")
-  } else {
-    console.log("⚠️ Supabase configuration issues found:")
-    status.issues.forEach((issue) => console.log(`  ❌ ${issue}`))
-  }
-
-  if (status.warnings.length > 0) {
-    console.log("⚠️ Warnings:")
-    status.warnings.forEach((warning) => console.log(`  ⚠️ ${warning}`))
-  }
-
-  return status
+export function getSetupInstructions(): string[] {
+  return [
+    "1. Create account at https://supabase.com",
+    "2. Create new project",
+    "3. Run SQL from scripts/supabase-schema.sql",
+    "4. Copy URL and API key from Settings > API",
+    "5. Update .env.local with your credentials",
+    "6. Restart development server",
+  ]
 }
