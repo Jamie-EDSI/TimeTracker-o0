@@ -97,6 +97,16 @@ export interface CaseNote {
   author: string
 }
 
+// Real-time subscription types
+export type RealtimeEvent = "INSERT" | "UPDATE" | "DELETE"
+
+export interface RealtimePayload<T = any> {
+  eventType: RealtimeEvent
+  new: T
+  old: T
+  table: string
+}
+
 // Enhanced mock data for comprehensive testing
 const mockClients: Client[] = [
   {
@@ -268,6 +278,92 @@ const mockCaseNotes: CaseNote[] = [
 
 // Helper function to simulate network delay for realistic demo
 const simulateDelay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// Real-time subscription manager
+export class RealtimeManager {
+  private static subscriptions: Map<string, any> = new Map()
+
+  static subscribeToClients(callback: (payload: RealtimePayload<Client>) => void) {
+    if (!supabase || configError) {
+      console.log("📊 Real-time not available - using demo mode")
+      return null
+    }
+
+    const subscription = supabase
+      .channel("clients-channel")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "clients",
+        },
+        (payload: any) => {
+          console.log("🔄 Real-time client update:", payload)
+          callback({
+            eventType: payload.eventType,
+            new: payload.new,
+            old: payload.old,
+            table: "clients",
+          })
+        },
+      )
+      .subscribe()
+
+    this.subscriptions.set("clients", subscription)
+    console.log("✅ Subscribed to clients real-time updates")
+    return subscription
+  }
+
+  static subscribeToCaseNotes(callback: (payload: RealtimePayload<CaseNote>) => void) {
+    if (!supabase || configError) {
+      console.log("📊 Real-time not available - using demo mode")
+      return null
+    }
+
+    const subscription = supabase
+      .channel("case-notes-channel")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "case_notes",
+        },
+        (payload: any) => {
+          console.log("🔄 Real-time case note update:", payload)
+          callback({
+            eventType: payload.eventType,
+            new: payload.new,
+            old: payload.old,
+            table: "case_notes",
+          })
+        },
+      )
+      .subscribe()
+
+    this.subscriptions.set("case_notes", subscription)
+    console.log("✅ Subscribed to case notes real-time updates")
+    return subscription
+  }
+
+  static unsubscribe(tableName: string) {
+    const subscription = this.subscriptions.get(tableName)
+    if (subscription) {
+      supabase.removeChannel(subscription)
+      this.subscriptions.delete(tableName)
+      console.log(`🔌 Unsubscribed from ${tableName} real-time updates`)
+    }
+  }
+
+  static unsubscribeAll() {
+    this.subscriptions.forEach((subscription, tableName) => {
+      supabase.removeChannel(subscription)
+      console.log(`🔌 Unsubscribed from ${tableName} real-time updates`)
+    })
+    this.subscriptions.clear()
+  }
+}
 
 // Enhanced client database operations with comprehensive debugging
 export const clientsApi = {
@@ -611,4 +707,46 @@ export const testSupabaseSync = async () => {
     console.error("❌ Sync test failed:", error.message)
     return false
   }
+}
+
+// Test real-time functionality
+export const testRealtimeSync = async () => {
+  console.log("🔄 Testing Real-time Sync...")
+
+  if (!supabase || configError) {
+    console.log("⚠️ Real-time not available - Supabase not configured")
+    return false
+  }
+
+  try {
+    // Subscribe to clients changes
+    const clientSubscription = RealtimeManager.subscribeToClients((payload) => {
+      console.log("📡 Real-time client event:", payload.eventType, payload.new)
+    })
+
+    // Subscribe to case notes changes
+    const notesSubscription = RealtimeManager.subscribeToCaseNotes((payload) => {
+      console.log("📡 Real-time case note event:", payload.eventType, payload.new)
+    })
+
+    console.log("✅ Real-time subscriptions active")
+    console.log("💡 Try making changes in another browser tab to see real-time updates")
+
+    // Clean up after 30 seconds for testing
+    setTimeout(() => {
+      RealtimeManager.unsubscribeAll()
+      console.log("🔌 Test subscriptions cleaned up")
+    }, 30000)
+
+    return true
+  } catch (error: any) {
+    console.error("❌ Real-time test failed:", error.message)
+    return false
+  }
+}
+
+// Make test function available globally
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+  ;(window as any).testSupabaseSync = testSupabaseSync
+  ;(window as any).testRealtimeSync = testRealtimeSync
 }
