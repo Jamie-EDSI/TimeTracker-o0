@@ -87,10 +87,6 @@ export interface Client {
   last_contact?: string
   last_modified?: string
   modified_by?: string
-  // Soft delete fields (optional for backward compatibility)
-  deleted_at?: string
-  deleted_by?: string
-  is_deleted?: boolean
 }
 
 export interface CaseNote {
@@ -99,20 +95,6 @@ export interface CaseNote {
   note: string
   created_at: string
   author: string
-  // Soft delete fields (optional for backward compatibility)
-  deleted_at?: string
-  deleted_by?: string
-  is_deleted?: boolean
-}
-
-// Real-time subscription types
-export type RealtimeEvent = "INSERT" | "UPDATE" | "DELETE"
-
-export interface RealtimePayload<T = any> {
-  eventType: RealtimeEvent
-  new: T
-  old: T
-  table: string
 }
 
 // Enhanced mock data for comprehensive testing
@@ -155,7 +137,6 @@ const mockClients: Client[] = [
     last_contact: "2023-12-15",
     last_modified: "2023-12-15T15:30:00Z",
     modified_by: "Brown, Lisa",
-    is_deleted: false,
   },
   {
     id: "2",
@@ -178,7 +159,6 @@ const mockClients: Client[] = [
     created_at: "2023-03-15T09:00:00Z",
     last_modified: "2023-12-10T14:20:00Z",
     modified_by: "Smith, John",
-    is_deleted: false,
   },
   {
     id: "3",
@@ -201,7 +181,6 @@ const mockClients: Client[] = [
     created_at: "2023-04-01T11:00:00Z",
     last_modified: "2023-12-05T16:45:00Z",
     modified_by: "Johnson, Mary",
-    is_deleted: false,
   },
   {
     id: "4",
@@ -224,7 +203,6 @@ const mockClients: Client[] = [
     created_at: "2023-05-10T08:00:00Z",
     last_modified: "2023-12-01T10:15:00Z",
     modified_by: "Brown, Lisa",
-    is_deleted: false,
   },
   {
     id: "5",
@@ -247,31 +225,6 @@ const mockClients: Client[] = [
     created_at: "2023-01-15T12:00:00Z",
     last_modified: "2023-11-20T14:30:00Z",
     modified_by: "Johnson, Mary",
-    is_deleted: false,
-  },
-  // Mock deleted client for testing
-  {
-    id: "6",
-    first_name: "John",
-    last_name: "Deleted",
-    participant_id: "2965150",
-    program: "EARN",
-    status: "Active",
-    enrollment_date: "2023-01-10",
-    phone: "215-555-0601",
-    email: "john.deleted@email.com",
-    address: "123 Deleted St",
-    city: "Philadelphia",
-    state: "PA",
-    zip_code: "19107",
-    date_of_birth: "1990-01-01",
-    case_manager: "Test Manager",
-    created_at: "2023-01-10T12:00:00Z",
-    last_modified: "2023-12-01T10:00:00Z",
-    modified_by: "Test User",
-    is_deleted: true,
-    deleted_at: "2023-12-01T10:00:00Z",
-    deleted_by: "Test User",
   },
 ]
 
@@ -282,7 +235,6 @@ const mockCaseNotes: CaseNote[] = [
     note: "Initial assessment completed. Client shows strong motivation for job placement.",
     created_at: "2023-02-20T10:30:00Z",
     author: "Brown, Lisa",
-    is_deleted: false,
   },
   {
     id: "2",
@@ -290,7 +242,6 @@ const mockCaseNotes: CaseNote[] = [
     note: "Enrolled in Job Readiness program. Scheduled for skills assessment next week.",
     created_at: "2023-03-01T14:00:00Z",
     author: "Brown, Lisa",
-    is_deleted: false,
   },
   {
     id: "3",
@@ -298,7 +249,6 @@ const mockCaseNotes: CaseNote[] = [
     note: "Client completed job readiness workshop. Showing excellent progress in interview skills.",
     created_at: "2023-03-20T11:15:00Z",
     author: "Smith, John",
-    is_deleted: false,
   },
   {
     id: "4",
@@ -306,7 +256,6 @@ const mockCaseNotes: CaseNote[] = [
     note: "Initial intake meeting scheduled. Client needs career guidance and support.",
     created_at: "2023-04-02T09:30:00Z",
     author: "Johnson, Mary",
-    is_deleted: false,
   },
   {
     id: "5",
@@ -314,198 +263,33 @@ const mockCaseNotes: CaseNote[] = [
     note: "Client has excellent technical skills. Recommended for advanced placement program.",
     created_at: "2023-05-12T11:00:00Z",
     author: "Brown, Lisa",
-    is_deleted: false,
   },
 ]
 
 // Helper function to simulate network delay for realistic demo
 const simulateDelay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms))
 
-// Check if soft delete columns exist in the database
-let softDeleteSupported = false
-let softDeleteChecked = false
-
-const checkSoftDeleteSupport = async () => {
-  if (softDeleteChecked || !supabase || configError) {
-    return softDeleteSupported
-  }
-
-  try {
-    // Try to query with is_deleted column to check if it exists
-    const { data, error } = await supabase.from("clients").select("id, is_deleted").limit(1)
-
-    if (error && error.code === "42703") {
-      // Column doesn't exist
-      console.log("ℹ️ Soft delete columns not found - using legacy mode")
-      softDeleteSupported = false
-    } else {
-      console.log("✅ Soft delete columns detected - using enhanced mode")
-      softDeleteSupported = true
-    }
-  } catch (error) {
-    console.log("⚠️ Could not check soft delete support - using legacy mode")
-    softDeleteSupported = false
-  }
-
-  softDeleteChecked = true
-  return softDeleteSupported
-}
-
-// Real-time subscription manager
-export class RealtimeManager {
-  private static subscriptions: Map<string, any> = new Map()
-
-  static subscribeToClients(callback: (payload: RealtimePayload<Client>) => void) {
-    if (!supabase || configError) {
-      console.log("📊 Real-time not available - using demo mode")
-      return null
-    }
-
-    const subscription = supabase
-      .channel("clients-channel")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "clients",
-        },
-        (payload: any) => {
-          console.log("🔄 Real-time client update:", payload)
-          callback({
-            eventType: payload.eventType,
-            new: payload.new,
-            old: payload.old,
-            table: "clients",
-          })
-        },
-      )
-      .subscribe()
-
-    this.subscriptions.set("clients", subscription)
-    console.log("✅ Subscribed to clients real-time updates")
-    return subscription
-  }
-
-  static subscribeToCaseNotes(callback: (payload: RealtimePayload<CaseNote>) => void) {
-    if (!supabase || configError) {
-      console.log("📊 Real-time not available - using demo mode")
-      return null
-    }
-
-    const subscription = supabase
-      .channel("case-notes-channel")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "case_notes",
-        },
-        (payload: any) => {
-          console.log("🔄 Real-time case note update:", payload)
-          callback({
-            eventType: payload.eventType,
-            new: payload.new,
-            old: payload.old,
-            table: "case_notes",
-          })
-        },
-      )
-      .subscribe()
-
-    this.subscriptions.set("case_notes", subscription)
-    console.log("✅ Subscribed to case notes real-time updates")
-    return subscription
-  }
-
-  static unsubscribe(tableName: string) {
-    const subscription = this.subscriptions.get(tableName)
-    if (subscription) {
-      supabase.removeChannel(subscription)
-      this.subscriptions.delete(tableName)
-      console.log(`🔌 Unsubscribed from ${tableName} real-time updates`)
-    }
-  }
-
-  static unsubscribeAll() {
-    this.subscriptions.forEach((subscription, tableName) => {
-      supabase.removeChannel(subscription)
-      console.log(`🔌 Unsubscribed from ${tableName} real-time updates`)
-    })
-    this.subscriptions.clear()
-  }
-}
-
 // Enhanced client database operations with comprehensive debugging
 export const clientsApi = {
-  // Get all active clients (not deleted) - backward compatible
+  // Get all clients with enhanced debugging
   async getAll(): Promise<Client[]> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
-      return mockClients.filter((client) => !client.is_deleted)
+      return [...mockClients]
     }
 
     return SupabaseDebugger.logOperation("SELECT", "clients", null, async () => {
-      // Check if soft delete is supported
-      const hasSoftDelete = await checkSoftDeleteSupport()
-
-      let query = supabase.from("clients").select("*").order("created_at", { ascending: false })
-
-      // Only filter by is_deleted if the column exists
-      if (hasSoftDelete) {
-        query = query.eq("is_deleted", false)
-      }
-
-      const { data, error } = await query
+      const { data, error } = await supabase.from("clients").select("*").order("created_at", { ascending: false })
 
       if (error) {
         console.error("🚨 Supabase SELECT error:", error)
         console.log("🔄 Falling back to demo data")
         await simulateDelay()
-        return mockClients.filter((client) => !client.is_deleted)
+        return mockClients
       }
 
-      // If soft delete is not supported, treat all records as active
-      const filteredData = hasSoftDelete
-        ? data || []
-        : (data || []).map((client: Client) => ({ ...client, is_deleted: false }))
-
-      console.log(`✅ Successfully loaded ${filteredData.length} active clients from Supabase`)
-      return filteredData
-    })
-  },
-
-  // Get all deleted clients (recycle bin) - only works if soft delete is supported
-  async getDeleted(): Promise<Client[]> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
-      await simulateDelay()
-      return mockClients.filter((client) => client.is_deleted)
-    }
-
-    return SupabaseDebugger.logOperation("SELECT_DELETED", "clients", null, async () => {
-      const hasSoftDelete = await checkSoftDeleteSupport()
-
-      if (!hasSoftDelete) {
-        console.log("ℹ️ Soft delete not supported - returning empty recycle bin")
-        return []
-      }
-
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("is_deleted", true)
-        .order("deleted_at", { ascending: false })
-
-      if (error) {
-        console.error("🚨 Supabase SELECT_DELETED error:", error)
-        console.log("🔄 Falling back to demo data")
-        return mockClients.filter((client) => client.is_deleted)
-      }
-
-      console.log(`✅ Successfully loaded ${data?.length || 0} deleted clients from Supabase`)
+      console.log(`✅ Successfully loaded ${data?.length || 0} clients from Supabase`)
       return data || []
     })
   },
@@ -549,19 +333,15 @@ export const clientsApi = {
         id: Date.now().toString(),
         created_at: new Date().toISOString(),
         last_modified: new Date().toISOString(),
-        is_deleted: false,
       }
       mockClients.unshift(newClient)
       return newClient
     }
 
-    const hasSoftDelete = await checkSoftDeleteSupport()
-
     const clientData = {
       ...client,
       created_at: new Date().toISOString(),
       last_modified: new Date().toISOString(),
-      ...(hasSoftDelete && { is_deleted: false }),
     }
 
     return SupabaseDebugger.logOperation("INSERT", "clients", clientData, async () => {
@@ -640,98 +420,8 @@ export const clientsApi = {
     })
   },
 
-  // Soft delete client (move to recycle bin) - only works if soft delete is supported
-  async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
-      await simulateDelay()
-      const clientIndex = mockClients.findIndex((client) => client.id === id)
-      if (clientIndex !== -1) {
-        mockClients[clientIndex] = {
-          ...mockClients[clientIndex],
-          is_deleted: true,
-          deleted_at: new Date().toISOString(),
-          deleted_by: deletedBy,
-        }
-      }
-      return
-    }
-
-    const hasSoftDelete = await checkSoftDeleteSupport()
-
-    if (!hasSoftDelete) {
-      console.log("⚠️ Soft delete not supported - performing hard delete instead")
-      return this.permanentDelete(id)
-    }
-
-    const updateData = {
-      is_deleted: true,
-      deleted_at: new Date().toISOString(),
-      deleted_by: deletedBy,
-      last_modified: new Date().toISOString(),
-    }
-
-    return SupabaseDebugger.logOperation("SOFT_DELETE", "clients", { id, deletedBy }, async () => {
-      const { error } = await supabase.from("clients").update(updateData).eq("id", id)
-
-      if (error) {
-        console.error("🚨 Supabase SOFT_DELETE error:", error)
-        throw new Error(`Database error: ${error.message}`)
-      }
-
-      console.log("✅ Client successfully moved to recycle bin:", id)
-    })
-  },
-
-  // Restore client from recycle bin - only works if soft delete is supported
-  async restore(id: string, restoredBy = "Current User"): Promise<Client> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
-      await simulateDelay()
-      const clientIndex = mockClients.findIndex((client) => client.id === id)
-      if (clientIndex !== -1) {
-        mockClients[clientIndex] = {
-          ...mockClients[clientIndex],
-          is_deleted: false,
-          deleted_at: undefined,
-          deleted_by: undefined,
-          last_modified: new Date().toISOString(),
-          modified_by: restoredBy,
-        }
-        return mockClients[clientIndex]
-      }
-      throw new Error("Client not found")
-    }
-
-    const hasSoftDelete = await checkSoftDeleteSupport()
-
-    if (!hasSoftDelete) {
-      throw new Error("Restore not supported - soft delete columns not available")
-    }
-
-    const updateData = {
-      is_deleted: false,
-      deleted_at: null,
-      deleted_by: null,
-      last_modified: new Date().toISOString(),
-      modified_by: restoredBy,
-    }
-
-    return SupabaseDebugger.logOperation("RESTORE", "clients", { id, restoredBy }, async () => {
-      const { data, error } = await supabase.from("clients").update(updateData).eq("id", id).select().single()
-
-      if (error) {
-        console.error("🚨 Supabase RESTORE error:", error)
-        throw new Error(`Database error: ${error.message}`)
-      }
-
-      console.log("✅ Client successfully restored from recycle bin:", id)
-      return data
-    })
-  },
-
-  // Permanently delete client (hard delete)
-  async permanentDelete(id: string): Promise<void> {
+  // Delete client with debugging
+  async delete(id: string): Promise<void> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
@@ -742,74 +432,44 @@ export const clientsApi = {
       return
     }
 
-    return SupabaseDebugger.logOperation("PERMANENT_DELETE", "clients", { id }, async () => {
-      // First delete all associated case notes
-      await supabase.from("case_notes").delete().eq("client_id", id)
-
-      // Then delete the client
+    return SupabaseDebugger.logOperation("DELETE", "clients", { id }, async () => {
       const { error } = await supabase.from("clients").delete().eq("id", id)
 
       if (error) {
-        console.error("🚨 Supabase PERMANENT_DELETE error:", error)
+        console.error("🚨 Supabase DELETE error:", error)
         throw new Error(`Database error: ${error.message}`)
       }
 
-      console.log("✅ Client permanently deleted from Supabase:", id)
+      console.log("✅ Client successfully deleted from Supabase:", id)
     })
-  },
-
-  // Delete client with debugging (legacy method - now uses soft delete if available)
-  async delete(id: string): Promise<void> {
-    const hasSoftDelete = await checkSoftDeleteSupport()
-
-    if (hasSoftDelete) {
-      return this.softDelete(id)
-    } else {
-      console.log("ℹ️ Soft delete not available - performing permanent delete")
-      return this.permanentDelete(id)
-    }
   },
 }
 
 // Enhanced case notes database operations
 export const caseNotesApi = {
-  // Get case notes for a client with debugging (only active notes if soft delete supported)
+  // Get case notes for a client with debugging
   async getByClientId(clientId: string): Promise<CaseNote[]> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
-      return mockCaseNotes.filter((note) => note.client_id === clientId && !note.is_deleted)
+      return mockCaseNotes.filter((note) => note.client_id === clientId)
     }
 
     return SupabaseDebugger.logOperation("SELECT_BY_CLIENT", "case_notes", { clientId }, async () => {
-      const hasSoftDelete = await checkSoftDeleteSupport()
-
-      let query = supabase
+      const { data, error } = await supabase
         .from("case_notes")
         .select("*")
         .eq("client_id", clientId)
         .order("created_at", { ascending: false })
 
-      // Only filter by is_deleted if the column exists
-      if (hasSoftDelete) {
-        query = query.eq("is_deleted", false)
-      }
-
-      const { data, error } = await query
-
       if (error) {
         console.error("🚨 Supabase SELECT_BY_CLIENT error:", error)
         console.log("🔄 Falling back to demo data")
-        return mockCaseNotes.filter((note) => note.client_id === clientId && !note.is_deleted)
+        return mockCaseNotes.filter((note) => note.client_id === clientId)
       }
 
-      // If soft delete is not supported, treat all records as active
-      const filteredData = hasSoftDelete
-        ? data || []
-        : (data || []).map((note: CaseNote) => ({ ...note, is_deleted: false }))
-
-      console.log(`✅ Successfully loaded ${filteredData.length} case notes for client ${clientId}`)
-      return filteredData
+      console.log(`✅ Successfully loaded ${data?.length || 0} case notes for client ${clientId}`)
+      return data || []
     })
   },
 
@@ -830,18 +490,14 @@ export const caseNotesApi = {
         ...caseNote,
         id: Date.now().toString(),
         created_at: new Date().toISOString(),
-        is_deleted: false,
       }
       mockCaseNotes.unshift(newNote)
       return newNote
     }
 
-    const hasSoftDelete = await checkSoftDeleteSupport()
-
     const noteData = {
       ...caseNote,
       created_at: new Date().toISOString(),
-      ...(hasSoftDelete && { is_deleted: false }),
     }
 
     return SupabaseDebugger.logOperation("INSERT", "case_notes", noteData, async () => {
@@ -858,50 +514,8 @@ export const caseNotesApi = {
     })
   },
 
-  // Soft delete case note - only works if soft delete is supported
-  async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
-      await simulateDelay()
-      const noteIndex = mockCaseNotes.findIndex((note) => note.id === id)
-      if (noteIndex !== -1) {
-        mockCaseNotes[noteIndex] = {
-          ...mockCaseNotes[noteIndex],
-          is_deleted: true,
-          deleted_at: new Date().toISOString(),
-          deleted_by: deletedBy,
-        }
-      }
-      return
-    }
-
-    const hasSoftDelete = await checkSoftDeleteSupport()
-
-    if (!hasSoftDelete) {
-      console.log("⚠️ Soft delete not supported - performing hard delete instead")
-      return this.permanentDelete(id)
-    }
-
-    const updateData = {
-      is_deleted: true,
-      deleted_at: new Date().toISOString(),
-      deleted_by: deletedBy,
-    }
-
-    return SupabaseDebugger.logOperation("SOFT_DELETE", "case_notes", { id, deletedBy }, async () => {
-      const { error } = await supabase.from("case_notes").update(updateData).eq("id", id)
-
-      if (error) {
-        console.error("🚨 Supabase SOFT_DELETE error:", error)
-        throw new Error(`Database error: ${error.message}`)
-      }
-
-      console.log("✅ Case note successfully moved to recycle bin:", id)
-    })
-  },
-
-  // Permanently delete case note
-  async permanentDelete(id: string): Promise<void> {
+  // Delete case note with debugging
+  async delete(id: string): Promise<void> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
@@ -912,28 +526,16 @@ export const caseNotesApi = {
       return
     }
 
-    return SupabaseDebugger.logOperation("PERMANENT_DELETE", "case_notes", { id }, async () => {
+    return SupabaseDebugger.logOperation("DELETE", "case_notes", { id }, async () => {
       const { error } = await supabase.from("case_notes").delete().eq("id", id)
 
       if (error) {
-        console.error("🚨 Supabase PERMANENT_DELETE error:", error)
+        console.error("🚨 Supabase DELETE error:", error)
         throw new Error(`Database error: ${error.message}`)
       }
 
-      console.log("✅ Case note permanently deleted from Supabase:", id)
+      console.log("✅ Case note successfully deleted from Supabase:", id)
     })
-  },
-
-  // Delete case note with debugging (legacy method - now uses soft delete if available)
-  async delete(id: string): Promise<void> {
-    const hasSoftDelete = await checkSoftDeleteSupport()
-
-    if (hasSoftDelete) {
-      return this.softDelete(id)
-    } else {
-      console.log("ℹ️ Soft delete not available - performing permanent delete")
-      return this.permanentDelete(id)
-    }
   },
 }
 
@@ -945,9 +547,6 @@ export const getSupabaseStatus = () => {
   return "connected"
 }
 export const getConfigError = () => configError
-
-// Check if soft delete is supported
-export const isSoftDeleteSupported = () => checkSoftDeleteSupport()
 
 // Enhanced testing function
 export const testSupabaseSync = async () => {
@@ -962,10 +561,6 @@ export const testSupabaseSync = async () => {
       console.error("❌ Supabase not reachable:", networkTest.error)
       return false
     }
-
-    // Check soft delete support
-    const hasSoftDelete = await checkSoftDeleteSupport()
-    console.log(`🔧 Soft Delete Support: ${hasSoftDelete ? "✅ Available" : "❌ Not Available"}`)
 
     // Test CRUD operations
     console.log("🔄 Testing CRUD operations...")
@@ -1005,19 +600,9 @@ export const testSupabaseSync = async () => {
     })
     console.log("✅ Test case note created:", testNote.id)
 
-    // Test soft delete if supported
-    if (hasSoftDelete) {
-      await clientsApi.softDelete(createdClient.id, "Test User")
-      console.log("✅ Test client moved to recycle bin")
-
-      // Test restore
-      await clientsApi.restore(createdClient.id, "Test User")
-      console.log("✅ Test client restored from recycle bin")
-    }
-
     // Clean up test data
     await caseNotesApi.delete(testNote.id)
-    await clientsApi.permanentDelete(createdClient.id)
+    await clientsApi.delete(createdClient.id)
     console.log("✅ Test data cleaned up")
 
     console.log("🎉 All sync operations working correctly!")
@@ -1026,47 +611,4 @@ export const testSupabaseSync = async () => {
     console.error("❌ Sync test failed:", error.message)
     return false
   }
-}
-
-// Test real-time functionality
-export const testRealtimeSync = async () => {
-  console.log("🔄 Testing Real-time Sync...")
-
-  if (!supabase || configError) {
-    console.log("⚠️ Real-time not available - Supabase not configured")
-    return false
-  }
-
-  try {
-    // Subscribe to clients changes
-    const clientSubscription = RealtimeManager.subscribeToClients((payload) => {
-      console.log("📡 Real-time client event:", payload.eventType, payload.new)
-    })
-
-    // Subscribe to case notes changes
-    const notesSubscription = RealtimeManager.subscribeToCaseNotes((payload) => {
-      console.log("📡 Real-time case note event:", payload.eventType, payload.new)
-    })
-
-    console.log("✅ Real-time subscriptions active")
-    console.log("💡 Try making changes in another browser tab to see real-time updates")
-
-    // Clean up after 30 seconds for testing
-    setTimeout(() => {
-      RealtimeManager.unsubscribeAll()
-      console.log("🔌 Test subscriptions cleaned up")
-    }, 30000)
-
-    return true
-  } catch (error: any) {
-    console.error("❌ Real-time test failed:", error.message)
-    return false
-  }
-}
-
-// Make test function available globally
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-  ;(window as any).testSupabaseSync = testSupabaseSync
-  ;(window as any).testRealtimeSync = testRealtimeSync
-  ;(window as any).checkSoftDeleteSupport = checkSoftDeleteSupport
 }

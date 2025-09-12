@@ -165,63 +165,7 @@ export class DataValidator {
 
   private static isValidPhone(phone: string): boolean {
     const phoneRegex = /^[+]?[1-9][\d]{0,15}$/
-    const cleanPhone = phone.replace(/[\s\-()]/g, "")
+    const cleanPhone = phone.replace(/[\s\-$$$$]/g, "")
     return phoneRegex.test(cleanPhone)
   }
-}
-
-// Main debug function - exported as a regular function
-export async function debugSupabase() {
-  console.log("🔧 Starting Supabase Debug Session...")
-
-  // Test network connectivity
-  console.log("\n📡 Testing Network Connectivity...")
-  const networkResults = await NetworkMonitor.testConnection()
-  console.table(networkResults)
-
-  // Test basic operations
-  console.log("\n🧪 Testing Basic Operations...")
-  try {
-    // Dynamic import to avoid circular dependencies
-    const supabaseModule = await import("./supabase")
-    const { supabase } = supabaseModule
-
-    if (supabase) {
-      // Test connection
-      const { data: testData, error: testError } = await supabase.from("clients").select("count").limit(1)
-
-      if (testError) {
-        console.error("❌ Database connection failed:", testError)
-      } else {
-        console.log("✅ Database connection successful")
-      }
-    } else {
-      console.log("⚠️ Supabase client not configured - using demo mode")
-    }
-
-    // Print operation summary
-    console.log("\n📊 Operation Summary:")
-    SupabaseDebugger.printSummary()
-  } catch (error) {
-    console.error("❌ Debug session failed:", error)
-  }
-
-  console.log("\n🎯 Debug session complete!")
-}
-
-// Helper functions for easier access
-export const debugUtils = {
-  debugSupabase,
-  SupabaseDebugger,
-  NetworkMonitor,
-  DataValidator,
-}
-
-// Make functions available globally for development
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-  ;(window as any).debugSupabase =
-    debugSupabase(window as any).SupabaseDebugger =
-    SupabaseDebugger(window as any).NetworkMonitor =
-    NetworkMonitor(window as any).DataValidator =
-      DataValidator
 }
