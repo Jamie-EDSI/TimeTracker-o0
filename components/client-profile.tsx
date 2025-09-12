@@ -42,6 +42,8 @@ interface Client {
   certificationStatus?: string
   certificationNotes?: string
   lastContact?: string
+  lastModified?: string
+  modifiedBy?: string
   // Case notes field
   caseNotes?: Array<{
     id: string
@@ -60,6 +62,7 @@ interface ClientProfileProps {
 export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedClient, setEditedClient] = useState<Client>(client)
+  const [currentClient, setCurrentClient] = useState<Client>(client)
   const [showCaseNoteForm, setShowCaseNoteForm] = useState(false)
   const [caseNote, setCaseNote] = useState("")
   const [caseNotes, setCaseNotes] = useState<
@@ -87,26 +90,98 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
     ],
   )
   const [showNoteSuccess, setShowNoteSuccess] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false)
 
+  // Update local state when client prop changes
   useEffect(() => {
+    setCurrentClient(client)
+    setEditedClient(client)
     if (client.caseNotes) {
       setCaseNotes(client.caseNotes)
     }
-  }, [client.caseNotes])
+  }, [client])
 
   const handleEdit = () => {
     setIsEditing(true)
-    setEditedClient(client)
+    // Reset edited client to current state to ensure we have latest data
+    setEditedClient({ ...currentClient })
+    setSaveError(null)
   }
 
-  const handleSave = () => {
-    onSave(editedClient)
-    setIsEditing(false)
+  const validateClientData = (clientData: Client): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = []
+
+    // Required field validation
+    if (!clientData.firstName?.trim()) errors.push("First Name is required")
+    if (!clientData.lastName?.trim()) errors.push("Last Name is required")
+    if (!clientData.program?.trim()) errors.push("Program is required")
+
+    // Email validation
+    if (clientData.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientData.email.trim())) {
+      errors.push("Please enter a valid email address")
+    }
+
+    // Phone validation
+    if (clientData.phone?.trim() && !/^[\d\s\-()]+$/.test(clientData.phone.trim())) {
+      errors.push("Please enter a valid phone number")
+    }
+
+    // ZIP code validation
+    if (clientData.zipCode?.trim() && !/^\d{5}(-\d{4})?$/.test(clientData.zipCode.trim())) {
+      errors.push("Please enter a valid ZIP code")
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true)
+      setSaveError(null)
+
+      // Validate the data before saving
+      const validation = validateClientData(editedClient)
+      if (!validation.isValid) {
+        setSaveError(`Validation errors: ${validation.errors.join(", ")}`)
+        return
+      }
+
+      // Add modification metadata
+      const clientToSave = {
+        ...editedClient,
+        lastModified: new Date().toISOString(),
+        modifiedBy: "Current User",
+        caseNotes: caseNotes, // Include current case notes
+      }
+
+      // Call the parent save function
+      await onSave(clientToSave)
+
+      // Update local state with saved data
+      setCurrentClient(clientToSave)
+      setIsEditing(false)
+
+      // Show success message
+      setShowSaveSuccess(true)
+      setTimeout(() => setShowSaveSuccess(false), 3000)
+    } catch (error) {
+      console.error("Error saving client:", error)
+      setSaveError("Failed to save client data. Please try again.")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleCancel = () => {
-    setEditedClient(client)
+    // Reset to current saved state
+    setEditedClient({ ...currentClient })
     setIsEditing(false)
+    setSaveError(null)
   }
 
   const handleInputChange = (field: keyof Client, value: string) => {
@@ -114,35 +189,51 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       ...prev,
       [field]: value,
     }))
+    // Clear save error when user makes changes
+    if (saveError) {
+      setSaveError(null)
+    }
   }
 
   const handleAddCaseNote = () => {
     setShowCaseNoteForm(true)
   }
 
-  const handleSaveCaseNote = () => {
+  const handleSaveCaseNote = async () => {
     if (caseNote.trim()) {
-      const newCaseNote = {
-        id: Date.now().toString(),
-        note: caseNote.trim(),
-        date: new Date().toISOString(),
-        author: "Current User",
+      try {
+        const newCaseNote = {
+          id: Date.now().toString(),
+          note: caseNote.trim(),
+          date: new Date().toISOString(),
+          author: "Current User",
+        }
+
+        const updatedCaseNotes = [newCaseNote, ...caseNotes]
+        setCaseNotes(updatedCaseNotes)
+        setCaseNote("")
+        setShowCaseNoteForm(false)
+
+        // Update the client with new case note and save
+        const updatedClient = {
+          ...currentClient,
+          lastContact: new Date().toISOString(),
+          lastModified: new Date().toISOString(),
+          modifiedBy: "Current User",
+          caseNotes: updatedCaseNotes,
+        }
+
+        // Save the updated client
+        await onSave(updatedClient)
+        setCurrentClient(updatedClient)
+        setEditedClient(updatedClient)
+
+        setShowNoteSuccess(true)
+        setTimeout(() => setShowNoteSuccess(false), 3000)
+      } catch (error) {
+        console.error("Error saving case note:", error)
+        setSaveError("Failed to save case note. Please try again.")
       }
-
-      setCaseNotes((prev) => [newCaseNote, ...prev])
-      setCaseNote("")
-      setShowCaseNoteForm(false)
-
-      const updatedClient = {
-        ...client,
-        lastContact: new Date().toISOString(),
-        caseNotes: [newCaseNote, ...(client.caseNotes || [])],
-      }
-
-      onSave(updatedClient)
-
-      setShowNoteSuccess(true)
-      setTimeout(() => setShowNoteSuccess(false), 3000)
     }
   }
 
@@ -173,7 +264,8 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
     }
   }
 
-  const currentClient = isEditing ? editedClient : client
+  // Use currentClient for display when not editing, editedClient when editing
+  const displayClient = isEditing ? editedClient : currentClient
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -181,30 +273,35 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
+            <Button variant="ghost" onClick={onBack} className="flex items-center gap-2" disabled={isSaving}>
               <ArrowLeft className="w-4 h-4" />
               Back to Client List
             </Button>
             <div className="h-6 w-px bg-gray-300" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                {currentClient.firstName} {currentClient.lastName}
+                {displayClient.firstName} {displayClient.lastName}
               </h1>
               <p className="text-gray-600">
-                PID: {currentClient.participantId} • {currentClient.program}
+                PID: {displayClient.participantId} • {displayClient.program}
               </p>
+              {displayClient.lastModified && (
+                <p className="text-xs text-gray-500">
+                  Last modified: {formatDate(displayClient.lastModified)} by {displayClient.modifiedBy || "Unknown"}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className={getStatusBadge(currentClient.status)}>{currentClient.status}</span>
+            <span className={getStatusBadge(displayClient.status)}>{displayClient.status}</span>
             <div className="text-sm text-gray-500">1 of 6</div>
             {isEditing ? (
               <div className="flex gap-2">
-                <Button onClick={handleSave} size="sm" className="bg-green-600 hover:bg-green-700">
+                <Button onClick={handleSave} size="sm" className="bg-green-600 hover:bg-green-700" disabled={isSaving}>
                   <Save className="w-4 h-4 mr-2" />
-                  Save
+                  {isSaving ? "Saving..." : "Save"}
                 </Button>
-                <Button onClick={handleCancel} variant="outline" size="sm">
+                <Button onClick={handleCancel} variant="outline" size="sm" disabled={isSaving}>
                   <X className="w-4 h-4 mr-2" />
                   Cancel
                 </Button>
@@ -221,6 +318,53 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
           </div>
         </div>
       </div>
+
+      {/* Success/Error Messages */}
+      {showSaveSuccess && (
+        <div className="bg-green-50 border-l-4 border-green-400 p-4 mx-6 mt-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-green-700">✓ Client information saved successfully!</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{saveError}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={() => setSaveError(null)}
+                className="inline-flex bg-red-50 rounded-md p-1.5 text-red-500 hover:bg-red-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="p-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -243,9 +387,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.firstName}
                         onChange={(e) => handleInputChange("firstName", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.firstName}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.firstName}</p>
                     )}
                   </div>
                   <div>
@@ -256,9 +401,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.lastName}
                         onChange={(e) => handleInputChange("lastName", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.lastName}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.lastName}</p>
                     )}
                   </div>
                 </div>
@@ -266,7 +412,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Participant ID</label>
-                    <p className="text-gray-900 font-mono text-sm">{currentClient.participantId}</p>
+                    <p className="text-gray-900 font-mono text-sm">{displayClient.participantId}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Date of Birth</label>
@@ -276,9 +422,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.dateOfBirth}
                         onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{formatDate(currentClient.dateOfBirth)}</p>
+                      <p className="text-gray-900 text-sm">{formatDate(displayClient.dateOfBirth)}</p>
                     )}
                   </div>
                 </div>
@@ -291,13 +438,14 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.status}
                         onChange={(e) => handleInputChange("status", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       >
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
                         <option value="Pending">Pending</option>
                       </select>
                     ) : (
-                      <span className={getStatusBadge(currentClient.status)}>{currentClient.status}</span>
+                      <span className={getStatusBadge(displayClient.status)}>{displayClient.status}</span>
                     )}
                   </div>
                   <div>
@@ -308,9 +456,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.enrollmentDate}
                         onChange={(e) => handleInputChange("enrollmentDate", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{formatDate(currentClient.enrollmentDate)}</p>
+                      <p className="text-gray-900 text-sm">{formatDate(displayClient.enrollmentDate)}</p>
                     )}
                   </div>
                 </div>
@@ -333,9 +482,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       value={editedClient.phone}
                       onChange={(e) => handleInputChange("phone", e.target.value)}
                       className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isSaving}
                     />
                   ) : (
-                    <p className="text-gray-900 text-sm">{currentClient.phone}</p>
+                    <p className="text-gray-900 text-sm">{displayClient.phone}</p>
                   )}
                 </div>
 
@@ -347,9 +497,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       value={editedClient.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
                       className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isSaving}
                     />
                   ) : (
-                    <p className="text-gray-900 text-sm">{currentClient.email}</p>
+                    <p className="text-gray-900 text-sm">{displayClient.email}</p>
                   )}
                 </div>
 
@@ -361,9 +512,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       value={editedClient.address}
                       onChange={(e) => handleInputChange("address", e.target.value)}
                       className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isSaving}
                     />
                   ) : (
-                    <p className="text-gray-900 text-sm">{currentClient.address}</p>
+                    <p className="text-gray-900 text-sm">{displayClient.address}</p>
                   )}
                 </div>
 
@@ -376,9 +528,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.city}
                         onChange={(e) => handleInputChange("city", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.city}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.city}</p>
                     )}
                   </div>
                   <div>
@@ -389,9 +542,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.state}
                         onChange={(e) => handleInputChange("state", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.state}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.state}</p>
                     )}
                   </div>
                   <div>
@@ -402,9 +556,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.zipCode}
                         onChange={(e) => handleInputChange("zipCode", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.zipCode}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.zipCode}</p>
                     )}
                   </div>
                 </div>
@@ -418,9 +573,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.emergencyContact || ""}
                         onChange={(e) => handleInputChange("emergencyContact", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.emergencyContact || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.emergencyContact || "Not provided"}</p>
                     )}
                   </div>
                   <div>
@@ -431,9 +587,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.emergencyPhone || ""}
                         onChange={(e) => handleInputChange("emergencyPhone", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.emergencyPhone || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.emergencyPhone || "Not provided"}</p>
                     )}
                   </div>
                 </div>
@@ -455,6 +612,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       value={editedClient.program}
                       onChange={(e) => handleInputChange("program", e.target.value)}
                       className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isSaving}
                     >
                       <option value="Job Readiness">Job Readiness</option>
                       <option value="EARN">EARN</option>
@@ -465,7 +623,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       <option value="Skills Training">Skills Training</option>
                     </select>
                   ) : (
-                    <p className="text-gray-900 text-sm">{currentClient.program}</p>
+                    <p className="text-gray-900 text-sm">{displayClient.program}</p>
                   )}
                 </div>
 
@@ -477,9 +635,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       value={editedClient.caseManager}
                       onChange={(e) => handleInputChange("caseManager", e.target.value)}
                       className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isSaving}
                     />
                   ) : (
-                    <p className="text-gray-900 text-sm">{currentClient.caseManager}</p>
+                    <p className="text-gray-900 text-sm">{displayClient.caseManager}</p>
                   )}
                 </div>
 
@@ -492,9 +651,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.requiredHours || ""}
                         onChange={(e) => handleInputChange("requiredHours", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.requiredHours || "Not specified"}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.requiredHours || "Not specified"}</p>
                     )}
                   </div>
                   <div>
@@ -505,9 +665,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.caoNumber || ""}
                         onChange={(e) => handleInputChange("caoNumber", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.caoNumber || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.caoNumber || "Not provided"}</p>
                     )}
                   </div>
                 </div>
@@ -530,6 +691,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.educationLevel || ""}
                         onChange={(e) => handleInputChange("educationLevel", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       >
                         <option value="">Select education level</option>
                         <option value="Less than High School">Less than High School</option>
@@ -542,7 +704,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         <option value="Professional Degree">Professional Degree</option>
                       </select>
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.educationLevel || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.educationLevel || "Not provided"}</p>
                     )}
                   </div>
                   <div>
@@ -556,9 +718,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         onChange={(e) => handleInputChange("graduationYear", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="e.g., 2020"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.graduationYear || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.graduationYear || "Not provided"}</p>
                     )}
                   </div>
                 </div>
@@ -573,9 +736,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         onChange={(e) => handleInputChange("schoolName", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Enter school or institution name"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.schoolName || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.schoolName || "Not provided"}</p>
                     )}
                   </div>
                   <div>
@@ -587,9 +751,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         onChange={(e) => handleInputChange("fieldOfStudy", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Enter field of study or major"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.fieldOfStudy || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.fieldOfStudy || "Not provided"}</p>
                     )}
                   </div>
                 </div>
@@ -603,10 +768,11 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                       rows={2}
                       placeholder="Enter any additional education details, honors, relevant coursework, etc."
+                      disabled={isSaving}
                     />
                   ) : (
                     <p className="text-gray-900 text-sm whitespace-pre-line">
-                      {currentClient.educationNotes || "Not provided"}
+                      {displayClient.educationNotes || "Not provided"}
                     </p>
                   )}
                 </div>
@@ -619,12 +785,13 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.currentlyEnrolled || "No"}
                         onChange={(e) => handleInputChange("currentlyEnrolled", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       >
                         <option value="No">No</option>
                         <option value="Yes">Yes</option>
                       </select>
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.currentlyEnrolled || "No"}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.currentlyEnrolled || "No"}</p>
                     )}
                   </div>
                   <div>
@@ -639,9 +806,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         onChange={(e) => handleInputChange("gpa", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="e.g., 3.5"
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.gpa || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.gpa || "Not provided"}</p>
                     )}
                   </div>
                 </div>
@@ -666,10 +834,11 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                         rows={2}
                         placeholder="List professional certifications (e.g., CompTIA A+, Microsoft Office Specialist, etc.)"
+                        disabled={isSaving}
                       />
                     ) : (
                       <p className="text-gray-900 text-sm whitespace-pre-line">
-                        {currentClient.certifications || "Not provided"}
+                        {displayClient.certifications || "Not provided"}
                       </p>
                     )}
                   </div>
@@ -682,10 +851,11 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                         rows={2}
                         placeholder="List professional licenses (e.g., Driver's License, CDL, Professional License, etc.)"
+                        disabled={isSaving}
                       />
                     ) : (
                       <p className="text-gray-900 text-sm whitespace-pre-line">
-                        {currentClient.licenses || "Not provided"}
+                        {displayClient.licenses || "Not provided"}
                       </p>
                     )}
                   </div>
@@ -701,9 +871,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         onChange={(e) => handleInputChange("industryCertifications", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="e.g., OSHA 10, Food Handler's License, etc."
+                        disabled={isSaving}
                       />
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.industryCertifications || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.industryCertifications || "Not provided"}</p>
                     )}
                   </div>
                   <div>
@@ -713,6 +884,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         value={editedClient.certificationStatus || ""}
                         onChange={(e) => handleInputChange("certificationStatus", e.target.value)}
                         className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
                       >
                         <option value="">Select status</option>
                         <option value="Current">Current</option>
@@ -721,7 +893,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         <option value="Renewal Required">Renewal Required</option>
                       </select>
                     ) : (
-                      <p className="text-gray-900 text-sm">{currentClient.certificationStatus || "Not provided"}</p>
+                      <p className="text-gray-900 text-sm">{displayClient.certificationStatus || "Not provided"}</p>
                     )}
                   </div>
                 </div>
@@ -736,6 +908,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                       className="hidden"
                       id="certification-upload"
+                      disabled={isSaving}
                       onChange={(e) => {
                         // Handle file upload logic here
                         const files = Array.from(e.target.files || [])
@@ -743,7 +916,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                         // In a real application, you would upload these files to a server
                       }}
                     />
-                    <label htmlFor="certification-upload" className="cursor-pointer">
+                    <label
+                      htmlFor="certification-upload"
+                      className={`cursor-pointer ${isSaving ? "pointer-events-none opacity-50" : ""}`}
+                    >
                       <div className="flex flex-col items-center">
                         <svg
                           className="w-8 h-8 text-gray-400 mb-2"
@@ -774,9 +950,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                       className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                       rows={2}
                       placeholder="Additional notes about certifications, renewal dates, etc."
+                      disabled={isSaving}
                     />
                   ) : (
-                    <p className="text-gray-900 text-sm">{currentClient.certificationNotes || "Not provided"}</p>
+                    <p className="text-gray-900 text-sm">{displayClient.certificationNotes || "Not provided"}</p>
                   )}
                 </div>
               </CardContent>
@@ -794,7 +971,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                 <Button
                   onClick={handleEdit}
                   className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white"
-                  disabled={isEditing}
+                  disabled={isEditing || isSaving}
                 >
                   <Edit className="w-4 h-4 mr-2" />
                   Edit Client
@@ -802,6 +979,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                 <Button
                   onClick={handleAddCaseNote}
                   className="w-full justify-start bg-green-600 hover:bg-green-700 text-white"
+                  disabled={isSaving}
                 >
                   <FileText className="w-4 h-4 mr-2" />
                   Add Case Note
@@ -821,12 +999,18 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                     onChange={(e) => setCaseNote(e.target.value)}
                     placeholder="Enter case note details..."
                     className="w-full h-32 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    disabled={isSaving}
                   />
                   <div className="flex gap-2">
-                    <Button onClick={handleSaveCaseNote} size="sm" className="bg-green-600 hover:bg-green-700">
-                      Save Note
+                    <Button
+                      onClick={handleSaveCaseNote}
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700"
+                      disabled={isSaving || !caseNote.trim()}
+                    >
+                      {isSaving ? "Saving..." : "Save Note"}
                     </Button>
-                    <Button onClick={handleCancelCaseNote} variant="outline" size="sm">
+                    <Button onClick={handleCancelCaseNote} variant="outline" size="sm" disabled={isSaving}>
                       Cancel
                     </Button>
                   </div>

@@ -51,6 +51,8 @@ interface Client {
   isNew?: boolean
   createdAt?: string
   lastContact?: string
+  lastModified?: string
+  modifiedBy?: string
   // Add case notes field
   caseNotes?: Array<{
     id: string
@@ -83,6 +85,8 @@ const saveClientToDatabase = async (client: Client): Promise<Client> => {
     ...client,
     createdAt: client.createdAt || new Date().toISOString(),
     lastContact: client.lastContact || new Date().toISOString(),
+    lastModified: new Date().toISOString(),
+    modifiedBy: client.modifiedBy || "Current User",
   }
 }
 
@@ -100,7 +104,7 @@ const validateClientData = (clientData: any): { isValid: boolean; errors: string
   }
 
   // Phone validation
-  if (clientData.phone?.trim() && !/^[\d\s\-$$$$]+$/.test(clientData.phone.trim())) {
+  if (clientData.phone?.trim() && !/^[\d\s\-()]+$/.test(clientData.phone.trim())) {
     errors.push("Please enter a valid phone number")
   }
 
@@ -242,32 +246,29 @@ export function Dashboard() {
       // Validate the updated client data
       const validation = validateClientData(updatedClient)
       if (!validation.isValid) {
-        alert(`Validation errors:\n${validation.errors.join("\n")}`)
-        return
+        throw new Error(`Validation errors: ${validation.errors.join(", ")}`)
       }
 
       // Save to database (simulated)
       const savedClient = await saveClientToDatabase(updatedClient)
 
-      // Update local state with the saved client data, including case notes
-      setClients((prevClients) =>
-        prevClients.map((client) =>
-          client.id === savedClient.id
-            ? { ...savedClient, caseNotes: updatedClient.caseNotes || client.caseNotes }
-            : client,
-        ),
-      )
+      // Update local state with the saved client data, preserving all fields including case notes
+      setClients((prevClients) => prevClients.map((client) => (client.id === savedClient.id ? savedClient : client)))
 
+      // Update selected client to reflect the saved changes
       setSelectedClient(savedClient)
+
       setSuccessMessage(`Client ${savedClient.firstName} ${savedClient.lastName} has been successfully updated!`)
       setShowSuccessMessage(true)
 
       setTimeout(() => {
         setShowSuccessMessage(false)
       }, 5000)
+
+      return savedClient // Return the saved client for the profile component
     } catch (error) {
       console.error("Error updating client:", error)
-      alert("There was an error updating the client. Please try again.")
+      throw error // Re-throw to let the profile component handle the error
     } finally {
       setIsLoading(false)
     }
@@ -308,6 +309,7 @@ export function Dashboard() {
         requiredHours: safeString(clientData.requiredHours).trim(),
         caoNumber: safeString(clientData.caoNumber).trim(),
         isNew: true,
+        caseNotes: clientData.caseNotes || [],
       }
 
       // Save to database (simulated)
