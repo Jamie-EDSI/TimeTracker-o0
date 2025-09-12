@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,6 +24,87 @@ import { ActiveClientsReport } from "./active-clients-report"
 import { CallLogReport } from "./call-log-report"
 import { JobsPlacementsReport } from "./jobs-placements-report"
 import { AllClientsReport } from "./all-clients-report"
+import { clientsApi, caseNotesApi, type Client as SupabaseClient } from "@/lib/supabase"
+
+// Transform Supabase client to component client format
+const transformSupabaseClient = (supabaseClient: SupabaseClient): Client => ({
+  id: supabaseClient.id,
+  firstName: supabaseClient.first_name,
+  lastName: supabaseClient.last_name,
+  participantId: supabaseClient.participant_id,
+  program: supabaseClient.program,
+  status: supabaseClient.status,
+  enrollmentDate: supabaseClient.enrollment_date,
+  phone: supabaseClient.phone,
+  cellPhone: supabaseClient.cell_phone,
+  email: supabaseClient.email,
+  address: supabaseClient.address,
+  city: supabaseClient.city,
+  state: supabaseClient.state,
+  zipCode: supabaseClient.zip_code,
+  dateOfBirth: supabaseClient.date_of_birth,
+  emergencyContact: supabaseClient.emergency_contact,
+  emergencyPhone: supabaseClient.emergency_phone,
+  caseManager: supabaseClient.case_manager,
+  responsibleEC: supabaseClient.responsible_ec,
+  requiredHours: supabaseClient.required_hours?.toString(),
+  caoNumber: supabaseClient.cao_number,
+  educationLevel: supabaseClient.education_level,
+  graduationYear: supabaseClient.graduation_year?.toString(),
+  schoolName: supabaseClient.school_name,
+  fieldOfStudy: supabaseClient.field_of_study,
+  educationNotes: supabaseClient.education_notes,
+  currentlyEnrolled: supabaseClient.currently_enrolled,
+  gpa: supabaseClient.gpa?.toString(),
+  certifications: supabaseClient.certifications,
+  licenses: supabaseClient.licenses,
+  industryCertifications: supabaseClient.industry_certifications,
+  certificationStatus: supabaseClient.certification_status,
+  certificationNotes: supabaseClient.certification_notes,
+  createdAt: supabaseClient.created_at,
+  lastContact: supabaseClient.last_contact,
+  lastModified: supabaseClient.last_modified,
+  modifiedBy: supabaseClient.modified_by,
+  caseNotes: [], // Will be loaded separately
+})
+
+// Transform component client to Supabase format
+const transformToSupabaseClient = (client: Client): Omit<SupabaseClient, "id" | "created_at" | "last_modified"> => ({
+  first_name: client.firstName,
+  last_name: client.lastName,
+  participant_id: client.participantId,
+  program: client.program,
+  status: client.status,
+  enrollment_date: client.enrollmentDate,
+  phone: client.phone,
+  cell_phone: client.cellPhone,
+  email: client.email,
+  address: client.address,
+  city: client.city,
+  state: client.state,
+  zip_code: client.zipCode,
+  date_of_birth: client.dateOfBirth,
+  emergency_contact: client.emergencyContact,
+  emergency_phone: client.emergencyPhone,
+  case_manager: client.caseManager,
+  responsible_ec: client.responsibleEC,
+  required_hours: client.requiredHours ? Number.parseInt(client.requiredHours) : undefined,
+  cao_number: client.caoNumber,
+  education_level: client.educationLevel,
+  graduation_year: client.graduationYear ? Number.parseInt(client.graduationYear) : undefined,
+  school_name: client.schoolName,
+  field_of_study: client.fieldOfStudy,
+  education_notes: client.educationNotes,
+  currently_enrolled: client.currentlyEnrolled,
+  gpa: client.gpa ? Number.parseFloat(client.gpa) : undefined,
+  certifications: client.certifications,
+  licenses: client.licenses,
+  industry_certifications: client.industryCertifications,
+  certification_status: client.certificationStatus,
+  certification_notes: client.certificationNotes,
+  last_contact: client.lastContact,
+  modified_by: client.modifiedBy,
+})
 
 interface Client {
   id: string
@@ -53,43 +134,27 @@ interface Client {
   lastContact?: string
   lastModified?: string
   modifiedBy?: string
-  // Add case notes field
+  // Education fields
+  educationLevel?: string
+  graduationYear?: string
+  schoolName?: string
+  fieldOfStudy?: string
+  educationNotes?: string
+  currentlyEnrolled?: string
+  gpa?: string
+  // Certification fields
+  certifications?: string
+  licenses?: string
+  industryCertifications?: string
+  certificationStatus?: string
+  certificationNotes?: string
+  // Case notes field
   caseNotes?: Array<{
     id: string
     note: string
     date: string
     author: string
   }>
-}
-
-const safeString = (value: any): string => {
-  if (value === null || value === undefined) {
-    return ""
-  }
-  if (typeof value === "object") {
-    return JSON.stringify(value)
-  }
-  return String(value)
-}
-
-// Simulated database operations
-const saveClientToDatabase = async (client: Client): Promise<Client> => {
-  // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
-
-  // In a real application, this would make an API call to save to database
-  console.log("Saving client to database:", client)
-
-  // Return the client with all original data plus database-generated fields
-  const savedClient = {
-    ...client, // Preserve all the client data that was passed in
-    createdAt: client.createdAt || new Date().toISOString(),
-    lastContact: client.lastContact || new Date().toISOString(),
-    lastModified: new Date().toISOString(),
-    modifiedBy: client.modifiedBy || "Current User",
-  }
-
-  return savedClient
 }
 
 const validateClientData = (clientData: any): { isValid: boolean; errors: string[] } => {
@@ -130,101 +195,73 @@ export function Dashboard() {
   const [participantIdSearch, setParticipantIdSearch] = useState("")
   const [quickSearch, setQuickSearch] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [clients, setClients] = useState<Client[]>([
-    {
-      id: "1",
-      firstName: "Sarah",
-      lastName: "Johnson",
-      participantId: "2965145",
-      program: "EARN",
-      status: "Active",
-      enrollmentDate: "2023-02-20",
-      phone: "484-555-0201",
-      email: "sarah.johnson@email.com",
-      address: "456 Oak Ave",
-      city: "Philadelphia",
-      state: "PA",
-      zipCode: "19102",
-      dateOfBirth: "1990-07-15",
-      emergencyContact: "Mike Johnson",
-      emergencyPhone: "484-555-0203",
-      caseManager: "Brown, Lisa",
-      createdAt: "2023-02-20T10:00:00Z",
-      lastContact: "2023-11-15T14:30:00Z",
-      caseNotes: [
-        {
-          id: "note_1",
-          note: "Initial assessment completed. Client shows strong motivation for job placement.",
-          date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          author: "Case Manager",
-        },
-        {
-          id: "note_2",
-          note: "Enrolled in Job Readiness program. Scheduled for skills assessment next week.",
-          date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          author: "Employment Counselor",
-        },
-      ],
-    },
-    {
-      id: "2",
-      firstName: "Michael",
-      lastName: "Davis",
-      participantId: "2965146",
-      program: "Job Readiness",
-      status: "Active",
-      enrollmentDate: "2023-03-15",
-      phone: "215-555-0102",
-      email: "michael.davis@email.com",
-      address: "789 Pine St",
-      city: "Philadelphia",
-      state: "PA",
-      zipCode: "19103",
-      dateOfBirth: "1985-12-03",
-      emergencyContact: "Jennifer Davis",
-      emergencyPhone: "215-555-0104",
-      caseManager: "Smith, John",
-      createdAt: "2023-03-15T09:00:00Z",
-      lastContact: "2023-11-14T13:15:00Z",
-      caseNotes: [
-        {
-          id: "note_3",
-          note: "Client completed job readiness workshop. Showing excellent progress in interview skills.",
-          date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-          author: "Employment Counselor",
-        },
-      ],
-    },
-    {
-      id: "3",
-      firstName: "Emily",
-      lastName: "Rodriguez",
-      participantId: "2965147",
-      program: "YOUTH",
-      status: "Pending",
-      enrollmentDate: "2023-04-01",
-      phone: "267-555-0301",
-      email: "emily.rodriguez@email.com",
-      address: "321 Maple Dr",
-      city: "Philadelphia",
-      state: "PA",
-      zipCode: "19104",
-      dateOfBirth: "2001-09-22",
-      emergencyContact: "Carlos Rodriguez",
-      emergencyPhone: "267-555-0302",
-      caseManager: "Johnson, Mary",
-      createdAt: "2023-04-01T11:00:00Z",
-      lastContact: "2023-11-13T10:45:00Z",
-      caseNotes: [],
-    },
-  ])
-
+  const [clients, setClients] = useState<Client[]>([])
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
+  const [error, setError] = useState<string | null>(null)
 
-  const handleViewClient = (client: Client) => {
-    setSelectedClient(client)
-    setCurrentView("client-profile")
+  // Load clients from Supabase on component mount
+  useEffect(() => {
+    loadClients()
+  }, [])
+
+  const loadClients = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      const supabaseClients = await clientsApi.getAll()
+      const transformedClients = supabaseClients.map(transformSupabaseClient)
+
+      // Load case notes for each client
+      const clientsWithCaseNotes = await Promise.all(
+        transformedClients.map(async (client) => {
+          try {
+            const caseNotes = await caseNotesApi.getByClientId(client.id)
+            return {
+              ...client,
+              caseNotes: caseNotes.map((note) => ({
+                id: note.id,
+                note: note.note,
+                date: note.created_at,
+                author: note.author,
+              })),
+            }
+          } catch (error) {
+            console.error(`Error loading case notes for client ${client.id}:`, error)
+            return { ...client, caseNotes: [] }
+          }
+        }),
+      )
+
+      setClients(clientsWithCaseNotes)
+    } catch (error) {
+      console.error("Error loading clients:", error)
+      setError("Failed to load clients. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleViewClient = async (client: Client) => {
+    try {
+      // Load fresh case notes for the selected client
+      const caseNotes = await caseNotesApi.getByClientId(client.id)
+      const clientWithCaseNotes = {
+        ...client,
+        caseNotes: caseNotes.map((note) => ({
+          id: note.id,
+          note: note.note,
+          date: note.created_at,
+          author: note.author,
+        })),
+      }
+      setSelectedClient(clientWithCaseNotes)
+      setCurrentView("client-profile")
+    } catch (error) {
+      console.error("Error loading client case notes:", error)
+      setSelectedClient(client)
+      setCurrentView("client-profile")
+    }
   }
 
   const handleBackToDashboard = () => {
@@ -251,19 +288,18 @@ export function Dashboard() {
         throw new Error(`Validation errors: ${validation.errors.join(", ")}`)
       }
 
-      // Save to database (simulated) - ensure we pass the complete updated client
-      const savedClient = await saveClientToDatabase(updatedClient)
+      // Transform to Supabase format and update
+      const supabaseClientData = transformToSupabaseClient(updatedClient)
+      const savedSupabaseClient = await clientsApi.update(updatedClient.id, supabaseClientData)
+      const savedClient = transformSupabaseClient(savedSupabaseClient)
 
-      // Update local state with the saved client data, ensuring all fields are preserved
-      setClients((prevClients) =>
-        prevClients.map((client) =>
-          client.id === savedClient.id
-            ? { ...savedClient } // Replace with the complete saved client data
-            : client,
-        ),
-      )
+      // Preserve case notes from the updated client
+      savedClient.caseNotes = updatedClient.caseNotes
 
-      // Update selected client to reflect the saved changes
+      // Update local state
+      setClients((prevClients) => prevClients.map((client) => (client.id === savedClient.id ? savedClient : client)))
+
+      // Update selected client
       setSelectedClient(savedClient)
 
       setSuccessMessage(`Client ${savedClient.firstName} ${savedClient.lastName} has been successfully updated!`)
@@ -273,10 +309,10 @@ export function Dashboard() {
         setShowSuccessMessage(false)
       }, 5000)
 
-      return savedClient // Return the saved client for the profile component
+      return savedClient
     } catch (error) {
       console.error("Error updating client:", error)
-      throw error // Re-throw to let the profile component handle the error
+      throw error
     } finally {
       setIsLoading(false)
     }
@@ -293,38 +329,28 @@ export function Dashboard() {
         return
       }
 
-      // Create properly formatted client object
-      const newClient: Client = {
-        id: `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        firstName: safeString(clientData.firstName).trim(),
-        lastName: safeString(clientData.lastName).trim(),
-        participantId: safeString(clientData.participantId),
-        program: safeString(clientData.program),
-        status: safeString(clientData.status) || "Active",
-        enrollmentDate: safeString(clientData.enrollmentDate) || new Date().toISOString().split("T")[0],
-        phone: safeString(clientData.phone).trim(),
-        cellPhone: safeString(clientData.cellPhone).trim(),
-        email: safeString(clientData.email).trim(),
-        address: safeString(clientData.address).trim(),
-        city: safeString(clientData.city).trim(),
-        state: safeString(clientData.state).trim(),
-        zipCode: safeString(clientData.zipCode).trim(),
-        dateOfBirth: safeString(clientData.dateOfBirth),
-        emergencyContact: safeString(clientData.emergencyContact).trim(),
-        emergencyPhone: safeString(clientData.emergencyPhone).trim(),
-        caseManager: safeString(clientData.caseManager).trim(),
-        responsibleEC: safeString(clientData.responsibleEC).trim(),
-        requiredHours: safeString(clientData.requiredHours).trim(),
-        caoNumber: safeString(clientData.caoNumber).trim(),
-        isNew: true,
-        caseNotes: clientData.caseNotes || [],
+      // Transform to Supabase format
+      const supabaseClientData = transformToSupabaseClient(clientData)
+
+      // Create client in Supabase
+      const savedSupabaseClient = await clientsApi.create(supabaseClientData)
+      const savedClient = transformSupabaseClient(savedSupabaseClient)
+
+      // Add initial case note if provided
+      if (clientData.caseNotes && clientData.caseNotes.length > 0) {
+        const initialNote = clientData.caseNotes[0]
+        await caseNotesApi.create({
+          client_id: savedClient.id,
+          note: initialNote.note,
+          author: initialNote.author,
+        })
+        savedClient.caseNotes = clientData.caseNotes
+      } else {
+        savedClient.caseNotes = []
       }
 
-      // Save to database (simulated)
-      const savedClient = await saveClientToDatabase(newClient)
-
       // Add to local state
-      setClients((prevClients) => [savedClient, ...prevClients])
+      setClients((prevClients) => [{ ...savedClient, isNew: true }, ...prevClients])
 
       // Clear search terms
       setParticipantIdSearch("")
@@ -332,7 +358,7 @@ export function Dashboard() {
 
       // Show success message
       setSuccessMessage(
-        `Client ${savedClient.firstName} ${savedClient.lastName} has been successfully created and added to the database! 
+        `Client ${savedClient.firstName} ${savedClient.lastName} has been successfully created and saved to the database! 
         Participant ID: ${savedClient.participantId}`,
       )
       setShowSuccessMessage(true)
@@ -491,6 +517,40 @@ export function Dashboard() {
         </div>
       )}
 
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={() => setError(null)}
+                className="inline-flex bg-red-50 rounded-md p-1.5 text-red-500 hover:bg-red-100"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path
+                    fillRule="evenodd"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 011.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 01-1.414-1.414L10 11.414l-4.293-4.293a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Navigation Bar - Dashboard text removed */}
       <div className="bg-white border-b border-gray-200 px-6 py-2">
         <div className="grid grid-cols-12 items-center">
@@ -515,7 +575,9 @@ export function Dashboard() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 flex items-center gap-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="text-lg font-medium">Processing client data...</span>
+            <span className="text-lg font-medium">
+              {clients.length === 0 ? "Loading clients from database..." : "Processing client data..."}
+            </span>
           </div>
         </div>
       )}
@@ -774,16 +836,16 @@ export function Dashboard() {
                   </div>
                   <h3 className="text-lg font-semibold text-gray-800 mb-2">Client Management System</h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    Comprehensive client management with integrated reporting and database storage. All client data is
-                    automatically synchronized across all features.
+                    Comprehensive client management with integrated reporting and Supabase database storage. All client
+                    data is automatically synchronized across all features.
                   </p>
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div className="bg-white/50 rounded p-2">
-                      <div className="font-medium text-blue-600">Database Integration</div>
-                      <div className="text-gray-600">Secure & Reliable</div>
+                      <div className="font-medium text-blue-600">Supabase Integration</div>
+                      <div className="text-gray-600">Real-time Database</div>
                     </div>
                     <div className="bg-white/50 rounded p-2">
-                      <div className="font-medium text-green-600">Real-time Updates</div>
+                      <div className="font-medium text-green-600">Live Updates</div>
                       <div className="text-gray-600">Instant Sync</div>
                     </div>
                   </div>

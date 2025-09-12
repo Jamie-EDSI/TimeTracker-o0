@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Edit, Save, X, User, Phone, GraduationCap, FileText } from "lucide-react"
+import { caseNotesApi } from "@/lib/supabase"
 
 interface Client {
   id: string
@@ -72,23 +73,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       date: string
       author: string
     }>
-  >(
-    client.caseNotes || [
-      // Sample case notes - in real app, these would come from props or API
-      {
-        id: "1",
-        note: "Initial assessment completed. Client shows strong motivation for job placement.",
-        date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        author: "Case Manager",
-      },
-      {
-        id: "2",
-        note: "Enrolled in Job Readiness program. Scheduled for skills assessment next week.",
-        date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        author: "Employment Counselor",
-      },
-    ],
-  )
+  >(client.caseNotes || [])
   const [showNoteSuccess, setShowNoteSuccess] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -97,7 +82,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   // Update local state when client prop changes
   useEffect(() => {
     setCurrentClient(client)
-    setEditedClient({ ...client }) // Ensure we have a proper copy
+    setEditedClient({ ...client })
     if (client.caseNotes) {
       setCaseNotes(client.caseNotes)
     }
@@ -204,19 +189,29 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   const handleSaveCaseNote = async () => {
     if (caseNote.trim()) {
       try {
-        const newCaseNote = {
-          id: Date.now().toString(),
+        setIsSaving(true)
+
+        // Save case note to Supabase
+        const newCaseNote = await caseNotesApi.create({
+          client_id: currentClient.id,
           note: caseNote.trim(),
-          date: new Date().toISOString(),
           author: "Current User",
+        })
+
+        // Transform to component format
+        const transformedNote = {
+          id: newCaseNote.id,
+          note: newCaseNote.note,
+          date: newCaseNote.created_at,
+          author: newCaseNote.author,
         }
 
-        const updatedCaseNotes = [newCaseNote, ...caseNotes]
+        const updatedCaseNotes = [transformedNote, ...caseNotes]
         setCaseNotes(updatedCaseNotes)
         setCaseNote("")
         setShowCaseNoteForm(false)
 
-        // Update the client with new case note and save
+        // Update the client with new case note
         const updatedClient = {
           ...currentClient,
           lastContact: new Date().toISOString(),
@@ -235,6 +230,8 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       } catch (error) {
         console.error("Error saving case note:", error)
         setSaveError("Failed to save case note. Please try again.")
+      } finally {
+        setIsSaving(false)
       }
     }
   }
