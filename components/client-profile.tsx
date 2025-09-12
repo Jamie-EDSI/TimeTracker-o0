@@ -61,7 +61,7 @@ interface ClientProfileProps {
 
 export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   const [isEditing, setIsEditing] = useState(false)
-  const [editedClient, setEditedClient] = useState<Client>(client)
+  const [editedClient, setEditedClient] = useState<Client>({ ...client })
   const [currentClient, setCurrentClient] = useState<Client>(client)
   const [showCaseNoteForm, setShowCaseNoteForm] = useState(false)
   const [caseNote, setCaseNote] = useState("")
@@ -97,7 +97,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   // Update local state when client prop changes
   useEffect(() => {
     setCurrentClient(client)
-    setEditedClient(client)
+    setEditedClient({ ...client }) // Ensure we have a proper copy
     if (client.caseNotes) {
       setCaseNotes(client.caseNotes)
     }
@@ -151,18 +151,20 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
         return
       }
 
-      // Add modification metadata
+      // Create a complete client object with all current data
       const clientToSave = {
-        ...editedClient,
+        ...editedClient, // Use all the edited data
+        id: currentClient.id, // Preserve the original ID
+        participantId: currentClient.participantId, // Preserve PID
         lastModified: new Date().toISOString(),
         modifiedBy: "Current User",
         caseNotes: caseNotes, // Include current case notes
       }
 
-      // Call the parent save function
+      // Call the parent save function and wait for it to complete
       await onSave(clientToSave)
 
-      // Update local state with saved data
+      // Update local state with saved data only after successful save
       setCurrentClient(clientToSave)
       setIsEditing(false)
 

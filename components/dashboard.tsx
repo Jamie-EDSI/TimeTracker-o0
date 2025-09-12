@@ -80,14 +80,16 @@ const saveClientToDatabase = async (client: Client): Promise<Client> => {
   // In a real application, this would make an API call to save to database
   console.log("Saving client to database:", client)
 
-  // Return the client with database-generated fields
-  return {
-    ...client,
+  // Return the client with all original data plus database-generated fields
+  const savedClient = {
+    ...client, // Preserve all the client data that was passed in
     createdAt: client.createdAt || new Date().toISOString(),
     lastContact: client.lastContact || new Date().toISOString(),
     lastModified: new Date().toISOString(),
     modifiedBy: client.modifiedBy || "Current User",
   }
+
+  return savedClient
 }
 
 const validateClientData = (clientData: any): { isValid: boolean; errors: string[] } => {
@@ -249,11 +251,17 @@ export function Dashboard() {
         throw new Error(`Validation errors: ${validation.errors.join(", ")}`)
       }
 
-      // Save to database (simulated)
+      // Save to database (simulated) - ensure we pass the complete updated client
       const savedClient = await saveClientToDatabase(updatedClient)
 
-      // Update local state with the saved client data, preserving all fields including case notes
-      setClients((prevClients) => prevClients.map((client) => (client.id === savedClient.id ? savedClient : client)))
+      // Update local state with the saved client data, ensuring all fields are preserved
+      setClients((prevClients) =>
+        prevClients.map((client) =>
+          client.id === savedClient.id
+            ? { ...savedClient } // Replace with the complete saved client data
+            : client,
+        ),
+      )
 
       // Update selected client to reflect the saved changes
       setSelectedClient(savedClient)
