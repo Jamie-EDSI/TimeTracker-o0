@@ -17,6 +17,7 @@ import {
   Clock,
   Home,
   Eye,
+  Trash2,
 } from "lucide-react"
 import { ClientProfile } from "./client-profile"
 import { NewClientForm } from "./new-client-form"
@@ -24,6 +25,7 @@ import { ActiveClientsReport } from "./active-clients-report"
 import { CallLogReport } from "./call-log-report"
 import { JobsPlacementsReport } from "./jobs-placements-report"
 import { AllClientsReport } from "./all-clients-report"
+import { RecycleBin } from "./recycle-bin"
 import { clientsApi, caseNotesApi, type Client as SupabaseClient } from "@/lib/supabase"
 
 // Transform Supabase client to component client format
@@ -99,7 +101,7 @@ const transformToSupabaseClient = (client: Client): Omit<SupabaseClient, "id" | 
   gpa: client.gpa ? Number.parseFloat(client.gpa) : undefined,
   certifications: client.certifications,
   licenses: client.licenses,
-  industry_certifications: client.industryCertifications,
+  industryCertifications: client.industryCertifications,
   certification_status: client.certificationStatus,
   certification_notes: client.certificationNotes,
   last_contact: client.lastContact,
@@ -188,7 +190,14 @@ const validateClientData = (clientData: any): { isValid: boolean; errors: string
 
 export function Dashboard() {
   const [currentView, setCurrentView] = useState<
-    "dashboard" | "client-profile" | "new-client" | "active-clients" | "call-log" | "jobs-placements" | "all-clients"
+    | "dashboard"
+    | "client-profile"
+    | "new-client"
+    | "active-clients"
+    | "call-log"
+    | "jobs-placements"
+    | "all-clients"
+    | "recycle-bin"
   >("dashboard")
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -278,6 +287,10 @@ export function Dashboard() {
     setCurrentView("all-clients")
   }
 
+  const handleViewRecycleBin = () => {
+    setCurrentView("recycle-bin")
+  }
+
   const handleSaveClient = async (updatedClient: Client) => {
     try {
       setIsLoading(true)
@@ -313,6 +326,32 @@ export function Dashboard() {
     } catch (error) {
       console.error("Error updating client:", error)
       throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteClient = async (client: Client) => {
+    try {
+      setIsLoading(true)
+
+      // Soft delete the client (move to recycle bin)
+      await clientsApi.softDelete(client.id, "Current User")
+
+      // Remove from local state
+      setClients((prevClients) => prevClients.filter((c) => c.id !== client.id))
+
+      setSuccessMessage(
+        `Client ${client.firstName} ${client.lastName} has been moved to the recycle bin and can be restored if needed.`,
+      )
+      setShowSuccessMessage(true)
+
+      setTimeout(() => {
+        setShowSuccessMessage(false)
+      }, 5000)
+    } catch (error) {
+      console.error("Error deleting client:", error)
+      setError("Failed to delete client. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -382,6 +421,20 @@ export function Dashboard() {
     }
   }
 
+  const handleClientRestored = (restoredClient: Client) => {
+    // Add the restored client back to the active clients list
+    setClients((prevClients) => [restoredClient, ...prevClients])
+
+    setSuccessMessage(
+      `Client ${restoredClient.firstName} ${restoredClient.lastName} has been successfully restored from the recycle bin.`,
+    )
+    setShowSuccessMessage(true)
+
+    setTimeout(() => {
+      setShowSuccessMessage(false)
+    }, 5000)
+  }
+
   const activeClients = clients.filter((client) => client.status === "Active")
   const pendingActions = clients.filter((client) => client.status === "Pending")
 
@@ -423,7 +476,14 @@ export function Dashboard() {
   }
 
   if (currentView === "client-profile" && selectedClient) {
-    return <ClientProfile client={selectedClient} onBack={handleBackToDashboard} onSave={handleSaveClient} />
+    return (
+      <ClientProfile
+        client={selectedClient}
+        onBack={handleBackToDashboard}
+        onSave={handleSaveClient}
+        onDelete={handleDeleteClient}
+      />
+    )
   }
 
   if (currentView === "new-client") {
@@ -446,6 +506,10 @@ export function Dashboard() {
 
   if (currentView === "all-clients") {
     return <AllClientsReport onBack={handleBackToDashboard} clients={clients} onViewClient={handleViewClient} />
+  }
+
+  if (currentView === "recycle-bin") {
+    return <RecycleBin onBack={handleBackToDashboard} onClientRestored={handleClientRestored} />
   }
 
   return (
@@ -565,8 +629,18 @@ export function Dashboard() {
           {/* Center - Empty space (Dashboard text removed) */}
           <div className="col-span-6 flex justify-center">{/* Dashboard title removed as requested */}</div>
 
-          {/* Right - Empty space for balance */}
-          <div className="col-span-3"></div>
+          {/* Right - Recycle Bin Access */}
+          <div className="col-span-3 flex justify-end">
+            <Button
+              onClick={handleViewRecycleBin}
+              variant="outline"
+              size="sm"
+              className="text-red-600 border-red-300 hover:bg-red-50 bg-transparent"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Recycle Bin
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -836,8 +910,8 @@ export function Dashboard() {
                   </div>
                   <h3 className="text-lg font-semibold text-gray-800 mb-2">Client Management System</h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    Comprehensive client management with integrated reporting and Supabase database storage. All client
-                    data is automatically synchronized across all features.
+                    Comprehensive client management with integrated reporting, Supabase database storage, and recycle
+                    bin for data recovery. All client data is automatically synchronized across all features.
                   </p>
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div className="bg-white/50 rounded p-2">
@@ -845,8 +919,8 @@ export function Dashboard() {
                       <div className="text-gray-600">Real-time Database</div>
                     </div>
                     <div className="bg-white/50 rounded p-2">
-                      <div className="font-medium text-green-600">Live Updates</div>
-                      <div className="text-gray-600">Instant Sync</div>
+                      <div className="font-medium text-green-600">Data Recovery</div>
+                      <div className="text-gray-600">Recycle Bin System</div>
                     </div>
                   </div>
                 </CardContent>
@@ -896,6 +970,14 @@ export function Dashboard() {
                 >
                   <Users className="w-4 h-4 mr-2" />
                   All Clients ({clients.length})
+                </Button>
+                <Button
+                  onClick={handleViewRecycleBin}
+                  variant="outline"
+                  className="w-full justify-start text-red-600 bg-transparent"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Recycle Bin
                 </Button>
               </CardContent>
             </Card>
