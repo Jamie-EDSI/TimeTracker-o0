@@ -1,64 +1,57 @@
 // Test utility to verify Supabase connection
-// Run this in your browser console to test the connection
-
-export async function testSupabaseConnection() {
+export async function testSupabase() {
   console.log("🧪 Testing Supabase Connection...")
 
-  // Check environment variables
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  console.log("📋 Environment Check:")
-  console.log("- URL:", url ? "✅ Set" : "❌ Missing")
-  console.log("- Key:", key ? "✅ Set" : "❌ Missing")
-
-  if (!url || !key) {
-    console.log("❌ Environment variables not configured properly")
-    return false
-  }
-
-  // Test basic connection
   try {
-    const { supabase } = await import("./supabase")
+    // Check environment variables
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    if (!supabase) {
-      console.log("❌ Supabase client not initialized")
+    console.log("📋 Environment Variables:")
+    console.log("- SUPABASE_URL:", supabaseUrl ? "✅ Set" : "❌ Missing")
+    console.log("- SUPABASE_ANON_KEY:", supabaseKey ? "✅ Set" : "❌ Missing")
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("❌ Missing environment variables. Check your .env.local file")
       return false
     }
 
+    // Test database connection
+    const { createClient } = await import("@supabase/supabase-js")
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
     console.log("🔌 Testing database connection...")
 
-    // Try to fetch clients
+    // Test basic query
     const { data, error } = await supabase.from("clients").select("count(*)").limit(1)
 
     if (error) {
-      console.log("❌ Database connection failed:", error.message)
+      console.error("❌ Database connection failed:", error.message)
       return false
     }
 
     console.log("✅ Database connection successful!")
-    console.log("📊 Client count:", data?.[0]?.count || 0)
+    console.log("📊 Found", data?.[0]?.count || 0, "clients in database")
 
-    // Test case notes table
-    const { data: notesData, error: notesError } = await supabase.from("case_notes").select("count(*)").limit(1)
+    // Test table structure
+    const { data: tableData, error: tableError } = await supabase.from("clients").select("*").limit(1)
 
-    if (notesError) {
-      console.log("⚠️ Case notes table issue:", notesError.message)
-    } else {
-      console.log("📝 Case notes count:", notesData?.[0]?.count || 0)
+    if (tableError) {
+      console.error("❌ Table query failed:", tableError.message)
+      return false
     }
 
-    console.log("🎉 Supabase is fully configured and working!")
+    console.log("✅ Table structure verified")
+    console.log("🎉 Supabase setup is working correctly!")
+
     return true
   } catch (error) {
-    console.log("❌ Connection test failed:", error)
+    console.error("❌ Test failed:", error)
     return false
   }
 }
 
-// Auto-run test in development
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-  // Add to window for easy access in console
-  ;(window as any).testSupabase = testSupabaseConnection
-  console.log("🔧 Run testSupabase() in console to test your Supabase connection")
+// Make function available globally for easy testing
+if (typeof window !== "undefined") {
+  ;(window as any).testSupabase = testSupabase
 }
