@@ -1,17 +1,23 @@
 import { createClient } from "@supabase/supabase-js"
+import { SupabaseDebugger, NetworkMonitor, DataValidator } from "./supabase-debug"
 
-// Environment variable validation with fallbacks for development
+// Environment variable validation with detailed logging
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 
-// Check if we have valid Supabase configuration
+console.log("🔧 Supabase Configuration Check:")
+console.log("URL:", supabaseUrl ? "✅ Set" : "❌ Missing")
+console.log("Key:", supabaseAnonKey ? "✅ Set" : "❌ Missing")
+
+// Enhanced validation
 const hasValidConfig =
   supabaseUrl &&
   supabaseAnonKey &&
   supabaseUrl.startsWith("https://") &&
   supabaseUrl.includes(".supabase.co") &&
   supabaseAnonKey.length > 20 &&
-  supabaseUrl !== "https://cdgwjyhsplprghoocfmr.supabase.co" // Remove example URL
+  !supabaseUrl.includes("placeholder") &&
+  !supabaseAnonKey.includes("placeholder")
 
 let supabase: any = null
 let configError: string | null = null
@@ -19,18 +25,30 @@ let configError: string | null = null
 if (hasValidConfig) {
   try {
     supabase = createClient(supabaseUrl, supabaseAnonKey)
-  } catch (error) {
-    console.error("Failed to create Supabase client:", error)
-    configError = "Invalid Supabase configuration"
+    console.log("✅ Supabase client created successfully")
+
+    // Test connection immediately
+    if (typeof window !== "undefined") {
+      NetworkMonitor.testConnection().then((result) => {
+        console.log("🌐 Connection Test Result:", result)
+      })
+    }
+  } catch (error: any) {
+    console.error("❌ Failed to create Supabase client:", error)
+    configError = `Supabase client creation failed: ${error.message}`
   }
 } else {
-  configError = "Supabase not configured - using demo mode"
-  console.log("Supabase not configured. Using mock data for demo.")
+  configError = "Invalid Supabase configuration"
+  console.log("⚠️ Using demo mode - Supabase not configured properly")
+  console.log("💡 Check your .env.local file and ensure:")
+  console.log("   - NEXT_PUBLIC_SUPABASE_URL is set correctly")
+  console.log("   - NEXT_PUBLIC_SUPABASE_ANON_KEY is set correctly")
+  console.log("   - Both values are not placeholder text")
 }
 
 export { supabase }
 
-// Database types
+// Database types with enhanced validation
 export interface Client {
   id: string
   first_name: string
@@ -79,7 +97,7 @@ export interface CaseNote {
   author: string
 }
 
-// Mock data for development when Supabase is not configured
+// Enhanced mock data for comprehensive testing
 const mockClients: Client[] = [
   {
     id: "1",
@@ -251,63 +269,64 @@ const mockCaseNotes: CaseNote[] = [
 // Helper function to simulate network delay for realistic demo
 const simulateDelay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms))
 
-// Client database operations
+// Enhanced client database operations with comprehensive debugging
 export const clientsApi = {
-  // Get all clients
+  // Get all clients with enhanced debugging
   async getAll(): Promise<Client[]> {
     if (!supabase || configError) {
-      console.log("Using demo data - Supabase not configured properly")
+      console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       return [...mockClients]
     }
 
-    try {
+    return SupabaseDebugger.logOperation("SELECT", "clients", null, async () => {
       const { data, error } = await supabase.from("clients").select("*").order("created_at", { ascending: false })
 
       if (error) {
-        console.error("Supabase error:", error.message)
-        console.log("Falling back to demo data")
+        console.error("🚨 Supabase SELECT error:", error)
+        console.log("🔄 Falling back to demo data")
         await simulateDelay()
         return mockClients
       }
 
+      console.log(`✅ Successfully loaded ${data?.length || 0} clients from Supabase`)
       return data || []
-    } catch (error: any) {
-      console.error("Connection error:", error.message)
-      console.log("Using demo data due to connection issues")
-      await simulateDelay()
-      return mockClients
-    }
+    })
   },
 
-  // Get client by ID
+  // Get client by ID with debugging
   async getById(id: string): Promise<Client | null> {
     if (!supabase || configError) {
-      console.log("Using demo data - Supabase not configured properly")
+      console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       return mockClients.find((client) => client.id === id) || null
     }
 
-    try {
+    return SupabaseDebugger.logOperation("SELECT_BY_ID", "clients", { id }, async () => {
       const { data, error } = await supabase.from("clients").select("*").eq("id", id).single()
 
       if (error) {
-        console.error("Supabase error:", error.message)
-        console.log("Falling back to demo data")
+        console.error("🚨 Supabase SELECT_BY_ID error:", error)
+        console.log("🔄 Falling back to demo data")
         return mockClients.find((client) => client.id === id) || null
       }
 
       return data
-    } catch (error: any) {
-      console.error("Connection error:", error.message)
-      return mockClients.find((client) => client.id === id) || null
-    }
+    })
   },
 
-  // Create new client
+  // Create new client with comprehensive validation and debugging
   async create(client: Omit<Client, "id" | "created_at" | "last_modified">): Promise<Client> {
+    // Validate data before sending
+    const validation = DataValidator.validateClient(client)
+    if (!validation.isValid) {
+      const errorMessage = `Validation failed: ${validation.errors.join(", ")}`
+      console.error("❌ Client validation failed:", validation.errors)
+      throw new Error(errorMessage)
+    }
+
     if (!supabase || configError) {
-      console.log("Using demo data - Supabase not configured properly")
+      console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       const newClient: Client = {
         ...client,
@@ -319,43 +338,48 @@ export const clientsApi = {
       return newClient
     }
 
-    try {
-      const { data, error } = await supabase
-        .from("clients")
-        .insert([
-          {
-            ...client,
-            created_at: new Date().toISOString(),
-            last_modified: new Date().toISOString(),
-          },
-        ])
-        .select()
-        .single()
+    const clientData = {
+      ...client,
+      created_at: new Date().toISOString(),
+      last_modified: new Date().toISOString(),
+    }
+
+    return SupabaseDebugger.logOperation("INSERT", "clients", clientData, async () => {
+      const { data, error } = await supabase.from("clients").insert([clientData]).select().single()
 
       if (error) {
-        console.error("Supabase error:", error.message)
-        throw new Error(`Database error: ${error.message}`)
+        console.error("🚨 Supabase INSERT error:", error)
+        console.error("📤 Data that failed to insert:", clientData)
+
+        // Detailed error analysis
+        if (error.code === "23505") {
+          throw new Error("Duplicate participant ID. Please use a unique participant ID.")
+        } else if (error.code === "23502") {
+          throw new Error("Missing required field. Please check all required fields are filled.")
+        } else if (error.code === "42703") {
+          throw new Error("Database schema mismatch. Please check the database setup.")
+        } else {
+          throw new Error(`Database error: ${error.message}`)
+        }
       }
 
+      console.log("✅ Client successfully created in Supabase:", data.id)
       return data
-    } catch (error: any) {
-      console.error("Connection error:", error.message)
-      // Fallback to demo mode for creation
-      const newClient: Client = {
-        ...client,
-        id: Date.now().toString(),
-        created_at: new Date().toISOString(),
-        last_modified: new Date().toISOString(),
-      }
-      mockClients.unshift(newClient)
-      return newClient
-    }
+    })
   },
 
-  // Update client
+  // Update client with comprehensive validation and debugging
   async update(id: string, updates: Partial<Client>): Promise<Client> {
+    // Validate updates
+    const validation = DataValidator.validateClient({ ...updates, id })
+    if (!validation.isValid) {
+      const errorMessage = `Validation failed: ${validation.errors.join(", ")}`
+      console.error("❌ Client update validation failed:", validation.errors)
+      throw new Error(errorMessage)
+    }
+
     if (!supabase || configError) {
-      console.log("Using demo data - Supabase not configured properly")
+      console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       const clientIndex = mockClients.findIndex((client) => client.id === id)
       if (clientIndex !== -1) {
@@ -369,43 +393,37 @@ export const clientsApi = {
       throw new Error("Client not found")
     }
 
-    try {
-      const { data, error } = await supabase
-        .from("clients")
-        .update({
-          ...updates,
-          last_modified: new Date().toISOString(),
-        })
-        .eq("id", id)
-        .select()
-        .single()
+    const updateData = {
+      ...updates,
+      last_modified: new Date().toISOString(),
+    }
+
+    return SupabaseDebugger.logOperation("UPDATE", "clients", { id, updates: updateData }, async () => {
+      const { data, error } = await supabase.from("clients").update(updateData).eq("id", id).select().single()
 
       if (error) {
-        console.error("Supabase error:", error.message)
-        throw new Error(`Database error: ${error.message}`)
+        console.error("🚨 Supabase UPDATE error:", error)
+        console.error("📤 Data that failed to update:", updateData)
+        console.error("🔍 Client ID:", id)
+
+        if (error.code === "23505") {
+          throw new Error("Duplicate participant ID. Please use a unique participant ID.")
+        } else if (error.code === "42703") {
+          throw new Error("Database schema mismatch. Please check the database setup.")
+        } else {
+          throw new Error(`Database error: ${error.message}`)
+        }
       }
 
+      console.log("✅ Client successfully updated in Supabase:", id)
       return data
-    } catch (error: any) {
-      console.error("Connection error:", error.message)
-      // Fallback to demo mode for updates
-      const clientIndex = mockClients.findIndex((client) => client.id === id)
-      if (clientIndex !== -1) {
-        mockClients[clientIndex] = {
-          ...mockClients[clientIndex],
-          ...updates,
-          last_modified: new Date().toISOString(),
-        }
-        return mockClients[clientIndex]
-      }
-      throw new Error("Client not found")
-    }
+    })
   },
 
-  // Delete client
+  // Delete client with debugging
   async delete(id: string): Promise<void> {
     if (!supabase || configError) {
-      console.log("Using demo data - Supabase not configured properly")
+      console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       const clientIndex = mockClients.findIndex((client) => client.id === id)
       if (clientIndex !== -1) {
@@ -414,35 +432,30 @@ export const clientsApi = {
       return
     }
 
-    try {
+    return SupabaseDebugger.logOperation("DELETE", "clients", { id }, async () => {
       const { error } = await supabase.from("clients").delete().eq("id", id)
 
       if (error) {
-        console.error("Supabase error:", error.message)
+        console.error("🚨 Supabase DELETE error:", error)
         throw new Error(`Database error: ${error.message}`)
       }
-    } catch (error: any) {
-      console.error("Connection error:", error.message)
-      // Fallback to demo mode for deletion
-      const clientIndex = mockClients.findIndex((client) => client.id === id)
-      if (clientIndex !== -1) {
-        mockClients.splice(clientIndex, 1)
-      }
-    }
+
+      console.log("✅ Client successfully deleted from Supabase:", id)
+    })
   },
 }
 
-// Case notes database operations
+// Enhanced case notes database operations
 export const caseNotesApi = {
-  // Get case notes for a client
+  // Get case notes for a client with debugging
   async getByClientId(clientId: string): Promise<CaseNote[]> {
     if (!supabase || configError) {
-      console.log("Using demo data - Supabase not configured properly")
+      console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       return mockCaseNotes.filter((note) => note.client_id === clientId)
     }
 
-    try {
+    return SupabaseDebugger.logOperation("SELECT_BY_CLIENT", "case_notes", { clientId }, async () => {
       const { data, error } = await supabase
         .from("case_notes")
         .select("*")
@@ -450,22 +463,28 @@ export const caseNotesApi = {
         .order("created_at", { ascending: false })
 
       if (error) {
-        console.error("Supabase error:", error.message)
-        console.log("Falling back to demo data")
+        console.error("🚨 Supabase SELECT_BY_CLIENT error:", error)
+        console.log("🔄 Falling back to demo data")
         return mockCaseNotes.filter((note) => note.client_id === clientId)
       }
 
+      console.log(`✅ Successfully loaded ${data?.length || 0} case notes for client ${clientId}`)
       return data || []
-    } catch (error: any) {
-      console.error("Connection error:", error.message)
-      return mockCaseNotes.filter((note) => note.client_id === clientId)
-    }
+    })
   },
 
-  // Create new case note
+  // Create new case note with validation and debugging
   async create(caseNote: Omit<CaseNote, "id" | "created_at">): Promise<CaseNote> {
+    // Validate case note data
+    const validation = DataValidator.validateCaseNote(caseNote)
+    if (!validation.isValid) {
+      const errorMessage = `Validation failed: ${validation.errors.join(", ")}`
+      console.error("❌ Case note validation failed:", validation.errors)
+      throw new Error(errorMessage)
+    }
+
     if (!supabase || configError) {
-      console.log("Using demo data - Supabase not configured properly")
+      console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       const newNote: CaseNote = {
         ...caseNote,
@@ -476,41 +495,29 @@ export const caseNotesApi = {
       return newNote
     }
 
-    try {
-      const { data, error } = await supabase
-        .from("case_notes")
-        .insert([
-          {
-            ...caseNote,
-            created_at: new Date().toISOString(),
-          },
-        ])
-        .select()
-        .single()
+    const noteData = {
+      ...caseNote,
+      created_at: new Date().toISOString(),
+    }
+
+    return SupabaseDebugger.logOperation("INSERT", "case_notes", noteData, async () => {
+      const { data, error } = await supabase.from("case_notes").insert([noteData]).select().single()
 
       if (error) {
-        console.error("Supabase error:", error.message)
+        console.error("🚨 Supabase INSERT error:", error)
+        console.error("📤 Data that failed to insert:", noteData)
         throw new Error(`Database error: ${error.message}`)
       }
 
+      console.log("✅ Case note successfully created in Supabase:", data.id)
       return data
-    } catch (error: any) {
-      console.error("Connection error:", error.message)
-      // Fallback to demo mode
-      const newNote: CaseNote = {
-        ...caseNote,
-        id: Date.now().toString(),
-        created_at: new Date().toISOString(),
-      }
-      mockCaseNotes.unshift(newNote)
-      return newNote
-    }
+    })
   },
 
-  // Delete case note
+  // Delete case note with debugging
   async delete(id: string): Promise<void> {
     if (!supabase || configError) {
-      console.log("Using demo data - Supabase not configured properly")
+      console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       const noteIndex = mockCaseNotes.findIndex((note) => note.id === id)
       if (noteIndex !== -1) {
@@ -519,25 +526,20 @@ export const caseNotesApi = {
       return
     }
 
-    try {
+    return SupabaseDebugger.logOperation("DELETE", "case_notes", { id }, async () => {
       const { error } = await supabase.from("case_notes").delete().eq("id", id)
 
       if (error) {
-        console.error("Supabase error:", error.message)
+        console.error("🚨 Supabase DELETE error:", error)
         throw new Error(`Database error: ${error.message}`)
       }
-    } catch (error: any) {
-      console.error("Connection error:", error.message)
-      // Fallback to demo mode
-      const noteIndex = mockCaseNotes.findIndex((note) => note.id === id)
-      if (noteIndex !== -1) {
-        mockCaseNotes.splice(noteIndex, 1)
-      }
-    }
+
+      console.log("✅ Case note successfully deleted from Supabase:", id)
+    })
   },
 }
 
-// Utility functions
+// Utility functions with enhanced debugging
 export const isSupabaseConfigured = () => hasValidConfig && !configError
 export const getSupabaseStatus = () => {
   if (!hasValidConfig) return "not_configured"
@@ -545,3 +547,73 @@ export const getSupabaseStatus = () => {
   return "connected"
 }
 export const getConfigError = () => configError
+
+// Enhanced testing function
+export const testSupabaseSync = async () => {
+  console.log("🧪 Testing Supabase Sync Operations...")
+
+  try {
+    // Test network connectivity
+    const networkTest = await NetworkMonitor.testConnection()
+    console.log("🌐 Network Test:", networkTest)
+
+    if (!networkTest.supabaseReachable) {
+      console.error("❌ Supabase not reachable:", networkTest.error)
+      return false
+    }
+
+    // Test CRUD operations
+    console.log("🔄 Testing CRUD operations...")
+
+    // Create test client
+    const testClient = {
+      first_name: "Test",
+      last_name: "User",
+      participant_id: `TEST-${Date.now()}`,
+      program: "Test Program",
+      status: "Active",
+      enrollment_date: new Date().toISOString().split("T")[0],
+      phone: "555-0123",
+      email: "test@example.com",
+      address: "123 Test St",
+      city: "Test City",
+      state: "TS",
+      zip_code: "12345",
+      date_of_birth: "1990-01-01",
+      case_manager: "Test Manager",
+    }
+
+    const createdClient = await clientsApi.create(testClient)
+    console.log("✅ Test client created:", createdClient.id)
+
+    // Update test client
+    const updatedClient = await clientsApi.update(createdClient.id, {
+      phone: "555-9999",
+    })
+    console.log("✅ Test client updated")
+
+    // Create test case note
+    const testNote = await caseNotesApi.create({
+      client_id: createdClient.id,
+      note: "Test case note",
+      author: "Test Author",
+    })
+    console.log("✅ Test case note created:", testNote.id)
+
+    // Clean up test data
+    await caseNotesApi.delete(testNote.id)
+    await clientsApi.delete(createdClient.id)
+    console.log("✅ Test data cleaned up")
+
+    console.log("🎉 All sync operations working correctly!")
+    return true
+  } catch (error: any) {
+    console.error("❌ Sync test failed:", error.message)
+    return false
+  }
+}
+
+// Make test function available globally
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+  ;(window as any).testSupabaseSync = testSupabaseSync
+}
