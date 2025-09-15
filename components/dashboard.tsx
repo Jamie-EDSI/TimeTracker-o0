@@ -29,84 +29,152 @@ import { RecycleBin } from "./recycle-bin"
 import { clientsApi, caseNotesApi, type Client as SupabaseClient } from "@/lib/supabase"
 
 // Transform Supabase client to component client format
-const transformSupabaseClient = (supabaseClient: SupabaseClient): Client => ({
+const transformSupabaseClient = (supabaseClient: SupabaseClient): any => ({
   id: supabaseClient.id,
-  firstName: supabaseClient.first_name,
-  lastName: supabaseClient.last_name,
-  participantId: supabaseClient.participant_id,
-  program: supabaseClient.program,
-  status: supabaseClient.status,
-  enrollmentDate: supabaseClient.enrollment_date,
-  phone: supabaseClient.phone,
-  cellPhone: supabaseClient.cell_phone,
-  email: supabaseClient.email,
-  address: supabaseClient.address,
-  city: supabaseClient.city,
-  state: supabaseClient.state,
-  zipCode: supabaseClient.zip_code,
-  dateOfBirth: supabaseClient.date_of_birth,
-  emergencyContact: supabaseClient.emergency_contact,
-  emergencyPhone: supabaseClient.emergency_phone,
-  caseManager: supabaseClient.case_manager,
-  responsibleEC: supabaseClient.responsible_ec,
-  requiredHours: supabaseClient.required_hours?.toString(),
-  caoNumber: supabaseClient.cao_number,
-  educationLevel: supabaseClient.education_level,
-  graduationYear: supabaseClient.graduation_year?.toString(),
-  schoolName: supabaseClient.school_name,
-  fieldOfStudy: supabaseClient.field_of_study,
-  educationNotes: supabaseClient.education_notes,
-  currentlyEnrolled: supabaseClient.currently_enrolled,
-  gpa: supabaseClient.gpa?.toString(),
-  certifications: supabaseClient.certifications,
-  licenses: supabaseClient.licenses,
-  industryCertifications: supabaseClient.industry_certifications,
-  certificationStatus: supabaseClient.certification_status,
-  certificationNotes: supabaseClient.certification_notes,
-  createdAt: supabaseClient.created_at,
-  lastContact: supabaseClient.last_contact,
-  lastModified: supabaseClient.last_modified,
-  modifiedBy: supabaseClient.modified_by,
+  firstName: supabaseClient.first_name || "",
+  lastName: supabaseClient.last_name || "",
+  participantId: supabaseClient.participant_id || "",
+  program: supabaseClient.program || "",
+  status: supabaseClient.status || "Active",
+  enrollmentDate: supabaseClient.enrollment_date || "",
+  phone: supabaseClient.phone || "",
+  cellPhone: supabaseClient.cell_phone || "",
+  email: supabaseClient.email || "",
+  address: supabaseClient.address || "",
+  city: supabaseClient.city || "",
+  state: supabaseClient.state || "",
+  zipCode: supabaseClient.zip_code || "",
+  dateOfBirth: supabaseClient.date_of_birth || "",
+  ssn: supabaseClient.ssn || "",
+  emergencyContact: supabaseClient.emergency_contact || "",
+  emergencyPhone: supabaseClient.emergency_phone || "",
+  caseManager: supabaseClient.case_manager || "",
+  responsibleEC: supabaseClient.responsible_ec || "",
+  requiredHours: supabaseClient.required_hours?.toString() || "",
+  caoNumber: supabaseClient.cao_number || "",
+  isNew: false,
+  createdAt: supabaseClient.created_at || "",
+  lastContact: supabaseClient.last_contact || "",
+  lastModified: supabaseClient.last_modified || "",
+  modifiedBy: supabaseClient.modified_by || "",
+  // Education fields
+  educationLevel: supabaseClient.education_level || "",
+  graduationYear: supabaseClient.graduation_year?.toString() || "",
+  schoolName: supabaseClient.school_name || "",
+  fieldOfStudy: supabaseClient.field_of_study || "",
+  educationNotes: supabaseClient.education_notes || "",
+  currentlyEnrolled: supabaseClient.currently_enrolled || "",
+  gpa: supabaseClient.gpa?.toString() || "",
+  // Certification fields
+  certifications: supabaseClient.certifications || "",
+  licenses: supabaseClient.licenses || "",
+  industryCertifications: supabaseClient.industry_certifications || "",
+  certificationStatus: supabaseClient.certification_status || "",
+  certificationNotes: supabaseClient.certification_notes || "",
+  // Case notes field
   caseNotes: [], // Will be loaded separately
 })
 
-// Transform component client to Supabase format
-const transformToSupabaseClient = (client: Client): Omit<SupabaseClient, "id" | "created_at" | "last_modified"> => ({
-  first_name: client.firstName,
-  last_name: client.lastName,
-  participant_id: client.participantId,
-  program: client.program,
-  status: client.status,
-  enrollment_date: client.enrollmentDate,
-  phone: client.phone,
-  cell_phone: client.cellPhone,
-  email: client.email,
-  address: client.address,
-  city: client.city,
-  state: client.state,
-  zip_code: client.zipCode,
-  date_of_birth: client.dateOfBirth,
-  emergency_contact: client.emergencyContact,
-  emergency_phone: client.emergencyPhone,
-  case_manager: client.caseManager,
-  responsible_ec: client.responsibleEC,
-  required_hours: client.requiredHours ? Number.parseInt(client.requiredHours) : undefined,
-  cao_number: client.caoNumber,
-  education_level: client.educationLevel,
-  graduation_year: client.graduationYear ? Number.parseInt(client.graduationYear) : undefined,
-  school_name: client.schoolName,
-  field_of_study: client.fieldOfStudy,
-  education_notes: client.educationNotes,
-  currently_enrolled: client.currentlyEnrolled,
-  gpa: client.gpa ? Number.parseFloat(client.gpa) : undefined,
-  certifications: client.certifications,
-  licenses: client.licenses,
-  industry_certifications: client.industryCertifications,
-  certification_status: client.certificationStatus,
-  certification_notes: client.certificationNotes,
-  last_contact: client.lastContact,
-  modified_by: client.modifiedBy,
-})
+// Transform component client to Supabase format with proper null handling
+const transformToSupabaseClient = (client: any): Omit<SupabaseClient, "id" | "created_at" | "last_modified"> => {
+  const transformed: any = {
+    first_name: client.firstName || "",
+    last_name: client.lastName || "",
+    participant_id: client.participantId || "",
+    program: client.program || "",
+    status: client.status || "Active",
+    enrollment_date: client.enrollmentDate || "",
+    phone: client.phone || "",
+    email: client.email || "",
+    address: client.address || "",
+    city: client.city || "",
+    state: client.state || "",
+    zip_code: client.zipCode || "",
+    date_of_birth: client.dateOfBirth || "",
+    case_manager: client.caseManager || "",
+    modified_by: client.modifiedBy || "Current User",
+  }
+
+  // Handle optional fields - convert empty strings to null
+  const optionalStringFields = [
+    "cell_phone",
+    "emergency_contact",
+    "emergency_phone",
+    "responsible_ec",
+    "cao_number",
+    "education_level",
+    "school_name",
+    "field_of_study",
+    "education_notes",
+    "currently_enrolled",
+    "certifications",
+    "licenses",
+    "industry_certifications",
+    "certification_status",
+    "certification_notes",
+    "last_contact",
+  ]
+
+  optionalStringFields.forEach((field) => {
+    const componentField =
+      field === "cell_phone"
+        ? "cellPhone"
+        : field === "emergency_contact"
+          ? "emergencyContact"
+          : field === "emergency_phone"
+            ? "emergencyPhone"
+            : field === "responsible_ec"
+              ? "responsibleEC"
+              : field === "cao_number"
+                ? "caoNumber"
+                : field === "education_level"
+                  ? "educationLevel"
+                  : field === "school_name"
+                    ? "schoolName"
+                    : field === "field_of_study"
+                      ? "fieldOfStudy"
+                      : field === "education_notes"
+                        ? "educationNotes"
+                        : field === "currently_enrolled"
+                          ? "currentlyEnrolled"
+                          : field === "industry_certifications"
+                            ? "industryCertifications"
+                            : field === "certification_status"
+                              ? "certificationStatus"
+                              : field === "certification_notes"
+                                ? "certificationNotes"
+                                : field === "last_contact"
+                                  ? "lastContact"
+                                  : field
+
+    const value = client[componentField]
+    transformed[field] = value && value.trim() !== "" ? value : null
+  })
+
+  // Handle numeric fields
+  if (client.requiredHours && client.requiredHours.trim() !== "") {
+    const parsed = Number.parseInt(client.requiredHours)
+    transformed.required_hours = isNaN(parsed) ? null : parsed
+  } else {
+    transformed.required_hours = null
+  }
+
+  if (client.graduationYear && client.graduationYear.trim() !== "") {
+    const parsed = Number.parseInt(client.graduationYear)
+    transformed.graduation_year = isNaN(parsed) ? null : parsed
+  } else {
+    transformed.graduation_year = null
+  }
+
+  if (client.gpa && client.gpa.trim() !== "") {
+    const parsed = Number.parseFloat(client.gpa)
+    transformed.gpa = isNaN(parsed) ? null : parsed
+  } else {
+    transformed.gpa = null
+  }
+
+  return transformed
+}
 
 interface Client {
   id: string
@@ -199,12 +267,12 @@ export function Dashboard() {
     | "all-clients"
     | "recycle-bin"
   >("dashboard")
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [selectedClient, setSelectedClient] = useState<any | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [participantIdSearch, setParticipantIdSearch] = useState("")
   const [quickSearch, setQuickSearch] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [clients, setClients] = useState<Client[]>([])
+  const [clients, setClients] = useState<any[]>([])
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -251,7 +319,7 @@ export function Dashboard() {
     }
   }
 
-  const handleViewClient = async (client: Client) => {
+  const handleViewClient = async (client: any) => {
     try {
       // Load fresh case notes for the selected client
       const caseNotes = await caseNotesApi.getByClientId(client.id)
@@ -295,7 +363,7 @@ export function Dashboard() {
     setCurrentView("recycle-bin")
   }
 
-  const handleSaveClient = async (updatedClient: Client) => {
+  const handleSaveClient = async (updatedClient: any) => {
     try {
       setIsLoading(true)
 
@@ -407,17 +475,17 @@ export function Dashboard() {
       if (quickSearch.trim()) {
         const searchLower = quickSearch.toLowerCase()
         return (
-          `${client.firstName} ${client.lastName}`.toLowerCase().includes(searchLower) ||
-          client.participantId.toLowerCase().includes(searchLower) ||
-          client.program.toLowerCase().includes(searchLower) ||
-          client.email.toLowerCase().includes(searchLower) ||
-          client.phone.toLowerCase().includes(searchLower) ||
-          client.caseManager.toLowerCase().includes(searchLower)
+          `${client.firstName || ""} ${client.lastName || ""}`.toLowerCase().includes(searchLower) ||
+          (client.participantId || "").toLowerCase().includes(searchLower) ||
+          (client.program || "").toLowerCase().includes(searchLower) ||
+          (client.email || "").toLowerCase().includes(searchLower) ||
+          (client.phone || "").toLowerCase().includes(searchLower) ||
+          (client.caseManager || "").toLowerCase().includes(searchLower)
         )
       }
 
       if (participantIdSearch.trim()) {
-        return client.participantId.toLowerCase().includes(participantIdSearch.toLowerCase())
+        return (client.participantId || "").toLowerCase().includes(participantIdSearch.toLowerCase())
       }
 
       return false
@@ -427,7 +495,7 @@ export function Dashboard() {
   const filteredClients = quickSearch.trim() || participantIdSearch.trim() ? getFilteredClients() : []
 
   const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case "active":
         return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Active</Badge>
       case "inactive":
@@ -437,6 +505,11 @@ export function Dashboard() {
       default:
         return <Badge variant="secondary">{status}</Badge>
     }
+  }
+
+  const handleSearch = (query: string) => {
+    // Implement search functionality
+    console.log("Searching for:", query)
   }
 
   if (currentView === "client-profile" && selectedClient) {
@@ -466,11 +539,11 @@ export function Dashboard() {
   }
 
   if (currentView === "recycle-bin") {
-    return <RecycleBin onBack={handleBackToDashboard} />
+    return <RecycleBin onBack={handleBackToDashboard} onClientRestored={loadClients} />
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="px-6 py-3">
@@ -510,7 +583,7 @@ export function Dashboard() {
               <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
                 <path
                   fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 01-1.414-1.414L10 11.414l-4.293-4.293a1 1 0 010-1.414z"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                   clipRule="evenodd"
                 />
               </svg>
@@ -546,7 +619,7 @@ export function Dashboard() {
               <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
                 <path
                   fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 001.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                   clipRule="evenodd"
                 />
               </svg>
@@ -786,7 +859,7 @@ export function Dashboard() {
                     <Input
                       placeholder="Quick search clients..."
                       value={quickSearch}
-                      onChange={(e) => setQuickSearch(e.target.value)}
+                      onChange={(e) => setQuickSearch(e.target.value || "")}
                       className="pl-10"
                     />
                   </div>
@@ -796,7 +869,7 @@ export function Dashboard() {
                     <Input
                       placeholder="Search by Participant ID..."
                       value={participantIdSearch}
-                      onChange={(e) => setParticipantIdSearch(e.target.value)}
+                      onChange={(e) => setParticipantIdSearch(e.target.value || "")}
                       className="font-mono"
                     />
                   </div>

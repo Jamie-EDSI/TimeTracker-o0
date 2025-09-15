@@ -9,15 +9,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, User, Phone, GraduationCap, Award, Upload } from "lucide-react"
+import { ArrowLeft, User, Phone, GraduationCap, Award, Upload, X } from "lucide-react"
 
 interface NewClientFormProps {
   onClientCreated: (clientData: any) => void
   onCancel: () => void
-  isLoading: boolean
+  isLoading?: boolean
 }
 
-export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClientFormProps) {
+interface UploadedFile {
+  id: string
+  name: string
+  size: number
+  type: string
+  file: File
+}
+
+export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: NewClientFormProps) {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -31,32 +39,36 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
     email: "",
     address: "",
     city: "",
-    state: "PA",
+    state: "",
     zipCode: "",
     emergencyContact: "",
     emergencyPhone: "",
+    caseManager: "",
+    responsibleEC: "",
+    requiredHours: "",
+    caoNumber: "",
+    // Education fields
     educationLevel: "",
     graduationYear: "",
     schoolName: "",
     fieldOfStudy: "",
     educationNotes: "",
-    currentlyEnrolled: "No",
+    currentlyEnrolled: "",
     gpa: "",
+    // Certification fields
     certifications: "",
     licenses: "",
     industryCertifications: "",
     certificationStatus: "",
+    certificationNotes: "",
+    // Case notes
+    initialCaseNote: "",
   })
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }))
-    }
-  }
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+  const [errors, setErrors] = useState<string[]>([])
 
+  // Generate a unique participant ID
   const generateParticipantId = () => {
     const timestamp = Date.now().toString().slice(-6)
     const random = Math.floor(Math.random() * 1000)
@@ -65,662 +77,776 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
     return `${timestamp}${random}`
   }
 
-  const handleGenerateId = () => {
-    const newId = generateParticipantId()
-    handleInputChange("participantId", newId)
+  // Initialize with generated participant ID on first render
+  useState(() => {
+    setFormData((prev) => ({
+      ...prev,
+      participantId: generateParticipantId(),
+    }))
+  })
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value || "", // Ensure value is never null
+    }))
+    // Clear errors when user starts typing
+    if (errors.length > 0) {
+      setErrors([])
+    }
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
-    if (files) {
-      setUploadedFiles((prev) => [...prev, ...Array.from(files)])
+    if (!files) return
+
+    const newFiles: UploadedFile[] = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+
+      // Validate file type
+      const allowedTypes = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "image/jpeg",
+        "image/png",
+      ]
+      if (!allowedTypes.includes(file.type)) {
+        alert(`File type not supported: ${file.name}. Please upload PDF, DOC, DOCX, JPG, or PNG files.`)
+        continue
+      }
+
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`File too large: ${file.name}. Please upload files smaller than 10MB.`)
+        continue
+      }
+
+      newFiles.push({
+        id: `${Date.now()}-${i}`,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        file: file,
+      })
     }
+
+    setUploadedFiles((prev) => [...prev, ...newFiles])
+
+    // Clear the input
+    event.target.value = ""
   }
 
-  const removeFile = (index: number) => {
-    setUploadedFiles((prev) => prev.filter((_, i) => i !== index))
+  const removeFile = (fileId: string) => {
+    setUploadedFiles((prev) => prev.filter((file) => file.id !== fileId))
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes"
+    const k = 1024
+    const sizes = ["Bytes", "KB", "MB", "GB"]
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: string[] = []
 
-    if (!formData.firstName.trim()) newErrors.firstName = "First name is required"
-    if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
-    if (!formData.participantId.trim()) newErrors.participantId = "Participant ID is required"
-    if (!formData.program.trim()) newErrors.program = "Program is required"
-    if (!formData.phone.trim()) newErrors.phone = "Phone number is required"
-    if (!formData.email.trim()) newErrors.email = "Email is required"
+    if (!formData.firstName.trim()) newErrors.push("First Name is required")
+    if (!formData.lastName.trim()) newErrors.push("Last Name is required")
+    if (!formData.program.trim()) newErrors.push("Program is required")
+    if (!formData.participantId.trim()) newErrors.push("Participant ID is required")
 
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address"
+    // Email validation
+    if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      newErrors.push("Please enter a valid email address")
     }
 
-    if (formData.phone && !/^[\d\s\-()]+$/.test(formData.phone)) {
-      newErrors.phone = "Please enter a valid phone number"
+    // Phone validation
+    if (formData.phone.trim() && !/^[\d\s\-()]+$/.test(formData.phone.trim())) {
+      newErrors.push("Please enter a valid phone number")
     }
 
-    if (formData.zipCode && !/^\d{5}(-\d{4})?$/.test(formData.zipCode)) {
-      newErrors.zipCode = "Please enter a valid ZIP code"
+    // ZIP code validation
+    if (formData.zipCode.trim() && !/^\d{5}(-\d{4})?$/.test(formData.zipCode.trim())) {
+      newErrors.push("Please enter a valid ZIP code")
     }
 
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    return newErrors.length === 0
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+
     if (!validateForm()) {
       return
     }
 
+    // Prepare client data with case notes if provided
     const clientData = {
       ...formData,
+      caseNotes: formData.initialCaseNote.trim()
+        ? [
+            {
+              id: `note-${Date.now()}`,
+              note: formData.initialCaseNote.trim(),
+              date: new Date().toISOString(),
+              author: formData.caseManager || "System",
+            },
+          ]
+        : [],
       uploadedFiles: uploadedFiles,
     }
 
     onClientCreated(clientData)
   }
 
-  const states = [
-    "AL",
-    "AK",
-    "AZ",
-    "AR",
-    "CA",
-    "CO",
-    "CT",
-    "DE",
-    "FL",
-    "GA",
-    "HI",
-    "ID",
-    "IL",
-    "IN",
-    "IA",
-    "KS",
-    "KY",
-    "LA",
-    "ME",
-    "MD",
-    "MA",
-    "MI",
-    "MN",
-    "MS",
-    "MO",
-    "MT",
-    "NE",
-    "NV",
-    "NH",
-    "NJ",
-    "NM",
-    "NY",
-    "NC",
-    "ND",
-    "OH",
-    "OK",
-    "OR",
-    "PA",
-    "RI",
-    "SC",
-    "SD",
-    "TN",
-    "TX",
-    "UT",
-    "VT",
-    "VA",
-    "WA",
-    "WV",
-    "WI",
-    "WY",
-  ]
+  const regenerateParticipantId = () => {
+    setFormData((prev) => ({
+      ...prev,
+      participantId: generateParticipantId(),
+    }))
+  }
 
-  const educationLevels = [
-    "Less than High School",
-    "High School Diploma",
-    "GED",
-    "Some College",
-    "Associate Degree",
-    "Bachelor's Degree",
-    "Master's Degree",
-    "Doctoral Degree",
-    "Other",
-  ]
-
-  const programs = [
+  const programOptions = [
     "EARN",
     "Job Readiness",
     "YOUTH",
     "WIOA Adult",
     "WIOA Dislocated Worker",
-    "SNAP E&T",
     "TANF",
-    "Trade Adjustment Assistance",
-    "Apprenticeship",
+    "SNAP E&T",
+    "Reentry",
+    "Veterans Program",
+    "Senior Community Service",
     "Other",
   ]
 
+  const statusOptions = ["Active", "Inactive", "Pending", "Completed", "Withdrawn"]
+
+  const educationLevels = [
+    "Less than High School",
+    "High School Diploma/GED",
+    "Some College",
+    "Associate Degree",
+    "Bachelor's Degree",
+    "Master's Degree",
+    "Doctoral Degree",
+    "Professional Degree",
+  ]
+
+  const certificationStatuses = ["Not Started", "In Progress", "Completed", "Expired", "Pending Renewal"]
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                onClick={onCancel}
-                variant="ghost"
-                size="sm"
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-                disabled={isLoading}
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Dashboard
-              </Button>
-            </div>
-            <div className="flex-1 text-center">
+            {/* Left - Back Button */}
+            <Button
+              onClick={onCancel}
+              variant="ghost"
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+              disabled={isLoading}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Dashboard
+            </Button>
+
+            {/* Center - Title */}
+            <div className="text-center">
               <h1 className="text-2xl font-bold text-gray-900">Create New Client</h1>
-              <p className="text-gray-600">Add a new client to the system</p>
+              <p className="text-sm text-gray-600">Add a new client to the system</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button onClick={onCancel} variant="outline" disabled={isLoading}>
-                Cancel
-              </Button>
+
+            {/* Right - Action Buttons */}
+            <div className="flex items-center gap-3">
               <Button
                 onClick={handleSubmit}
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="bg-green-600 hover:bg-green-700 text-white px-6"
                 disabled={isLoading}
               >
                 {isLoading ? "Creating..." : "Create Client"}
+              </Button>
+              <Button
+                onClick={onCancel}
+                variant="outline"
+                className="text-gray-600 bg-transparent"
+                disabled={isLoading}
+              >
+                <X className="w-4 h-4 mr-2" />
+                Cancel
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column */}
-            <div className="space-y-6">
-              {/* Personal Information */}
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <User className="w-5 h-5 text-blue-600" />
-                    Personal Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="firstName">First Name *</Label>
-                      <Input
-                        id="firstName"
-                        value={formData.firstName}
-                        onChange={(e) => handleInputChange("firstName", e.target.value)}
-                        className={errors.firstName ? "border-red-500" : ""}
-                        disabled={isLoading}
-                      />
-                      {errors.firstName && <p className="text-sm text-red-500 mt-1">{errors.firstName}</p>}
-                    </div>
-                    <div>
-                      <Label htmlFor="lastName">Last Name *</Label>
-                      <Input
-                        id="lastName"
-                        value={formData.lastName}
-                        onChange={(e) => handleInputChange("lastName", e.target.value)}
-                        className={errors.lastName ? "border-red-500" : ""}
-                        disabled={isLoading}
-                      />
-                      {errors.lastName && <p className="text-sm text-red-500 mt-1">{errors.lastName}</p>}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="participantId">Participant ID</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="participantId"
-                          value={formData.participantId}
-                          onChange={(e) => handleInputChange("participantId", e.target.value)}
-                          className={errors.participantId ? "border-red-500" : ""}
-                          disabled={isLoading}
-                        />
-                        <Button
-                          type="button"
-                          onClick={handleGenerateId}
-                          variant="outline"
-                          size="sm"
-                          disabled={isLoading}
-                        >
-                          Regenerate
-                        </Button>
-                      </div>
-                      {errors.participantId && <p className="text-sm text-red-500 mt-1">{errors.participantId}</p>}
-                    </div>
-                    <div>
-                      <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                      <Input
-                        id="dateOfBirth"
-                        type="date"
-                        value={formData.dateOfBirth}
-                        onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
-                        className={errors.dateOfBirth ? "border-red-500" : ""}
-                        disabled={isLoading}
-                        placeholder="mm/dd/yyyy"
-                      />
-                      {errors.dateOfBirth && <p className="text-sm text-red-500 mt-1">{errors.dateOfBirth}</p>}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="status">Status</Label>
-                      <Select
-                        value={formData.status}
-                        onValueChange={(value) => handleInputChange("status", value)}
-                        disabled={isLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Active">Active</SelectItem>
-                          <SelectItem value="Inactive">Inactive</SelectItem>
-                          <SelectItem value="Pending">Pending</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="program">Program</Label>
-                      <Select
-                        value={formData.program}
-                        onValueChange={(value) => handleInputChange("program", value)}
-                        disabled={isLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a program" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {programs.map((program) => (
-                            <SelectItem key={program} value={program}>
-                              {program}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="enrollmentDate">Enrollment Date</Label>
-                      <Input
-                        id="enrollmentDate"
-                        type="date"
-                        value={formData.enrollmentDate}
-                        onChange={(e) => handleInputChange("enrollmentDate", e.target.value)}
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Contact Information */}
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Phone className="w-5 h-5 text-green-600" />
-                    Contact Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <Input
-                        id="phone"
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange("phone", e.target.value)}
-                        className={errors.phone ? "border-red-500" : ""}
-                        disabled={isLoading}
-                        placeholder="(555) 123-4567"
-                      />
-                      {errors.phone && <p className="text-sm text-red-500 mt-1">{errors.phone}</p>}
-                    </div>
-                    <div>
-                      <Label htmlFor="cellPhone">Cell Phone</Label>
-                      <Input
-                        id="cellPhone"
-                        value={formData.cellPhone}
-                        onChange={(e) => handleInputChange("cellPhone", e.target.value)}
-                        disabled={isLoading}
-                        placeholder="(555) 123-4567"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => handleInputChange("email", e.target.value)}
-                      className={errors.email ? "border-red-500" : ""}
-                      disabled={isLoading}
-                      placeholder="client@example.com"
-                    />
-                    {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email}</p>}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="address">Address</Label>
-                    <Input
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) => handleInputChange("address", e.target.value)}
-                      disabled={isLoading}
-                      placeholder="123 Main Street"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="city">City</Label>
-                      <Input
-                        id="city"
-                        value={formData.city}
-                        onChange={(e) => handleInputChange("city", e.target.value)}
-                        disabled={isLoading}
-                        placeholder="Philadelphia"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="state">State</Label>
-                      <Select
-                        value={formData.state}
-                        onValueChange={(value) => handleInputChange("state", value)}
-                        disabled={isLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {states.map((state) => (
-                            <SelectItem key={state} value={state}>
-                              {state}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="zipCode">ZIP Code</Label>
-                      <Input
-                        id="zipCode"
-                        value={formData.zipCode}
-                        onChange={(e) => handleInputChange("zipCode", e.target.value)}
-                        className={errors.zipCode ? "border-red-500" : ""}
-                        disabled={isLoading}
-                        placeholder="19102"
-                      />
-                      {errors.zipCode && <p className="text-sm text-red-500 mt-1">{errors.zipCode}</p>}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="emergencyContact">Emergency Contact</Label>
-                      <Input
-                        id="emergencyContact"
-                        value={formData.emergencyContact}
-                        onChange={(e) => handleInputChange("emergencyContact", e.target.value)}
-                        disabled={isLoading}
-                        placeholder="Contact Name"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="emergencyPhone">Emergency Phone</Label>
-                      <Input
-                        id="emergencyPhone"
-                        value={formData.emergencyPhone}
-                        onChange={(e) => handleInputChange("emergencyPhone", e.target.value)}
-                        disabled={isLoading}
-                        placeholder="(555) 123-4567"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+      {/* Error Messages */}
+      {errors.length > 0 && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
             </div>
-
-            {/* Right Column */}
-            <div className="space-y-6">
-              {/* Education Information */}
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <GraduationCap className="w-5 h-5 text-purple-600" />
-                    Education Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="educationLevel">Highest Education Level</Label>
-                      <Select
-                        value={formData.educationLevel}
-                        onValueChange={(value) => handleInputChange("educationLevel", value)}
-                        disabled={isLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select education level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {educationLevels.map((level) => (
-                            <SelectItem key={level} value={level}>
-                              {level}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="graduationYear">Graduation Year</Label>
-                      <Input
-                        id="graduationYear"
-                        value={formData.graduationYear}
-                        onChange={(e) => handleInputChange("graduationYear", e.target.value)}
-                        disabled={isLoading}
-                        placeholder="2020"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="schoolName">School/Institution Name</Label>
-                      <Input
-                        id="schoolName"
-                        value={formData.schoolName}
-                        onChange={(e) => handleInputChange("schoolName", e.target.value)}
-                        disabled={isLoading}
-                        placeholder="University Name"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="fieldOfStudy">Field of Study/Major</Label>
-                      <Input
-                        id="fieldOfStudy"
-                        value={formData.fieldOfStudy}
-                        onChange={(e) => handleInputChange("fieldOfStudy", e.target.value)}
-                        disabled={isLoading}
-                        placeholder="Business Administration"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="educationNotes">Additional Education Details</Label>
-                    <Textarea
-                      id="educationNotes"
-                      value={formData.educationNotes}
-                      onChange={(e) => handleInputChange("educationNotes", e.target.value)}
-                      rows={3}
-                      disabled={isLoading}
-                      placeholder="Enter any additional education details, honors, relevant coursework, etc."
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="currentlyEnrolled">Currently Enrolled</Label>
-                      <Select
-                        value={formData.currentlyEnrolled}
-                        onValueChange={(value) => handleInputChange("currentlyEnrolled", value)}
-                        disabled={isLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Yes">Yes</SelectItem>
-                          <SelectItem value="No">No</SelectItem>
-                          <SelectItem value="Part-time">Part-time</SelectItem>
-                          <SelectItem value="Full-time">Full-time</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="gpa">GPA (if applicable)</Label>
-                      <Input
-                        id="gpa"
-                        value={formData.gpa}
-                        onChange={(e) => handleInputChange("gpa", e.target.value)}
-                        disabled={isLoading}
-                        placeholder="3.5"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Certifications & Licenses */}
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Award className="w-5 h-5 text-orange-600" />
-                    Certifications & Licenses
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="certifications">Professional Certifications</Label>
-                      <Textarea
-                        id="certifications"
-                        value={formData.certifications}
-                        onChange={(e) => handleInputChange("certifications", e.target.value)}
-                        rows={4}
-                        disabled={isLoading}
-                        placeholder="List professional certifications (e.g., CompTIA A+, Microsoft Office Specialist, etc.)"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="licenses">Licenses</Label>
-                      <Textarea
-                        id="licenses"
-                        value={formData.licenses}
-                        onChange={(e) => handleInputChange("licenses", e.target.value)}
-                        rows={4}
-                        disabled={isLoading}
-                        placeholder="List professional licenses (e.g., Driver's License, CDL, Professional License, etc.)"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="industryCertifications">Industry Certifications</Label>
-                      <Input
-                        id="industryCertifications"
-                        value={formData.industryCertifications}
-                        onChange={(e) => handleInputChange("industryCertifications", e.target.value)}
-                        disabled={isLoading}
-                        placeholder="e.g., OSHA 10, Food Handler's License, etc."
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="certificationStatus">Certification Status</Label>
-                      <Select
-                        value={formData.certificationStatus}
-                        onValueChange={(value) => handleInputChange("certificationStatus", value)}
-                        disabled={isLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Current">Current</SelectItem>
-                          <SelectItem value="Expired">Expired</SelectItem>
-                          <SelectItem value="Pending">Pending</SelectItem>
-                          <SelectItem value="Not Applicable">Not Applicable</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Certification Documents</Label>
-                    <div className="space-y-2">
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                        <input
-                          type="file"
-                          multiple
-                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                          onChange={handleFileUpload}
-                          className="hidden"
-                          id="file-upload"
-                          disabled={isLoading}
-                        />
-                        <label htmlFor="file-upload" className="cursor-pointer">
-                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                          <div className="mt-4">
-                            <p className="text-sm text-gray-600">Click to upload certification documents</p>
-                            <p className="text-xs text-gray-500 mt-1">PDF, DOC, DOCX, JPG, PNG files accepted</p>
-                          </div>
-                        </label>
-                      </div>
-
-                      {uploadedFiles.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium text-gray-700">Uploaded Files:</p>
-                          {uploadedFiles.map((file, index) => (
-                            <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                              <span className="text-sm text-gray-600 truncate">{file.name}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeFile(index)}
-                                disabled={isLoading}
-                                className="text-red-500 hover:text-red-700"
-                              >
-                                Remove
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Please correct the following errors:</h3>
+              <ul className="mt-2 text-sm text-red-700 list-disc list-inside">
+                {errors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Form Content */}
+      <div className="p-6">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column */}
+          <div className="space-y-6">
+            {/* Personal Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <User className="w-5 h-5 text-blue-600" />
+                  Personal Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="firstName">First Name *</Label>
+                    <Input
+                      id="firstName"
+                      value={formData.firstName}
+                      onChange={(e) => handleInputChange("firstName", e.target.value)}
+                      placeholder="Enter first name"
+                      disabled={isLoading}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName">Last Name *</Label>
+                    <Input
+                      id="lastName"
+                      value={formData.lastName}
+                      onChange={(e) => handleInputChange("lastName", e.target.value)}
+                      placeholder="Enter last name"
+                      disabled={isLoading}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="participantId">Participant ID</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="participantId"
+                        value={formData.participantId}
+                        onChange={(e) => handleInputChange("participantId", e.target.value)}
+                        className="font-mono"
+                        disabled={isLoading}
+                      />
+                      <Button
+                        type="button"
+                        onClick={regenerateParticipantId}
+                        variant="outline"
+                        size="sm"
+                        disabled={isLoading}
+                      >
+                        Regenerate
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                    <Input
+                      id="dateOfBirth"
+                      type="date"
+                      value={formData.dateOfBirth}
+                      onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="program">Program *</Label>
+                    <Select
+                      value={formData.program}
+                      onValueChange={(value) => handleInputChange("program", value)}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select program" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {programOptions.map((program) => (
+                          <SelectItem key={program} value={program}>
+                            {program}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="status">Status</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => handleInputChange("status", value)}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="enrollmentDate">Enrollment Date</Label>
+                  <Input
+                    id="enrollmentDate"
+                    type="date"
+                    value={formData.enrollmentDate}
+                    onChange={(e) => handleInputChange("enrollmentDate", e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="caseManager">Case Manager</Label>
+                    <Input
+                      id="caseManager"
+                      value={formData.caseManager}
+                      onChange={(e) => handleInputChange("caseManager", e.target.value)}
+                      placeholder="Enter case manager name"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="responsibleEC">Responsible EC</Label>
+                    <Input
+                      id="responsibleEC"
+                      value={formData.responsibleEC}
+                      onChange={(e) => handleInputChange("responsibleEC", e.target.value)}
+                      placeholder="Enter responsible EC"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Contact Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Phone className="w-5 h-5 text-green-600" />
+                  Contact Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      placeholder="(555) 123-4567"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cellPhone">Cell Phone</Label>
+                    <Input
+                      id="cellPhone"
+                      value={formData.cellPhone}
+                      onChange={(e) => handleInputChange("cellPhone", e.target.value)}
+                      placeholder="(555) 123-4567"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    placeholder="client@example.com"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => handleInputChange("address", e.target.value)}
+                    placeholder="123 Main Street"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      value={formData.city}
+                      onChange={(e) => handleInputChange("city", e.target.value)}
+                      placeholder="Philadelphia"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State</Label>
+                    <Select
+                      value={formData.state}
+                      onValueChange={(value) => handleInputChange("state", value)}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="PA" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PA">PA</SelectItem>
+                        <SelectItem value="NJ">NJ</SelectItem>
+                        <SelectItem value="DE">DE</SelectItem>
+                        <SelectItem value="NY">NY</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="zipCode">ZIP Code</Label>
+                    <Input
+                      id="zipCode"
+                      value={formData.zipCode}
+                      onChange={(e) => handleInputChange("zipCode", e.target.value)}
+                      placeholder="19102"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="emergencyContact">Emergency Contact</Label>
+                    <Input
+                      id="emergencyContact"
+                      value={formData.emergencyContact}
+                      onChange={(e) => handleInputChange("emergencyContact", e.target.value)}
+                      placeholder="Contact Name"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="emergencyPhone">Emergency Phone</Label>
+                    <Input
+                      id="emergencyPhone"
+                      value={formData.emergencyPhone}
+                      onChange={(e) => handleInputChange("emergencyPhone", e.target.value)}
+                      placeholder="(555) 123-4567"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column */}
+          <div className="space-y-6">
+            {/* Education Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <GraduationCap className="w-5 h-5 text-purple-600" />
+                  Education Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="educationLevel">Highest Education Level</Label>
+                    <Select
+                      value={formData.educationLevel}
+                      onValueChange={(value) => handleInputChange("educationLevel", value)}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select education level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {educationLevels.map((level) => (
+                          <SelectItem key={level} value={level}>
+                            {level}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="graduationYear">Graduation Year</Label>
+                    <Input
+                      id="graduationYear"
+                      value={formData.graduationYear}
+                      onChange={(e) => handleInputChange("graduationYear", e.target.value)}
+                      placeholder="2020"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="schoolName">School/Institution Name</Label>
+                    <Input
+                      id="schoolName"
+                      value={formData.schoolName}
+                      onChange={(e) => handleInputChange("schoolName", e.target.value)}
+                      placeholder="University Name"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="fieldOfStudy">Field of Study/Major</Label>
+                    <Input
+                      id="fieldOfStudy"
+                      value={formData.fieldOfStudy}
+                      onChange={(e) => handleInputChange("fieldOfStudy", e.target.value)}
+                      placeholder="Business Administration"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="educationNotes">Additional Education Details</Label>
+                  <Textarea
+                    id="educationNotes"
+                    value={formData.educationNotes}
+                    onChange={(e) => handleInputChange("educationNotes", e.target.value)}
+                    placeholder="Enter any additional education details, honors, relevant coursework, etc."
+                    rows={3}
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="currentlyEnrolled">Currently Enrolled</Label>
+                    <Select
+                      value={formData.currentlyEnrolled}
+                      onValueChange={(value) => handleInputChange("currentlyEnrolled", value)}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="No" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Yes">Yes</SelectItem>
+                        <SelectItem value="No">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="gpa">GPA (if applicable)</Label>
+                    <Input
+                      id="gpa"
+                      value={formData.gpa}
+                      onChange={(e) => handleInputChange("gpa", e.target.value)}
+                      placeholder="3.5"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Certifications & Licenses */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Award className="w-5 h-5 text-orange-600" />
+                  Certifications & Licenses
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="certifications">Professional Certifications</Label>
+                    <Textarea
+                      id="certifications"
+                      value={formData.certifications}
+                      onChange={(e) => handleInputChange("certifications", e.target.value)}
+                      placeholder="List professional certifications (e.g., CompTIA A+, Microsoft Office Specialist, etc.)"
+                      rows={3}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="licenses">Licenses</Label>
+                    <Textarea
+                      id="licenses"
+                      value={formData.licenses}
+                      onChange={(e) => handleInputChange("licenses", e.target.value)}
+                      placeholder="List professional licenses (e.g., Driver's License, CDL, Professional License, etc.)"
+                      rows={3}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="industryCertifications">Industry Certifications</Label>
+                    <Input
+                      id="industryCertifications"
+                      value={formData.industryCertifications}
+                      onChange={(e) => handleInputChange("industryCertifications", e.target.value)}
+                      placeholder="e.g., OSHA 10, Food Handler's License, etc."
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="certificationStatus">Certification Status</Label>
+                    <Select
+                      value={formData.certificationStatus}
+                      onValueChange={(value) => handleInputChange("certificationStatus", value)}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {certificationStatuses.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* File Upload Section */}
+                <div>
+                  <Label>Certification Documents</Label>
+                  <div className="mt-2">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                      <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                      <div className="text-sm text-gray-600 mb-2">
+                        <label htmlFor="file-upload" className="cursor-pointer text-blue-600 hover:text-blue-500">
+                          Click to upload files
+                        </label>
+                        {" or drag and drop"}
+                      </div>
+                      <p className="text-xs text-gray-500">PDF, DOC, DOCX, JPG, PNG up to 10MB each</p>
+                      <input
+                        id="file-upload"
+                        type="file"
+                        multiple
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    {/* Uploaded Files List */}
+                    {uploadedFiles.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        <Label className="text-sm font-medium">Uploaded Files:</Label>
+                        {uploadedFiles.map((file) => (
+                          <div
+                            key={file.id}
+                            className="flex items-center justify-between p-2 bg-gray-50 rounded border"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{file.name}</p>
+                              <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                            </div>
+                            <Button
+                              type="button"
+                              onClick={() => removeFile(file.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-800"
+                              disabled={isLoading}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="certificationNotes">Certification Notes</Label>
+                  <Textarea
+                    id="certificationNotes"
+                    value={formData.certificationNotes}
+                    onChange={(e) => handleInputChange("certificationNotes", e.target.value)}
+                    placeholder="Additional notes about certifications or licenses"
+                    rows={2}
+                    disabled={isLoading}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Initial Case Note */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Initial Case Note (Optional)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div>
+                  <Label htmlFor="initialCaseNote">Case Note</Label>
+                  <Textarea
+                    id="initialCaseNote"
+                    value={formData.initialCaseNote}
+                    onChange={(e) => handleInputChange("initialCaseNote", e.target.value)}
+                    placeholder="Enter initial case note or intake information..."
+                    rows={4}
+                    disabled={isLoading}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </form>
       </div>
     </div>
   )

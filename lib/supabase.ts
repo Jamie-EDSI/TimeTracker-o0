@@ -69,15 +69,15 @@ export interface Client {
   emergency_phone?: string
   case_manager: string
   responsible_ec?: string
-  required_hours?: string
+  required_hours?: number
   cao_number?: string
   education_level?: string
-  graduation_year?: string
+  graduation_year?: number
   school_name?: string
   field_of_study?: string
   education_notes?: string
   currently_enrolled?: string
-  gpa?: string
+  gpa?: number
   certifications?: string
   licenses?: string
   industry_certifications?: string
@@ -123,15 +123,15 @@ const mockClients: Client[] = [
     emergency_phone: "484-555-0203",
     case_manager: "Brown, Lisa",
     responsible_ec: "Wilson, John",
-    required_hours: "40",
+    required_hours: 40,
     cao_number: "CAO-001",
     education_level: "High School Diploma/GED",
-    graduation_year: "2008",
+    graduation_year: 2008,
     school_name: "Philadelphia High School",
     field_of_study: "General Studies",
     education_notes: "Graduated with honors",
     currently_enrolled: "No",
-    gpa: "3.5",
+    gpa: 3.5,
     certifications: "CPR Certified",
     licenses: "Driver's License",
     industry_certifications: "OSHA 10",
@@ -273,6 +273,66 @@ const mockCaseNotes: CaseNote[] = [
 // Helper function to simulate network delay for realistic demo
 const simulateDelay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms))
 
+// Helper function to clean data for Supabase (convert empty strings to null for optional fields)
+const cleanDataForSupabase = (data: any) => {
+  const cleaned = { ...data }
+
+  // Convert empty strings to null for optional fields
+  const optionalFields = [
+    "cell_phone",
+    "emergency_contact",
+    "emergency_phone",
+    "responsible_ec",
+    "cao_number",
+    "education_level",
+    "school_name",
+    "field_of_study",
+    "education_notes",
+    "currently_enrolled",
+    "certifications",
+    "licenses",
+    "industry_certifications",
+    "certification_status",
+    "certification_notes",
+    "last_contact",
+    "modified_by",
+  ]
+
+  // Convert empty strings to null for optional fields
+  optionalFields.forEach((field) => {
+    if (cleaned[field] === "") {
+      cleaned[field] = null
+    }
+  })
+
+  // Handle numeric fields - convert empty strings to null
+  if (cleaned.required_hours === "" || cleaned.required_hours === undefined) {
+    cleaned.required_hours = null
+  } else if (typeof cleaned.required_hours === "string") {
+    const parsed = Number.parseInt(cleaned.required_hours)
+    cleaned.required_hours = isNaN(parsed) ? null : parsed
+  }
+
+  if (cleaned.graduation_year === "" || cleaned.graduation_year === undefined) {
+    cleaned.graduation_year = null
+  } else if (typeof cleaned.graduation_year === "string") {
+    const parsed = Number.parseInt(cleaned.graduation_year)
+    cleaned.graduation_year = isNaN(parsed) ? null : parsed
+  }
+
+  if (cleaned.gpa === "" || cleaned.gpa === undefined) {
+    cleaned.gpa = null
+  } else if (typeof cleaned.gpa === "string") {
+    const parsed = Number.parseFloat(cleaned.gpa)
+    cleaned.gpa = isNaN(parsed) ? null : parsed
+  }
+
+  // Always set last_modified to current timestamp for updates
+  cleaned.last_modified = new Date().toISOString()
+
+  return cleaned
+}
+
 // Enhanced client database operations with comprehensive debugging
 export const clientsApi = {
   // Get all active clients (excluding deleted ones)
@@ -373,11 +433,10 @@ export const clientsApi = {
       return newClient
     }
 
-    const clientData = {
+    const clientData = cleanDataForSupabase({
       ...client,
       created_at: new Date().toISOString(),
-      last_modified: new Date().toISOString(),
-    }
+    })
 
     return SupabaseDebugger.logOperation("INSERT", "clients", clientData, async () => {
       const { data, error } = await supabase.from("clients").insert([clientData]).select().single()
@@ -428,10 +487,7 @@ export const clientsApi = {
       throw new Error("Client not found")
     }
 
-    const updateData = {
-      ...updates,
-      last_modified: new Date().toISOString(),
-    }
+    const updateData = cleanDataForSupabase(updates)
 
     return SupabaseDebugger.logOperation("UPDATE", "clients", { id, updates: updateData }, async () => {
       const { data, error } = await supabase.from("clients").update(updateData).eq("id", id).select().single()

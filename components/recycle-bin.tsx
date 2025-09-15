@@ -10,30 +10,31 @@ import { clientsApi } from "@/lib/supabase"
 
 interface DeletedClient {
   id: string
-  firstName: string
-  lastName: string
-  participantId: string
+  first_name: string
+  last_name: string
+  participant_id: string
   program: string
   status: string
-  enrollmentDate: string
+  enrollment_date: string
   phone: string
   email: string
-  deletedAt: string
-  deletedBy: string
+  deleted_at: string
+  deleted_by: string
 }
 
 interface RecycleBinProps {
   onBack: () => void
+  onClientRestored?: () => void
 }
 
-export function RecycleBin({ onBack }: RecycleBinProps) {
+export function RecycleBin({ onBack, onClientRestored }: RecycleBinProps) {
   const [deletedClients, setDeletedClients] = useState<DeletedClient[]>([])
-  const [filteredClients, setFilteredClients] = useState<DeletedClient[]>([])
   const [searchTerm, setSearchTerm] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
-  const [isRestoring, setIsRestoring] = useState<string | null>(null)
-  const [isPermanentDeleting, setIsPermanentDeleting] = useState<string | null>(null)
-  const [showPermanentDeleteConfirm, setShowPermanentDeleteConfirm] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [selectedClient, setSelectedClient] = useState<DeletedClient | null>(null)
+  const [actionType, setActionType] = useState<"restore" | "permanent">("restore")
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
   const [error, setError] = useState<string | null>(null)
 
@@ -41,46 +42,12 @@ export function RecycleBin({ onBack }: RecycleBinProps) {
     loadDeletedClients()
   }, [])
 
-  useEffect(() => {
-    // Filter clients based on search term
-    if (searchTerm.trim()) {
-      const filtered = deletedClients.filter((client) => {
-        const searchLower = searchTerm.toLowerCase()
-        return (
-          `${client.firstName} ${client.lastName}`.toLowerCase().includes(searchLower) ||
-          client.participantId.toLowerCase().includes(searchLower) ||
-          client.program.toLowerCase().includes(searchLower) ||
-          client.email.toLowerCase().includes(searchLower) ||
-          client.phone.toLowerCase().includes(searchLower)
-        )
-      })
-      setFilteredClients(filtered)
-    } else {
-      setFilteredClients(deletedClients)
-    }
-  }, [searchTerm, deletedClients])
-
   const loadDeletedClients = async () => {
     try {
       setIsLoading(true)
       setError(null)
-
-      const supabaseClients = await clientsApi.getDeleted()
-      const transformedClients = supabaseClients.map((client) => ({
-        id: client.id,
-        firstName: client.first_name,
-        lastName: client.last_name,
-        participantId: client.participant_id,
-        program: client.program,
-        status: client.status,
-        enrollmentDate: client.enrollment_date,
-        phone: client.phone,
-        email: client.email,
-        deletedAt: client.deleted_at || "",
-        deletedBy: client.deleted_by || "Unknown",
-      }))
-
-      setDeletedClients(transformedClients)
+      const clients = await clientsApi.getDeleted()
+      setDeletedClients(clients)
     } catch (error) {
       console.error("Error loading deleted clients:", error)
       setError("Failed to load deleted clients. Please try again.")
@@ -89,68 +56,77 @@ export function RecycleBin({ onBack }: RecycleBinProps) {
     }
   }
 
-  const handleRestore = async (clientId: string) => {
+  const handleRestore = (client: DeletedClient) => {
+    setSelectedClient(client)
+    setActionType("restore")
+    setShowConfirmDialog(true)
+  }
+
+  const handlePermanentDelete = (client: DeletedClient) => {
+    setSelectedClient(client)
+    setActionType("permanent")
+    setShowConfirmDialog(true)
+  }
+
+  const confirmAction = async () => {
+    if (!selectedClient) return
+
     try {
-      setIsRestoring(clientId)
+      setIsLoading(true)
       setError(null)
 
-      await clientsApi.restore(clientId)
+      if (actionType === "restore") {
+        await clientsApi.restore(selectedClient.id)
+        setSuccessMessage(
+          `Client ${selectedClient.first_name} ${selectedClient.last_name} has been successfully restored!`,
+        )
+        // Remove from deleted clients list
+        setDeletedClients((prev) => prev.filter((client) => client.id !== selectedClient.id))
+        // Notify parent component to refresh the main client list
+        if (onClientRestored) {
+          onClientRestored()
+        }
+      } else {
+        await clientsApi.permanentDelete(selectedClient.id)
+        setSuccessMessage(
+          `Client ${selectedClient.first_name} ${selectedClient.last_name} has been permanently deleted.`,
+        )
+        // Remove from deleted clients list
+        setDeletedClients((prev) => prev.filter((client) => client.id !== selectedClient.id))
+      }
 
-      // Remove from deleted clients list
-      setDeletedClients((prev) => prev.filter((client) => client.id !== clientId))
-
-      setSuccessMessage("Client successfully restored!")
-      setTimeout(() => setSuccessMessage(""), 3000)
+      setShowSuccessMessage(true)
+      setTimeout(() => setShowSuccessMessage(false), 5000)
     } catch (error) {
-      console.error("Error restoring client:", error)
-      setError("Failed to restore client. Please try again.")
+      console.error(`Error ${actionType === "restore" ? "restoring" : "deleting"} client:`, error)
+      setError(`Failed to ${actionType === "restore" ? "restore" : "delete"} client. Please try again.`)
     } finally {
-      setIsRestoring(null)
+      setIsLoading(false)
+      setShowConfirmDialog(false)
+      setSelectedClient(null)
     }
   }
 
-  const handlePermanentDeleteClick = (clientId: string) => {
-    setShowPermanentDeleteConfirm(clientId)
+  const cancelAction = () => {
+    setShowConfirmDialog(false)
+    setSelectedClient(null)
   }
 
-  const handlePermanentDeleteConfirm = async (clientId: string) => {
-    try {
-      setIsPermanentDeleting(clientId)
-      setError(null)
+  const getFilteredClients = () => {
+    if (!searchTerm.trim()) return deletedClients
 
-      await clientsApi.permanentDelete(clientId)
-
-      // Remove from deleted clients list
-      setDeletedClients((prev) => prev.filter((client) => client.id !== clientId))
-
-      setShowPermanentDeleteConfirm(null)
-      setSuccessMessage("Client permanently deleted!")
-      setTimeout(() => setSuccessMessage(""), 3000)
-    } catch (error) {
-      console.error("Error permanently deleting client:", error)
-      setError("Failed to permanently delete client. Please try again.")
-      setShowPermanentDeleteConfirm(null)
-    } finally {
-      setIsPermanentDeleting(null)
-    }
+    const searchLower = searchTerm.toLowerCase()
+    return deletedClients.filter(
+      (client) =>
+        `${client.first_name} ${client.last_name}`.toLowerCase().includes(searchLower) ||
+        client.participant_id.toLowerCase().includes(searchLower) ||
+        client.program.toLowerCase().includes(searchLower) ||
+        client.email.toLowerCase().includes(searchLower) ||
+        client.phone.toLowerCase().includes(searchLower),
+    )
   }
 
-  const handlePermanentDeleteCancel = () => {
-    setShowPermanentDeleteConfirm(null)
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "active":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Active</Badge>
-      case "inactive":
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Inactive</Badge>
-      case "pending":
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pending</Badge>
-      default:
-        return <Badge variant="secondary">{status}</Badge>
-    }
-  }
+  const filteredClients = getFilteredClients()
 
   const formatDate = (dateString: string) => {
     try {
@@ -168,34 +144,48 @@ export function RecycleBin({ onBack }: RecycleBinProps) {
     }
   }
 
+  const getStatusBadge = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "active":
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Active</Badge>
+      case "inactive":
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Inactive</Badge>
+      case "pending":
+        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pending</Badge>
+      default:
+        return <Badge variant="secondary">{status}</Badge>
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button onClick={onBack} variant="ghost" size="sm" className="flex items-center gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Back to Dashboard
-              </Button>
-              <div className="h-6 w-px bg-gray-300" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Recycle Bin</h1>
-                <p className="text-gray-600">Deleted clients that can be restored</p>
-              </div>
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" onClick={onBack} className="flex items-center gap-2" disabled={isLoading}>
+              <ArrowLeft className="w-4 h-4" />
+              Back to Dashboard
+            </Button>
+            <div className="h-6 w-px bg-gray-300" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Trash2 className="w-6 h-6 text-red-600" />
+                Recycle Bin
+              </h1>
+              <p className="text-gray-600">Manage deleted clients - restore or permanently delete</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-gray-600">
-                {filteredClients.length} deleted clients
-              </Badge>
-            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge variant="secondary" className="text-red-600">
+              {filteredClients.length} deleted clients
+            </Badge>
           </div>
         </div>
       </div>
 
-      {/* Success/Error Messages */}
-      {successMessage && (
+      {/* Success Message */}
+      {showSuccessMessage && (
         <div className="bg-green-50 border-l-4 border-green-400 p-4 mx-6 mt-4">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -208,33 +198,14 @@ export function RecycleBin({ onBack }: RecycleBinProps) {
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm text-green-700">✓ {successMessage}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
+              <p className="text-sm text-green-700">{successMessage}</p>
             </div>
             <div className="ml-auto pl-3">
               <button
-                onClick={() => setError(null)}
-                className="inline-flex bg-red-50 rounded-md p-1.5 text-red-500 hover:bg-red-100"
+                onClick={() => setShowSuccessMessage(false)}
+                className="inline-flex bg-green-50 rounded-md p-1.5 text-green-500 hover:bg-green-100"
               >
-                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path
                     fillRule="evenodd"
                     d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 011.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 01-1.414-1.414L10 11.414l-4.293-4.293a1 1 0 010-1.414z"
@@ -247,33 +218,97 @@ export function RecycleBin({ onBack }: RecycleBinProps) {
         </div>
       )}
 
-      {/* Permanent Delete Confirmation Modal */}
-      {showPermanentDeleteConfirm && (
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 001.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={() => setError(null)}
+                className="inline-flex bg-red-50 rounded-md p-1.5 text-red-500 hover:bg-red-100"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path
+                    fillRule="evenodd"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 011.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 01-1.414-1.414L10 11.414l-4.293-4.293a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      {showConfirmDialog && selectedClient && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  actionType === "restore" ? "bg-green-100" : "bg-red-100"
+                }`}
+              >
+                {actionType === "restore" ? (
+                  <RotateCcw className="w-5 h-5 text-green-600" />
+                ) : (
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                )}
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Permanent Delete</h3>
-                <p className="text-sm text-gray-600">This action cannot be undone</p>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {actionType === "restore" ? "Restore Client" : "Permanently Delete Client"}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {actionType === "restore" ? "This action will restore the client" : "This action cannot be undone"}
+                </p>
               </div>
             </div>
             <p className="text-gray-700 mb-6">
-              Are you sure you want to permanently delete this client? This action cannot be undone and all data will be
-              lost forever.
+              Are you sure you want to {actionType === "restore" ? "restore" : "permanently delete"}{" "}
+              <strong>
+                {selectedClient.first_name} {selectedClient.last_name}
+              </strong>
+              ?
+              {actionType === "permanent" && (
+                <span className="block mt-2 text-red-600 font-medium">
+                  This will permanently remove all client data and cannot be undone.
+                </span>
+              )}
             </p>
             <div className="flex gap-3 justify-end">
-              <Button onClick={handlePermanentDeleteCancel} variant="outline" disabled={isPermanentDeleting}>
+              <Button onClick={cancelAction} variant="outline" disabled={isLoading}>
                 Cancel
               </Button>
               <Button
-                onClick={() => handlePermanentDeleteConfirm(showPermanentDeleteConfirm)}
-                className="bg-red-600 hover:bg-red-700 text-white"
-                disabled={isPermanentDeleting}
+                onClick={confirmAction}
+                className={
+                  actionType === "restore"
+                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    : "bg-red-600 hover:bg-red-700 text-white"
+                }
+                disabled={isLoading}
               >
-                {isPermanentDeleting ? "Deleting..." : "Permanently Delete"}
+                {isLoading
+                  ? actionType === "restore"
+                    ? "Restoring..."
+                    : "Deleting..."
+                  : actionType === "restore"
+                    ? "Restore Client"
+                    : "Permanently Delete"}
               </Button>
             </div>
           </div>
@@ -281,98 +316,135 @@ export function RecycleBin({ onBack }: RecycleBinProps) {
       )}
 
       <div className="p-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Deleted Clients</CardTitle>
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Search deleted clients..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+        {/* Search and Info */}
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search deleted clients by name, ID, program, email, or phone..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value || "")}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-orange-500" />
+                  <span>Deleted clients are kept for 30 days</span>
+                </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Deleted Clients List */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Deleted Clients ({filteredClients.length})</span>
+              <Badge variant="secondary" className="text-red-600">
+                {filteredClients.length} clients in recycle bin
+              </Badge>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-3 text-gray-600">Loading deleted clients...</span>
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p className="mt-2 text-gray-600">Loading deleted clients...</p>
               </div>
             ) : filteredClients.length === 0 ? (
               <div className="text-center py-8">
-                <Trash2 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500">
-                  {searchTerm ? "No deleted clients match your search." : "No deleted clients found."}
+                <Trash2 className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                  {deletedClients.length === 0 ? "No deleted clients" : "No clients found"}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {deletedClients.length === 0 ? "The recycle bin is empty." : "Try adjusting your search criteria."}
                 </p>
-                {searchTerm && (
-                  <Button onClick={() => setSearchTerm("")} variant="outline" size="sm" className="mt-2">
-                    Clear search
-                  </Button>
-                )}
               </div>
             ) : (
-              <div className="space-y-4">
-                {filteredClients.map((client) => (
-                  <div
-                    key={client.id}
-                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-gray-50"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-medium text-gray-900">
-                          {client.firstName} {client.lastName}
-                        </h3>
-                        {getStatusBadge(client.status)}
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium">PID:</span> {client.participantId}
-                        </div>
-                        <div>
-                          <span className="font-medium">Program:</span> {client.program}
-                        </div>
-                        <div>
-                          <span className="font-medium">Phone:</span> {client.phone}
-                        </div>
-                        <div>
-                          <span className="font-medium">Email:</span> {client.email}
-                        </div>
-                        <div>
-                          <span className="font-medium">Enrollment:</span> {formatDate(client.enrollmentDate)}
-                        </div>
-                        <div>
-                          <span className="font-medium">Deleted:</span> {formatDateTime(client.deletedAt)} by{" "}
-                          {client.deletedBy}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      <Button
-                        onClick={() => handleRestore(client.id)}
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                        disabled={isRestoring === client.id || isPermanentDeleting === client.id}
-                      >
-                        <RotateCcw className="w-4 h-4 mr-2" />
-                        {isRestoring === client.id ? "Restoring..." : "Restore"}
-                      </Button>
-                      <Button
-                        onClick={() => handlePermanentDeleteClick(client.id)}
-                        size="sm"
-                        variant="outline"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
-                        disabled={isRestoring === client.id || isPermanentDeleting === client.id}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Forever
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Client
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Program
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Contact
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Deleted
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredClients.map((client) => (
+                      <tr key={client.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {client.first_name} {client.last_name}
+                              </div>
+                              <div className="text-sm text-gray-500">PID: {client.participant_id}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{client.program}</div>
+                          <div className="text-sm text-gray-500">Enrolled: {formatDate(client.enrollment_date)}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(client.status)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{client.phone}</div>
+                          <div className="text-sm text-gray-500">{client.email}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{formatDateTime(client.deleted_at)}</div>
+                          <div className="text-sm text-gray-500">by {client.deleted_by}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleRestore(client)}
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              disabled={isLoading}
+                            >
+                              <RotateCcw className="w-4 h-4 mr-1" />
+                              Restore
+                            </Button>
+                            <Button
+                              onClick={() => handlePermanentDelete(client)}
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                              disabled={isLoading}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </CardContent>
