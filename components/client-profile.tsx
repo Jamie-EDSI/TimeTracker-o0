@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Edit, Save, X, User, Phone, GraduationCap, FileText } from "lucide-react"
-import { caseNotesApi } from "@/lib/supabase"
+import { ArrowLeft, Edit, Save, X, User, Phone, GraduationCap, FileText, Trash2 } from "lucide-react"
+import { caseNotesApi, clientsApi } from "@/lib/supabase"
 
 interface Client {
   id: string
@@ -78,6 +78,8 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [showSaveSuccess, setShowSaveSuccess] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Update local state when client prop changes
   useEffect(() => {
@@ -241,6 +243,37 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
     setShowCaseNoteForm(false)
   }
 
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    try {
+      setIsDeleting(true)
+
+      // Soft delete the client (move to recycle bin)
+      await clientsApi.softDelete(currentClient.id, "Current User")
+
+      // Show success message and navigate back
+      setShowDeleteConfirm(false)
+
+      // Navigate back to dashboard after successful deletion
+      setTimeout(() => {
+        onBack()
+      }, 1000)
+    } catch (error) {
+      console.error("Error deleting client:", error)
+      setSaveError("Failed to delete client. Please try again.")
+      setShowDeleteConfirm(false)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false)
+  }
+
   const getStatusBadge = (status: string) => {
     const baseClasses = "px-2 py-1 text-xs font-medium rounded-full"
     switch (status.toLowerCase()) {
@@ -311,12 +344,55 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                 Edit Client
               </Button>
             )}
-            <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 bg-transparent">
-              Delete
+            <Button
+              onClick={handleDeleteClick}
+              variant="outline"
+              size="sm"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 bg-transparent"
+              disabled={isSaving || isDeleting}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {isDeleting ? "Deleting..." : "Delete"}
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Delete Client</h3>
+                <p className="text-sm text-gray-600">This action can be undone from the recycle bin</p>
+              </div>
+            </div>
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to delete{" "}
+              <strong>
+                {displayClient.firstName} {displayClient.lastName}
+              </strong>
+              ? This client will be moved to the recycle bin and can be restored later.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button onClick={handleDeleteCancel} variant="outline" disabled={isDeleting}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteConfirm}
+                className="bg-red-600 hover:bg-red-700 text-white"
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Deleting..." : "Delete Client"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Success/Error Messages */}
       {showSaveSuccess && (
@@ -894,49 +970,6 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                     ) : (
                       <p className="text-gray-900 text-sm">{displayClient.certificationStatus || "Not provided"}</p>
                     )}
-                  </div>
-                </div>
-
-                {/* File Upload Section */}
-                <div>
-                  <label className="mb-3 block text-sm font-medium text-gray-600">Certification Documents</label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
-                    <input
-                      type="file"
-                      multiple
-                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                      className="hidden"
-                      id="certification-upload"
-                      disabled={isSaving}
-                      onChange={(e) => {
-                        // Handle file upload logic here
-                        const files = Array.from(e.target.files || [])
-                        console.log("Uploaded files:", files)
-                        // In a real application, you would upload these files to a server
-                      }}
-                    />
-                    <label
-                      htmlFor="certification-upload"
-                      className={`cursor-pointer ${isSaving ? "pointer-events-none opacity-50" : ""}`}
-                    >
-                      <div className="flex flex-col items-center">
-                        <svg
-                          className="w-8 h-8 text-gray-400 mb-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                          />
-                        </svg>
-                        <span className="text-sm text-gray-600">Click to upload certification documents</span>
-                        <span className="text-xs text-gray-500 mt-1">PDF, JPG, PNG, DOC, DOCX (Max 10MB each)</span>
-                      </div>
-                    </label>
                   </div>
                 </div>
 

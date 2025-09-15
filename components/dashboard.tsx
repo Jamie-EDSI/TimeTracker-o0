@@ -17,6 +17,7 @@ import {
   Clock,
   Home,
   Eye,
+  Trash2,
 } from "lucide-react"
 import { ClientProfile } from "./client-profile"
 import { NewClientForm } from "./new-client-form"
@@ -24,6 +25,7 @@ import { ActiveClientsReport } from "./active-clients-report"
 import { CallLogReport } from "./call-log-report"
 import { JobsPlacementsReport } from "./jobs-placements-report"
 import { AllClientsReport } from "./all-clients-report"
+import { RecycleBin } from "./recycle-bin"
 import { clientsApi, caseNotesApi, type Client as SupabaseClient } from "@/lib/supabase"
 
 // Transform Supabase client to component client format
@@ -188,7 +190,14 @@ const validateClientData = (clientData: any): { isValid: boolean; errors: string
 
 export function Dashboard() {
   const [currentView, setCurrentView] = useState<
-    "dashboard" | "client-profile" | "new-client" | "active-clients" | "call-log" | "jobs-placements" | "all-clients"
+    | "dashboard"
+    | "client-profile"
+    | "new-client"
+    | "active-clients"
+    | "call-log"
+    | "jobs-placements"
+    | "all-clients"
+    | "recycle-bin"
   >("dashboard")
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -267,6 +276,10 @@ export function Dashboard() {
   const handleBackToDashboard = () => {
     setCurrentView("dashboard")
     setSelectedClient(null)
+    // Reload clients to refresh the list (in case any were restored from recycle bin)
+    if (currentView === "recycle-bin") {
+      loadClients()
+    }
   }
 
   const handleViewMyClients = () => {
@@ -276,6 +289,10 @@ export function Dashboard() {
     setQuickSearch("")
     // Navigate to the All Clients report
     setCurrentView("all-clients")
+  }
+
+  const handleViewRecycleBin = () => {
+    setCurrentView("recycle-bin")
   }
 
   const handleSaveClient = async (updatedClient: Client) => {
@@ -446,6 +463,10 @@ export function Dashboard() {
 
   if (currentView === "all-clients") {
     return <AllClientsReport onBack={handleBackToDashboard} clients={clients} onViewClient={handleViewClient} />
+  }
+
+  if (currentView === "recycle-bin") {
+    return <RecycleBin onBack={handleBackToDashboard} />
   }
 
   return (
@@ -686,6 +707,27 @@ export function Dashboard() {
                   </Button>
                 </CardContent>
               </Card>
+
+              {/* Recycle Bin Card */}
+              <Card className="bg-red-50 border-red-200 h-fit">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-red-700 flex items-center gap-2">
+                    <Trash2 className="w-4 h-4" />
+                    Recycle Bin
+                  </CardTitle>
+                  <p className="text-xs text-red-600">Deleted clients that can be restored</p>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <Button
+                    onClick={handleViewRecycleBin}
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-red-600 border-red-300 hover:bg-red-100 bg-transparent"
+                  >
+                    View Recycle Bin →
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
           </div>
 
@@ -896,6 +938,14 @@ export function Dashboard() {
                 >
                   <Users className="w-4 h-4 mr-2" />
                   All Clients ({clients.length})
+                </Button>
+                <Button
+                  onClick={handleViewRecycleBin}
+                  variant="outline"
+                  className="w-full justify-start text-red-600 bg-transparent"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Recycle Bin
                 </Button>
               </CardContent>
             </Card>

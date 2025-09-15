@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Search, FileSpreadsheet, FileText, Eye } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { FilterPanel } from "@/components/ui/filter-panel"
-import { exportToExcel, formatDateForExport } from "@/lib/excel-export"
-import { exportToPDF } from "@/lib/pdf-export"
+import { ArrowLeft, Search, Download, Eye, Filter } from "lucide-react"
+import { exportToExcel } from "@/lib/excel-export"
 
 interface Client {
   id: string
@@ -25,7 +25,6 @@ interface Client {
   state: string
   zipCode: string
   dateOfBirth: string
-  ssn?: string
   emergencyContact?: string
   emergencyPhone?: string
   caseManager: string
@@ -35,7 +34,20 @@ interface Client {
   isNew?: boolean
   createdAt?: string
   lastContact?: string
-  // Add case notes field
+  lastModified?: string
+  modifiedBy?: string
+  educationLevel?: string
+  graduationYear?: string
+  schoolName?: string
+  fieldOfStudy?: string
+  educationNotes?: string
+  currentlyEnrolled?: string
+  gpa?: string
+  certifications?: string
+  licenses?: string
+  industryCertifications?: string
+  certificationStatus?: string
+  certificationNotes?: string
   caseNotes?: Array<{
     id: string
     note: string
@@ -47,310 +59,255 @@ interface Client {
 interface ActiveClientsReportProps {
   onBack: () => void
   clients: Client[]
-  onViewClient?: (client: Client) => void
+  onViewClient: (client: Client) => void
 }
 
 export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveClientsReportProps) {
   const [searchTerm, setSearchTerm] = useState("")
-  const [filters, setFilters] = useState<Record<string, any>>({})
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState({
+    program: "",
+    caseManager: "",
+    enrollmentDateFrom: "",
+    enrollmentDateTo: "",
+  })
 
-  // Filter to only show active clients
+  // Filter active clients only
   const activeClients = clients.filter((client) => client.status === "Active")
 
-  const filterOptions = [
-    {
-      key: "program",
-      label: "Program",
-      type: "select" as const,
-      options: [
-        "EARN",
-        "Job Readiness",
-        "YOUTH",
-        "Ex-Offender",
-        "Next Step Program",
-        "Career Development",
-        "Skills Training",
-      ],
-      placeholder: "Select program",
-    },
-    {
-      key: "caseManager",
-      label: "Case Manager",
-      type: "select" as const,
-      options: Array.from(new Set(activeClients.map((c) => c.caseManager).filter(Boolean))),
-      placeholder: "Select case manager",
-    },
-    {
-      key: "enrollmentDate",
-      label: "Enrollment Date",
-      type: "dateRange" as const,
-    },
-    {
-      key: "lastContact",
-      label: "Last Contact",
-      type: "dateRange" as const,
-    },
-    {
-      key: "city",
-      label: "City",
-      type: "text" as const,
-      placeholder: "Enter city name",
-    },
-    {
-      key: "state",
-      label: "State",
-      type: "text" as const,
-      placeholder: "Enter state",
-    },
-  ]
-
-  const filteredClients = useMemo(() => {
-    let filtered = activeClients
-
-    // Apply search filter
+  // Apply search and filters
+  const filteredClients = activeClients.filter((client) => {
+    // Search filter
     if (searchTerm) {
-      filtered = filtered.filter(
-        (client) =>
-          `${client.firstName} ${client.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          client.participantId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          client.program.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          client.caseManager.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          client.phone.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
+      const searchLower = searchTerm.toLowerCase()
+      const matchesSearch =
+        `${client.firstName} ${client.lastName}`.toLowerCase().includes(searchLower) ||
+        client.participantId.toLowerCase().includes(searchLower) ||
+        client.program.toLowerCase().includes(searchLower) ||
+        client.email.toLowerCase().includes(searchLower) ||
+        client.phone.toLowerCase().includes(searchLower) ||
+        client.caseManager.toLowerCase().includes(searchLower)
+
+      if (!matchesSearch) return false
     }
 
-    // Apply other filters
-    Object.entries(filters).forEach(([key, value]) => {
-      if (!value) return
+    // Program filter
+    if (filters.program && client.program !== filters.program) return false
 
-      if (key === "program" || key === "caseManager") {
-        filtered = filtered.filter((client) => client[key as keyof typeof client] === value)
-      }
+    // Case Manager filter
+    if (filters.caseManager && client.caseManager !== filters.caseManager) return false
 
-      if (key === "city" || key === "state") {
-        filtered = filtered.filter((client) =>
-          client[key as keyof typeof client]?.toLowerCase().includes(value.toLowerCase()),
-        )
-      }
+    // Enrollment date filters
+    if (filters.enrollmentDateFrom) {
+      const enrollmentDate = new Date(client.enrollmentDate)
+      const fromDate = new Date(filters.enrollmentDateFrom)
+      if (enrollmentDate < fromDate) return false
+    }
 
-      if (key === "enrollmentDate_from") {
-        filtered = filtered.filter((client) => new Date(client.enrollmentDate) >= new Date(value))
-      }
+    if (filters.enrollmentDateTo) {
+      const enrollmentDate = new Date(client.enrollmentDate)
+      const toDate = new Date(filters.enrollmentDateTo)
+      if (enrollmentDate > toDate) return false
+    }
 
-      if (key === "enrollmentDate_to") {
-        filtered = filtered.filter((client) => new Date(client.enrollmentDate) <= new Date(value))
-      }
+    return true
+  })
 
-      if (key === "lastContact_from") {
-        filtered = filtered.filter((client) => client.lastContact && new Date(client.lastContact) >= new Date(value))
-      }
-
-      if (key === "lastContact_to") {
-        filtered = filtered.filter((client) => client.lastContact && new Date(client.lastContact) <= new Date(value))
-      }
-    })
-
-    return filtered
-  }, [activeClients, searchTerm, filters])
-
-  const handleExportToExcel = () => {
+  const handleExport = () => {
     const exportData = filteredClients.map((client) => ({
-      "Client Name": `${client.firstName} ${client.lastName}`,
       "Participant ID": client.participantId,
+      "First Name": client.firstName,
+      "Last Name": client.lastName,
       Program: client.program,
-      "Enrollment Date": formatDateForExport(client.enrollmentDate),
-      "Case Manager": client.caseManager,
-      "Last Contact": client.lastContact
-        ? formatDateForExport(client.lastContact)
-        : client.caseNotes && client.caseNotes.length > 0
-          ? formatDateForExport(client.caseNotes[0].date)
-          : "N/A",
+      Status: client.status,
+      "Enrollment Date": client.enrollmentDate,
       Phone: client.phone,
+      "Cell Phone": client.cellPhone || "",
       Email: client.email,
+      Address: client.address,
       City: client.city,
       State: client.state,
       "ZIP Code": client.zipCode,
-      "Emergency Contact": client.emergencyContact || "N/A",
-      "Emergency Phone": client.emergencyPhone || "N/A",
-    }))
-
-    const filename = `Active_Clients_Report_${new Date().toISOString().split("T")[0]}`
-    exportToExcel(exportData, filename, "Active Clients")
-  }
-
-  const handleExportToPDF = () => {
-    const pdfData = filteredClients.map((client) => ({
-      "Client Name": `${client.firstName} ${client.lastName}`,
-      "Participant ID": client.participantId,
-      Program: client.program,
-      "Enrollment Date": client.enrollmentDate,
+      "Date of Birth": client.dateOfBirth,
+      "Emergency Contact": client.emergencyContact || "",
+      "Emergency Phone": client.emergencyPhone || "",
       "Case Manager": client.caseManager,
-      Phone: client.phone,
-      Email: client.email,
+      "Responsible EC": client.responsibleEC || "",
+      "Required Hours": client.requiredHours || "",
+      "CAO Number": client.caoNumber || "",
+      "Last Contact": client.lastContact || "",
+      "Last Modified": client.lastModified || "",
+      "Modified By": client.modifiedBy || "",
     }))
 
-    const columns = [
-      { key: "Client Name", label: "Client Name", width: "20%" },
-      { key: "Participant ID", label: "PID", width: "12%" },
-      { key: "Program", label: "Program", width: "15%" },
-      { key: "Enrollment Date", label: "Enrolled", width: "12%" },
-      { key: "Case Manager", label: "Case Manager", width: "15%" },
-      { key: "Phone", label: "Phone", width: "13%" },
-      { key: "Email", label: "Email", width: "13%" },
-    ]
-
-    exportToPDF(pdfData, "Active Clients Report", columns, filters)
+    exportToExcel(exportData, "Active_Clients_Report")
   }
 
-  const handleClearFilters = () => {
-    setFilters({})
-    setSearchTerm("")
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "active":
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Active</Badge>
+      case "inactive":
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Inactive</Badge>
+      case "pending":
+        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pending</Badge>
+      default:
+        return <Badge variant="secondary">{status}</Badge>
+    }
   }
+
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString()
+    } catch {
+      return dateString
+    }
+  }
+
+  // Get unique values for filter options
+  const uniquePrograms = [...new Set(activeClients.map((client) => client.program))].sort()
+  const uniqueCaseManagers = [...new Set(activeClients.map((client) => client.caseManager))].sort()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Dashboard
-            </Button>
-            <div className="h-6 w-px bg-gray-300" />
-            <h1 className="text-2xl font-bold text-gray-900">Active Clients Report</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button onClick={handleExportToExcel} className="bg-green-600 hover:bg-green-700">
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
-              Export to Excel ({filteredClients.length})
-            </Button>
-            <Button onClick={handleExportToPDF} className="bg-red-600 hover:bg-red-700 text-white shadow-lg">
-              <FileText className="w-4 h-4 mr-2" />
-              Export PDF
-            </Button>
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button onClick={onBack} variant="ghost" size="sm" className="flex items-center gap-2">
+                <ArrowLeft className="w-4 h-4" />
+                Back to Dashboard
+              </Button>
+              <div className="h-6 w-px bg-gray-300" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Active Clients Report</h1>
+                <p className="text-gray-600">Overview of all currently active clients</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-green-600">
+                {filteredClients.length} active clients
+              </Badge>
+              <Button onClick={() => setShowFilters(!showFilters)} variant="outline" size="sm">
+                <Filter className="w-4 h-4 mr-2" />
+                Filters
+              </Button>
+              <Button onClick={handleExport} className="bg-green-600 hover:bg-green-700 text-white" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Export to Excel
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="p-6">
-        {/* Filter Panel */}
-        <FilterPanel
-          filters={filterOptions}
-          onFiltersChange={setFilters}
-          activeFilters={filters}
-          onClearFilters={handleClearFilters}
-        />
-
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>
-                Active Clients ({filteredClients.length} of {activeClients.length})
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search active clients..."
-                    className="pl-10 w-64"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
+              <CardTitle className="text-lg">Active Clients ({filteredClients.length})</CardTitle>
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search clients..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4">Name</th>
-                    <th className="text-left py-3 px-4">Participant ID</th>
-                    <th className="text-left py-3 px-4">Program</th>
-                    <th className="text-left py-3 px-4">Enrollment Date</th>
-                    <th className="text-left py-3 px-4">Case Manager</th>
-                    <th className="text-left py-3 px-4">Last Contact</th>
-                    <th className="text-left py-3 px-4">Contact Info</th>
-                    <th className="text-left py-3 px-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredClients.map((client) => (
-                    <tr key={client.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4 font-medium">
-                        <div className="flex items-center gap-2">
-                          {client.firstName} {client.lastName}
-                          {client.isNew && (
-                            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full animate-pulse">
-                              New
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 font-mono">{client.participantId}</td>
-                      <td className="py-3 px-4">{client.program}</td>
-                      <td className="py-3 px-4">{new Date(client.enrollmentDate).toLocaleDateString()}</td>
-                      <td className="py-3 px-4">{client.caseManager}</td>
-                      <td className="py-3 px-4">
-                        {client.lastContact
-                          ? new Date(client.lastContact).toLocaleDateString()
-                          : client.caseNotes && client.caseNotes.length > 0
-                            ? new Date(client.caseNotes[0].date).toLocaleDateString()
-                            : "N/A"}
-                      </td>
-                      <td className="py-3 px-4 text-sm">
-                        <div>{client.phone}</div>
-                        <div className="text-gray-500">{client.email}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        {onViewClient && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => onViewClient(client)}
-                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          >
-                            <Eye className="w-3 h-3 mr-1" />
-                            View
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
 
-            {filteredClients.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                No active clients match the current filters. Try adjusting your search criteria.
+          {/* Filter Panel */}
+          {showFilters && (
+            <FilterPanel
+              filters={filters}
+              onFiltersChange={setFilters}
+              programs={uniquePrograms}
+              caseManagers={uniqueCaseManagers}
+            />
+          )}
+
+          <CardContent>
+            {filteredClients.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">
+                  {searchTerm || Object.values(filters).some((f) => f)
+                    ? "No active clients match your search criteria."
+                    : "No active clients found."}
+                </p>
+                {(searchTerm || Object.values(filters).some((f) => f)) && (
+                  <Button
+                    onClick={() => {
+                      setSearchTerm("")
+                      setFilters({
+                        program: "",
+                        caseManager: "",
+                        enrollmentDateFrom: "",
+                        enrollmentDateTo: "",
+                      })
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                  >
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredClients.map((client) => (
+                  <div
+                    key={client.id}
+                    className={`flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 ${
+                      client.isNew ? "ring-2 ring-green-200 bg-green-50" : ""
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-medium text-gray-900">
+                          {client.firstName} {client.lastName}
+                        </h3>
+                        {client.isNew && (
+                          <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs animate-pulse">
+                            New
+                          </Badge>
+                        )}
+                        {getStatusBadge(client.status)}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                        <div>
+                          <span className="font-medium">PID:</span> {client.participantId}
+                        </div>
+                        <div>
+                          <span className="font-medium">Program:</span> {client.program}
+                        </div>
+                        <div>
+                          <span className="font-medium">Phone:</span> {client.phone}
+                        </div>
+                        <div>
+                          <span className="font-medium">Email:</span> {client.email}
+                        </div>
+                        <div>
+                          <span className="font-medium">Case Manager:</span> {client.caseManager}
+                        </div>
+                        <div>
+                          <span className="font-medium">Enrollment:</span> {formatDate(client.enrollmentDate)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      <Button onClick={() => onViewClient(client)} size="sm" variant="outline">
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Details
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-
-            {/* Export Summary */}
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-blue-900">Export Summary</h3>
-                  <p className="text-xs text-blue-700">
-                    Ready to export {filteredClients.length} active client records
-                    {Object.keys(filters).length > 0 && " (filters applied)"}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleExportToExcel} size="sm" className="bg-green-600 hover:bg-green-700">
-                    <FileSpreadsheet className="w-3 h-3 mr-1" />
-                    Excel
-                  </Button>
-                  <Button onClick={handleExportToPDF} size="sm" className="bg-red-600 hover:bg-red-700">
-                    <FileText className="w-3 h-3 mr-1" />
-                    PDF
-                  </Button>
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

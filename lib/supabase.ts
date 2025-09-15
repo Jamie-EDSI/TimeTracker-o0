@@ -87,6 +87,8 @@ export interface Client {
   last_contact?: string
   last_modified?: string
   modified_by?: string
+  deleted_at?: string
+  deleted_by?: string
 }
 
 export interface CaseNote {
@@ -95,6 +97,8 @@ export interface CaseNote {
   note: string
   created_at: string
   author: string
+  deleted_at?: string
+  deleted_by?: string
 }
 
 // Enhanced mock data for comprehensive testing
@@ -271,25 +275,56 @@ const simulateDelay = (ms = 500) => new Promise((resolve) => setTimeout(resolve,
 
 // Enhanced client database operations with comprehensive debugging
 export const clientsApi = {
-  // Get all clients with enhanced debugging
+  // Get all active clients (excluding deleted ones)
   async getAll(): Promise<Client[]> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
-      return [...mockClients]
+      return mockClients.filter((client) => !client.deleted_at)
     }
 
     return SupabaseDebugger.logOperation("SELECT", "clients", null, async () => {
-      const { data, error } = await supabase.from("clients").select("*").order("created_at", { ascending: false })
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
 
       if (error) {
         console.error("🚨 Supabase SELECT error:", error)
         console.log("🔄 Falling back to demo data")
         await simulateDelay()
-        return mockClients
+        return mockClients.filter((client) => !client.deleted_at)
       }
 
       console.log(`✅ Successfully loaded ${data?.length || 0} clients from Supabase`)
+      return data || []
+    })
+  },
+
+  // Get deleted clients for recycle bin
+  async getDeleted(): Promise<Client[]> {
+    if (!supabase || configError) {
+      console.log("📊 Using demo data - Supabase not configured properly")
+      await simulateDelay()
+      return mockClients.filter((client) => client.deleted_at)
+    }
+
+    return SupabaseDebugger.logOperation("SELECT_DELETED", "clients", null, async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .not("deleted_at", "is", null)
+        .order("deleted_at", { ascending: false })
+
+      if (error) {
+        console.error("🚨 Supabase SELECT_DELETED error:", error)
+        console.log("🔄 Falling back to demo data")
+        await simulateDelay()
+        return mockClients.filter((client) => client.deleted_at)
+      }
+
+      console.log(`✅ Successfully loaded ${data?.length || 0} deleted clients from Supabase`)
       return data || []
     })
   },
@@ -299,16 +334,16 @@ export const clientsApi = {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
-      return mockClients.find((client) => client.id === id) || null
+      return mockClients.find((client) => client.id === id && !client.deleted_at) || null
     }
 
     return SupabaseDebugger.logOperation("SELECT_BY_ID", "clients", { id }, async () => {
-      const { data, error } = await supabase.from("clients").select("*").eq("id", id).single()
+      const { data, error } = await supabase.from("clients").select("*").eq("id", id).is("deleted_at", null).single()
 
       if (error) {
         console.error("🚨 Supabase SELECT_BY_ID error:", error)
         console.log("🔄 Falling back to demo data")
-        return mockClients.find((client) => client.id === id) || null
+        return mockClients.find((client) => client.id === id && !client.deleted_at) || null
       }
 
       return data
@@ -420,8 +455,84 @@ export const clientsApi = {
     })
   },
 
-  // Delete client with debugging
-  async delete(id: string): Promise<void> {
+  // Soft delete client (move to recycle bin)
+  async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
+    if (!supabase || configError) {
+      console.log("📊 Using demo data - Supabase not configured properly")
+      await simulateDelay()
+      const clientIndex = mockClients.findIndex((client) => client.id === id)
+      if (clientIndex !== -1) {
+        mockClients[clientIndex] = {
+          ...mockClients[clientIndex],
+          deleted_at: new Date().toISOString(),
+          deleted_by: deletedBy,
+        }
+      }
+      return
+    }
+
+    return SupabaseDebugger.logOperation("SOFT_DELETE", "clients", { id }, async () => {
+      const { error } = await supabase
+        .from("clients")
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: deletedBy,
+        })
+        .eq("id", id)
+
+      if (error) {
+        console.error("🚨 Supabase SOFT_DELETE error:", error)
+        throw new Error(`Database error: ${error.message}`)
+      }
+
+      console.log("✅ Client successfully moved to recycle bin:", id)
+    })
+  },
+
+  // Restore client from recycle bin
+  async restore(id: string): Promise<Client> {
+    if (!supabase || configError) {
+      console.log("📊 Using demo data - Supabase not configured properly")
+      await simulateDelay()
+      const clientIndex = mockClients.findIndex((client) => client.id === id)
+      if (clientIndex !== -1) {
+        mockClients[clientIndex] = {
+          ...mockClients[clientIndex],
+          deleted_at: undefined,
+          deleted_by: undefined,
+          last_modified: new Date().toISOString(),
+          modified_by: "Current User",
+        }
+        return mockClients[clientIndex]
+      }
+      throw new Error("Client not found")
+    }
+
+    return SupabaseDebugger.logOperation("RESTORE", "clients", { id }, async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .update({
+          deleted_at: null,
+          deleted_by: null,
+          last_modified: new Date().toISOString(),
+          modified_by: "Current User",
+        })
+        .eq("id", id)
+        .select()
+        .single()
+
+      if (error) {
+        console.error("🚨 Supabase RESTORE error:", error)
+        throw new Error(`Database error: ${error.message}`)
+      }
+
+      console.log("✅ Client successfully restored from recycle bin:", id)
+      return data
+    })
+  },
+
+  // Permanently delete client
+  async permanentDelete(id: string): Promise<void> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
@@ -432,27 +543,27 @@ export const clientsApi = {
       return
     }
 
-    return SupabaseDebugger.logOperation("DELETE", "clients", { id }, async () => {
+    return SupabaseDebugger.logOperation("PERMANENT_DELETE", "clients", { id }, async () => {
       const { error } = await supabase.from("clients").delete().eq("id", id)
 
       if (error) {
-        console.error("🚨 Supabase DELETE error:", error)
+        console.error("🚨 Supabase PERMANENT_DELETE error:", error)
         throw new Error(`Database error: ${error.message}`)
       }
 
-      console.log("✅ Client successfully deleted from Supabase:", id)
+      console.log("✅ Client permanently deleted from Supabase:", id)
     })
   },
 }
 
 // Enhanced case notes database operations
 export const caseNotesApi = {
-  // Get case notes for a client with debugging
+  // Get case notes for a client with debugging (excluding deleted ones)
   async getByClientId(clientId: string): Promise<CaseNote[]> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
-      return mockCaseNotes.filter((note) => note.client_id === clientId)
+      return mockCaseNotes.filter((note) => note.client_id === clientId && !note.deleted_at)
     }
 
     return SupabaseDebugger.logOperation("SELECT_BY_CLIENT", "case_notes", { clientId }, async () => {
@@ -460,12 +571,13 @@ export const caseNotesApi = {
         .from("case_notes")
         .select("*")
         .eq("client_id", clientId)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
 
       if (error) {
         console.error("🚨 Supabase SELECT_BY_CLIENT error:", error)
         console.log("🔄 Falling back to demo data")
-        return mockCaseNotes.filter((note) => note.client_id === clientId)
+        return mockCaseNotes.filter((note) => note.client_id === clientId && !note.deleted_at)
       }
 
       console.log(`✅ Successfully loaded ${data?.length || 0} case notes for client ${clientId}`)
@@ -514,27 +626,37 @@ export const caseNotesApi = {
     })
   },
 
-  // Delete case note with debugging
-  async delete(id: string): Promise<void> {
+  // Soft delete case note
+  async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       const noteIndex = mockCaseNotes.findIndex((note) => note.id === id)
       if (noteIndex !== -1) {
-        mockCaseNotes.splice(noteIndex, 1)
+        mockCaseNotes[noteIndex] = {
+          ...mockCaseNotes[noteIndex],
+          deleted_at: new Date().toISOString(),
+          deleted_by: deletedBy,
+        }
       }
       return
     }
 
-    return SupabaseDebugger.logOperation("DELETE", "case_notes", { id }, async () => {
-      const { error } = await supabase.from("case_notes").delete().eq("id", id)
+    return SupabaseDebugger.logOperation("SOFT_DELETE", "case_notes", { id }, async () => {
+      const { error } = await supabase
+        .from("case_notes")
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: deletedBy,
+        })
+        .eq("id", id)
 
       if (error) {
-        console.error("🚨 Supabase DELETE error:", error)
+        console.error("🚨 Supabase SOFT_DELETE error:", error)
         throw new Error(`Database error: ${error.message}`)
       }
 
-      console.log("✅ Case note successfully deleted from Supabase:", id)
+      console.log("✅ Case note successfully moved to recycle bin:", id)
     })
   },
 }
@@ -600,9 +722,17 @@ export const testSupabaseSync = async () => {
     })
     console.log("✅ Test case note created:", testNote.id)
 
+    // Test soft delete
+    await clientsApi.softDelete(createdClient.id, "Test User")
+    console.log("✅ Test client soft deleted")
+
+    // Test restore
+    await clientsApi.restore(createdClient.id)
+    console.log("✅ Test client restored")
+
     // Clean up test data
-    await caseNotesApi.delete(testNote.id)
-    await clientsApi.delete(createdClient.id)
+    await caseNotesApi.softDelete(testNote.id, "Test User")
+    await clientsApi.permanentDelete(createdClient.id)
     console.log("✅ Test data cleaned up")
 
     console.log("🎉 All sync operations working correctly!")
