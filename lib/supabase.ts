@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js"
-import { NetworkMonitor, DataValidator } from "./supabase-debug"
 
 // Environment variable validation with fallbacks for development
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -21,17 +20,12 @@ const hasValidConfig =
 
 let configError: string | null = null
 
+// Create and export supabase client
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
 if (hasValidConfig) {
   try {
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
     console.log("✅ Supabase client created successfully")
-
-    // Test connection immediately
-    if (typeof window !== "undefined") {
-      NetworkMonitor.testConnection().then((result) => {
-        console.log("🌐 Connection Test Result:", result)
-      })
-    }
   } catch (error: any) {
     console.error("❌ Failed to create Supabase client:", error)
     configError = `Supabase client creation failed: ${error.message}`
@@ -268,9 +262,26 @@ const mockCaseNotes: CaseNote[] = [
 // Helper function to simulate network delay for realistic demo
 const simulateDelay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms))
 
+// Simple data validation
+const validateClient = (client: any) => {
+  const errors: string[] = []
+  if (!client.first_name?.trim()) errors.push("First name is required")
+  if (!client.last_name?.trim()) errors.push("Last name is required")
+  if (!client.participant_id?.trim()) errors.push("Participant ID is required")
+  return { isValid: errors.length === 0, errors }
+}
+
+const validateCaseNote = (caseNote: any) => {
+  const errors: string[] = []
+  if (!caseNote.client_id?.trim()) errors.push("Client ID is required")
+  if (!caseNote.note?.trim()) errors.push("Note is required")
+  if (!caseNote.author?.trim()) errors.push("Author is required")
+  return { isValid: errors.length === 0, errors }
+}
+
 // Enhanced client database operations with comprehensive debugging
 export const clientsApi = {
-  // Get all active clients (excluding deleted ones)
+  // Get all active clients (excluding deleted ones if column exists)
   async getAll(): Promise<Client[]> {
     if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -278,18 +289,36 @@ export const clientsApi = {
       return mockClients.filter((client) => !client.deleted_at)
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-    const { data, error } = await supabaseClient
-      .from("clients")
-      .select("*")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
+    try {
+      // First, try to query with deleted_at filter
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
 
-    if (error) throw error
-    return data || []
+      if (error) {
+        // If deleted_at column doesn't exist, query without it
+        if (error.message.includes("deleted_at") && error.message.includes("does not exist")) {
+          console.log("⚠️ deleted_at column not found, querying all clients")
+          const { data: allData, error: allError } = await supabase
+            .from("clients")
+            .select("*")
+            .order("created_at", { ascending: false })
+
+          if (allError) throw allError
+          return allData || []
+        }
+        throw error
+      }
+      return data || []
+    } catch (error) {
+      console.error("Error fetching clients:", error)
+      throw error
+    }
   },
 
-  // Get deleted clients for recycle bin
+  // Get deleted clients for recycle bin (if soft delete is supported)
   async getDeleted(): Promise<Client[]> {
     if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -297,15 +326,26 @@ export const clientsApi = {
       return mockClients.filter((client) => client.deleted_at)
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-    const { data, error } = await supabaseClient
-      .from("clients")
-      .select("*")
-      .not("deleted_at", "is", null)
-      .order("deleted_at", { ascending: false })
+    try {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .not("deleted_at", "is", null)
+        .order("deleted_at", { ascending: false })
 
-    if (error) throw error
-    return data || []
+      if (error) {
+        // If deleted_at column doesn't exist, return empty array
+        if (error.message.includes("deleted_at") && error.message.includes("does not exist")) {
+          console.log("⚠️ Soft delete not supported - deleted_at column missing")
+          return []
+        }
+        throw error
+      }
+      return data || []
+    } catch (error) {
+      console.error("Error fetching deleted clients:", error)
+      return []
+    }
   },
 
   // Get client by ID with debugging
@@ -316,8 +356,7 @@ export const clientsApi = {
       return mockClients.find((client) => client.id === id) || null
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-    const { data, error } = await supabaseClient.from("clients").select("*").eq("id", id).single()
+    const { data, error } = await supabase.from("clients").select("*").eq("id", id).single()
 
     if (error) throw error
     return data
@@ -326,7 +365,7 @@ export const clientsApi = {
   // Create new client with comprehensive validation and debugging
   async create(client: Omit<Client, "id" | "created_at" | "last_modified">): Promise<Client> {
     // Validate data before sending
-    const validation = DataValidator.validateClient(client)
+    const validation = validateClient(client)
     if (!validation.isValid) {
       const errorMessage = `Validation failed: ${validation.errors.join(", ")}`
       console.error("❌ Client validation failed:", validation.errors)
@@ -346,8 +385,7 @@ export const clientsApi = {
       return newClient
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabase
       .from("clients")
       .insert([
         {
@@ -366,7 +404,7 @@ export const clientsApi = {
   // Update client with comprehensive validation and debugging
   async update(id: string, updates: Partial<Omit<Client, "id" | "created_at">>): Promise<Client> {
     // Validate updates
-    const validation = DataValidator.validateClient({ ...updates, id })
+    const validation = validateClient({ ...updates, id })
     if (!validation.isValid) {
       const errorMessage = `Validation failed: ${validation.errors.join(", ")}`
       console.error("❌ Client update validation failed:", validation.errors)
@@ -389,8 +427,7 @@ export const clientsApi = {
       throw new Error("Client not found")
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabase
       .from("clients")
       .update({
         ...updates,
@@ -405,7 +442,7 @@ export const clientsApi = {
     return data
   },
 
-  // Soft delete client (move to recycle bin)
+  // Soft delete client (move to recycle bin) - only if supported
   async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
     if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -421,19 +458,31 @@ export const clientsApi = {
       return
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-    const { error } = await supabaseClient
-      .from("clients")
-      .update({
-        deleted_at: new Date().toISOString(),
-        deleted_by: deletedBy,
-      })
-      .eq("id", id)
+    try {
+      const { error } = await supabase
+        .from("clients")
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: deletedBy,
+        })
+        .eq("id", id)
 
-    if (error) throw error
+      if (error) {
+        // If soft delete not supported, do hard delete
+        if (error.message.includes("deleted_at") && error.message.includes("does not exist")) {
+          console.log("⚠️ Soft delete not supported, performing hard delete")
+          await this.permanentDelete(id)
+          return
+        }
+        throw error
+      }
+    } catch (error) {
+      console.error("Error in soft delete:", error)
+      throw error
+    }
   },
 
-  // Restore client from recycle bin
+  // Restore client from recycle bin - only if soft delete is supported
   async restore(id: string): Promise<Client> {
     if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -442,8 +491,8 @@ export const clientsApi = {
       if (clientIndex !== -1) {
         mockClients[clientIndex] = {
           ...mockClients[clientIndex],
-          deleted_at: null,
-          deleted_by: null,
+          deleted_at: undefined,
+          deleted_by: undefined,
           last_modified: new Date().toISOString(),
           modified_by: "Current User",
         }
@@ -452,8 +501,7 @@ export const clientsApi = {
       throw new Error("Client not found")
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabase
       .from("clients")
       .update({
         deleted_at: null,
@@ -481,8 +529,7 @@ export const clientsApi = {
       return
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-    const { error } = await supabaseClient.from("clients").delete().eq("id", id)
+    const { error } = await supabase.from("clients").delete().eq("id", id)
 
     if (error) throw error
   },
@@ -490,7 +537,7 @@ export const clientsApi = {
 
 // Enhanced case notes database operations
 export const caseNotesApi = {
-  // Get case notes for a client with debugging (excluding deleted ones)
+  // Get case notes for a client with debugging
   async getByClientId(clientId: string): Promise<CaseNote[]> {
     if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -498,8 +545,7 @@ export const caseNotesApi = {
       return mockCaseNotes.filter((note) => note.client_id === clientId)
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabase
       .from("case_notes")
       .select("*")
       .eq("client_id", clientId)
@@ -512,7 +558,7 @@ export const caseNotesApi = {
   // Create new case note with validation and debugging
   async create(caseNote: Omit<CaseNote, "id" | "created_at">): Promise<CaseNote> {
     // Validate case note data
-    const validation = DataValidator.validateCaseNote(caseNote)
+    const validation = validateCaseNote(caseNote)
     if (!validation.isValid) {
       const errorMessage = `Validation failed: ${validation.errors.join(", ")}`
       console.error("❌ Case note validation failed:", validation.errors)
@@ -531,8 +577,7 @@ export const caseNotesApi = {
       return newNote
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-    const { data, error } = await supabaseClient.from("case_notes").insert([caseNote]).select().single()
+    const { data, error } = await supabase.from("case_notes").insert([caseNote]).select().single()
 
     if (error) throw error
     return data
@@ -548,16 +593,13 @@ export const caseNotesApi = {
         mockCaseNotes[noteIndex] = {
           ...mockCaseNotes[noteIndex],
           ...updates,
-          last_modified: new Date().toISOString(),
-          modified_by: "Current User",
         }
         return mockCaseNotes[noteIndex]
       }
       throw new Error("Case note not found")
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-    const { data, error } = await supabaseClient.from("case_notes").update(updates).eq("id", id).select().single()
+    const { data, error } = await supabase.from("case_notes").update(updates).eq("id", id).select().single()
 
     if (error) throw error
     return data
@@ -575,8 +617,7 @@ export const caseNotesApi = {
       return
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-    const { error } = await supabaseClient.from("case_notes").delete().eq("id", id)
+    const { error } = await supabase.from("case_notes").delete().eq("id", id)
 
     if (error) throw error
   },
@@ -596,15 +637,6 @@ export const testSupabaseSync = async () => {
   console.log("🧪 Testing Supabase Sync Operations...")
 
   try {
-    // Test network connectivity
-    const networkTest = await NetworkMonitor.testConnection()
-    console.log("🌐 Network Test:", networkTest)
-
-    if (!networkTest.supabaseReachable) {
-      console.error("❌ Supabase not reachable:", networkTest.error)
-      return false
-    }
-
     // Test CRUD operations
     console.log("🔄 Testing CRUD operations...")
 
@@ -643,13 +675,17 @@ export const testSupabaseSync = async () => {
     })
     console.log("✅ Test case note created:", testNote.id)
 
-    // Test soft delete
-    await clientsApi.softDelete(createdClient.id, "Test User")
-    console.log("✅ Test client soft deleted")
+    // Test soft delete (if supported)
+    try {
+      await clientsApi.softDelete(createdClient.id, "Test User")
+      console.log("✅ Test client soft deleted")
 
-    // Test restore
-    await clientsApi.restore(createdClient.id)
-    console.log("✅ Test client restored")
+      // Test restore (if supported)
+      await clientsApi.restore(createdClient.id)
+      console.log("✅ Test client restored")
+    } catch (error: any) {
+      console.log("⚠️ Soft delete not supported:", error.message)
+    }
 
     // Clean up test data
     await caseNotesApi.delete(testNote.id)

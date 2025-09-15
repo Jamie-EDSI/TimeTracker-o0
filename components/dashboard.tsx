@@ -188,7 +188,14 @@ const validateClientData = (clientData: any): { isValid: boolean; errors: string
   }
 }
 
-export function Dashboard() {
+interface DashboardProps {
+  onNavigate?: (view: string) => void
+  onSearch?: (query: string) => void
+  clients?: Client[]
+  onViewClient?: (client: Client) => void
+}
+
+export function Dashboard({ onNavigate, onSearch, clients: propClients, onViewClient }: DashboardProps) {
   const [currentView, setCurrentView] = useState<
     | "dashboard"
     | "client-profile"
@@ -204,15 +211,17 @@ export function Dashboard() {
   const [participantIdSearch, setParticipantIdSearch] = useState("")
   const [quickSearch, setQuickSearch] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [clients, setClients] = useState<Client[]>([])
+  const [clients, setClients] = useState<Client[]>(propClients || [])
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
   const [error, setError] = useState<string | null>(null)
 
   // Load clients from Supabase on component mount
   useEffect(() => {
-    loadClients()
-  }, [])
+    if (!propClients) {
+      loadClients()
+    }
+  }, [propClients])
 
   const loadClients = async () => {
     try {
@@ -562,7 +571,7 @@ export function Dashboard() {
                 <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path
                     fillRule="evenodd"
-                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 011.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 01-1.414-1.414L10 11.414l-4.293-4.293a1 1 0 010-1.414z"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 01-1.414-1.414L10 11.414l-4.293-4.293a1 1 0 010-1.414z"
                     clipRule="evenodd"
                   />
                 </svg>

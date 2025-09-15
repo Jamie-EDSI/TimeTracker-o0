@@ -1,494 +1,369 @@
-import { createClient } from "@supabase/supabase-js"
+import { supabase, clientsApi, caseNotesApi } from "./supabase-client-api"
 
-// Diagnostic tool for Supabase integration issues
-export class SupabaseDiagnostic {
-  private supabaseUrl: string
-  private supabaseKey: string
-  private client: any
+interface DiagnosticResult {
+  test: string
+  status: "pass" | "fail" | "warning"
+  message: string
+  details?: any
+}
 
-  constructor() {
-    this.supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-    this.supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+class SupabaseDiagnostic {
+  private results: DiagnosticResult[] = []
 
-    if (this.supabaseUrl && this.supabaseKey) {
-      this.client = createClient(this.supabaseUrl, this.supabaseKey)
-    }
+  private addResult(test: string, status: "pass" | "fail" | "warning", message: string, details?: any) {
+    this.results.push({ test, status, message, details })
   }
 
-  async runFullDiagnostic() {
-    console.log("🔍 Starting Supabase Integration Diagnostic...")
-    console.log("=".repeat(50))
+  async runAllTests(): Promise<DiagnosticResult[]> {
+    this.results = []
 
-    const results = {
-      environmentVariables: this.checkEnvironmentVariables(),
-      urlValidation: this.validateUrl(),
-      keyValidation: this.validateKey(),
-      clientCreation: this.testClientCreation(),
-      connectionTest: await this.testConnection(),
-      authTest: await this.testAuthentication(),
-      tableAccess: await this.testTableAccess(),
-      crudOperations: await this.testCrudOperations(),
-      realTimeConnection: await this.testRealTimeConnection(),
-      rowLevelSecurity: await this.testRowLevelSecurity(),
-    }
+    console.log("🔍 Starting Supabase diagnostic tests...")
 
-    this.printDiagnosticResults(results)
-    return results
+    await this.testConnection()
+    await this.testEnvironmentVariables()
+    await this.testDatabaseSchema()
+    await this.testSoftDeleteSupport()
+    await this.testCRUDOperations()
+    await this.testCaseNotes()
+
+    this.printResults()
+    return this.results
   }
 
-  checkEnvironmentVariables() {
-    console.log("1️⃣ Checking Environment Variables...")
-
-    const checks = {
-      supabaseUrl: {
-        exists: !!this.supabaseUrl,
-        value: this.supabaseUrl ? "✅ Set" : "❌ Missing",
-        actual: this.supabaseUrl || "Not set",
-      },
-      supabaseKey: {
-        exists: !!this.supabaseKey,
-        value: this.supabaseKey ? "✅ Set" : "❌ Missing",
-        actual: this.supabaseKey ? `${this.supabaseKey.substring(0, 20)}...` : "Not set",
-      },
-    }
-
-    console.log("   NEXT_PUBLIC_SUPABASE_URL:", checks.supabaseUrl.value)
-    console.log("   NEXT_PUBLIC_SUPABASE_ANON_KEY:", checks.supabaseKey.value)
-
-    return checks
-  }
-
-  validateUrl() {
-    console.log("2️⃣ Validating Supabase URL...")
-
-    if (!this.supabaseUrl) {
-      console.log("   ❌ URL is missing")
-      return { valid: false, reason: "URL is missing" }
-    }
-
-    if (!this.supabaseUrl.startsWith("https://")) {
-      console.log("   ❌ URL must start with https://")
-      return { valid: false, reason: "URL must start with https://" }
-    }
-
-    if (!this.supabaseUrl.includes(".supabase.co")) {
-      console.log("   ❌ URL must contain .supabase.co")
-      return { valid: false, reason: "URL must contain .supabase.co" }
-    }
-
-    if (this.supabaseUrl.includes("placeholder") || this.supabaseUrl.includes("your-project")) {
-      console.log("   ❌ URL appears to be a placeholder")
-      return { valid: false, reason: "URL appears to be a placeholder" }
-    }
-
-    console.log("   ✅ URL format is valid")
-    return { valid: true, reason: "URL format is valid" }
-  }
-
-  validateKey() {
-    console.log("3️⃣ Validating Supabase API Key...")
-
-    if (!this.supabaseKey) {
-      console.log("   ❌ API Key is missing")
-      return { valid: false, reason: "API Key is missing" }
-    }
-
-    if (this.supabaseKey.length < 20) {
-      console.log("   ❌ API Key appears too short")
-      return { valid: false, reason: "API Key appears too short" }
-    }
-
-    if (this.supabaseKey.includes("placeholder") || this.supabaseKey.includes("your-key")) {
-      console.log("   ❌ API Key appears to be a placeholder")
-      return { valid: false, reason: "API Key appears to be a placeholder" }
-    }
-
-    console.log("   ✅ API Key format appears valid")
-    return { valid: true, reason: "API Key format appears valid" }
-  }
-
-  testClientCreation() {
-    console.log("4️⃣ Testing Supabase Client Creation...")
-
+  private async testConnection() {
     try {
-      if (!this.client) {
-        console.log("   ❌ Failed to create client - missing credentials")
-        return { success: false, error: "Missing credentials" }
-      }
+      const { data, error } = await supabase.from("clients").select("count").limit(1)
 
-      console.log("   ✅ Supabase client created successfully")
-      return { success: true }
-    } catch (error: any) {
-      console.log("   ❌ Failed to create client:", error.message)
-      return { success: false, error: error.message }
-    }
-  }
-
-  async testConnection() {
-    console.log("5️⃣ Testing Network Connection...")
-
-    if (!this.client) {
-      console.log("   ❌ No client available for connection test")
-      return { success: false, error: "No client available" }
-    }
-
-    try {
-      // Test basic connectivity by trying to access the REST API
-      const response = await fetch(`${this.supabaseUrl}/rest/v1/`, {
-        method: "HEAD",
-        headers: {
-          apikey: this.supabaseKey,
-          Authorization: `Bearer ${this.supabaseKey}`,
-        },
-      })
-
-      if (response.ok) {
-        console.log("   ✅ Network connection successful")
-        return { success: true, status: response.status }
+      if (error) {
+        this.addResult("Connection", "fail", `Failed to connect to Supabase: ${error.message}`, error)
       } else {
-        console.log(`   ❌ Network connection failed with status: ${response.status}`)
-        return { success: false, error: `HTTP ${response.status}`, status: response.status }
+        this.addResult("Connection", "pass", "Successfully connected to Supabase database")
       }
-    } catch (error: any) {
-      console.log("   ❌ Network connection failed:", error.message)
-      return { success: false, error: error.message }
+    } catch (error) {
+      this.addResult("Connection", "fail", `Connection test failed: ${error}`, error)
     }
   }
 
-  async testAuthentication() {
-    console.log("6️⃣ Testing Authentication...")
+  private async testEnvironmentVariables() {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    if (!this.client) {
-      console.log("   ❌ No client available for auth test")
-      return { success: false, error: "No client available" }
+    if (!supabaseUrl) {
+      this.addResult("Environment", "fail", "NEXT_PUBLIC_SUPABASE_URL is not set")
+    } else if (!supabaseUrl.startsWith("https://")) {
+      this.addResult("Environment", "warning", "NEXT_PUBLIC_SUPABASE_URL should start with https://")
+    } else {
+      this.addResult("Environment", "pass", "NEXT_PUBLIC_SUPABASE_URL is properly configured")
     }
 
-    try {
-      // Test if we can get the current session/user
-      const {
-        data: { session },
-        error,
-      } = await this.client.auth.getSession()
+    if (!supabaseKey) {
+      this.addResult("Environment", "fail", "NEXT_PUBLIC_SUPABASE_ANON_KEY is not set")
+    } else if (supabaseKey.length < 100) {
+      this.addResult("Environment", "warning", "NEXT_PUBLIC_SUPABASE_ANON_KEY seems too short")
+    } else {
+      this.addResult("Environment", "pass", "NEXT_PUBLIC_SUPABASE_ANON_KEY is properly configured")
+    }
+  }
 
-      if (error) {
-        console.log("   ⚠️ Auth test completed with error:", error.message)
-        return { success: false, error: error.message, hasSession: false }
+  private async testDatabaseSchema() {
+    try {
+      // Test clients table
+      const { data: clientsData, error: clientsError } = await supabase.from("clients").select("*").limit(1)
+
+      if (clientsError) {
+        this.addResult("Schema", "fail", `Clients table error: ${clientsError.message}`, clientsError)
+        return
+      } else {
+        this.addResult("Schema", "pass", "Clients table is accessible")
       }
 
-      console.log("   ✅ Auth system accessible")
-      console.log(`   Session status: ${session ? "Active session found" : "No active session (normal for anon key)"}`)
-      return { success: true, hasSession: !!session }
-    } catch (error: any) {
-      console.log("   ❌ Auth test failed:", error.message)
-      return { success: false, error: error.message }
+      // Test case_notes table
+      const { data: caseNotesData, error: caseNotesError } = await supabase.from("case_notes").select("*").limit(1)
+
+      if (caseNotesError) {
+        this.addResult("Schema", "warning", `Case notes table error: ${caseNotesError.message}`, caseNotesError)
+      } else {
+        this.addResult("Schema", "pass", "Case notes table is accessible")
+      }
+    } catch (error) {
+      this.addResult("Schema", "fail", `Schema test failed: ${error}`, error)
     }
   }
 
-  async testTableAccess() {
-    console.log("7️⃣ Testing Table Access...")
-
-    if (!this.client) {
-      console.log("   ❌ No client available for table test")
-      return { success: false, error: "No client available" }
-    }
-
-    const tableTests = {
-      clients: await this.testTableQuery("clients"),
-      case_notes: await this.testTableQuery("case_notes"),
-    }
-
-    return tableTests
-  }
-
-  async testTableQuery(tableName: string) {
+  private async testSoftDeleteSupport() {
     try {
-      console.log(`   Testing ${tableName} table...`)
+      const isAvailable = await clientsApi.isSoftDeleteAvailable()
 
-      const { data, error, count } = await this.client.from(tableName).select("*", { count: "exact", head: true })
+      if (isAvailable) {
+        this.addResult("Soft Delete", "pass", "Soft delete functionality is available")
 
-      if (error) {
-        console.log(`   ❌ ${tableName} table error:`, error.message)
-        return {
-          success: false,
-          error: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint,
+        // Test soft delete views
+        const { data: activeData, error: activeError } = await supabase.from("active_clients").select("count").limit(1)
+
+        if (activeError) {
+          this.addResult("Soft Delete", "warning", "Active clients view not available", activeError)
+        } else {
+          this.addResult("Soft Delete", "pass", "Active clients view is working")
         }
-      }
 
-      console.log(`   ✅ ${tableName} table accessible (${count || 0} rows)`)
-      return { success: true, rowCount: count || 0 }
-    } catch (error: any) {
-      console.log(`   ❌ ${tableName} table test failed:`, error.message)
-      return { success: false, error: error.message }
+        const { data: deletedData, error: deletedError } = await supabase
+          .from("deleted_clients")
+          .select("count")
+          .limit(1)
+
+        if (deletedError) {
+          this.addResult("Soft Delete", "warning", "Deleted clients view not available", deletedError)
+        } else {
+          this.addResult("Soft Delete", "pass", "Deleted clients view is working")
+        }
+      } else {
+        this.addResult(
+          "Soft Delete",
+          "warning",
+          "Soft delete functionality not available - run migration script to enable",
+        )
+      }
+    } catch (error) {
+      this.addResult("Soft Delete", "fail", `Soft delete test failed: ${error}`, error)
     }
   }
 
-  async testCrudOperations() {
-    console.log("8️⃣ Testing CRUD Operations...")
-
-    if (!this.client) {
-      console.log("   ❌ No client available for CRUD test")
-      return { success: false, error: "No client available" }
-    }
-
-    const testData = {
-      first_name: "Test",
-      last_name: "User",
-      participant_id: `TEST-${Date.now()}`,
-      program: "Test Program",
-      status: "Active",
-      enrollment_date: new Date().toISOString().split("T")[0],
-      phone: "555-0123",
-      email: "test@example.com",
-      address: "123 Test St",
-      city: "Test City",
-      state: "TS",
-      zip_code: "12345",
-      date_of_birth: "1990-01-01",
-      case_manager: "Test Manager",
-    }
-
+  private async testCRUDOperations() {
     try {
       // Test CREATE
-      console.log("   Testing CREATE operation...")
-      const { data: createData, error: createError } = await this.client
-        .from("clients")
-        .insert([testData])
-        .select()
-        .single()
-
-      if (createError) {
-        console.log("   ❌ CREATE failed:", createError.message)
-        return {
-          success: false,
-          operation: "CREATE",
-          error: createError.message,
-          code: createError.code,
-          details: createError.details,
-        }
+      const testClient = {
+        first_name: "Test",
+        last_name: "Client",
+        pid: `TEST_${Date.now()}`,
+        email: `test${Date.now()}@example.com`,
+        phone: "555-0123",
+        program: "TEST_PROGRAM",
+        status: "Active",
       }
 
-      console.log("   ✅ CREATE successful")
-      const testId = createData.id
+      const createdClient = await clientsApi.create(testClient)
+      this.addResult("CRUD", "pass", "CREATE operation successful", { id: createdClient.id })
 
       // Test READ
-      console.log("   Testing READ operation...")
-      const { data: readData, error: readError } = await this.client
-        .from("clients")
-        .select("*")
-        .eq("id", testId)
-        .single()
-
-      if (readError) {
-        console.log("   ❌ READ failed:", readError.message)
-        return {
-          success: false,
-          operation: "READ",
-          error: readError.message,
-        }
+      const fetchedClient = await clientsApi.getById(createdClient.id)
+      if (fetchedClient) {
+        this.addResult("CRUD", "pass", "READ operation successful")
+      } else {
+        this.addResult("CRUD", "fail", "READ operation failed - client not found")
       }
-
-      console.log("   ✅ READ successful")
 
       // Test UPDATE
-      console.log("   Testing UPDATE operation...")
-      const { data: updateData, error: updateError } = await this.client
-        .from("clients")
-        .update({ phone: "555-9999" })
-        .eq("id", testId)
-        .select()
-        .single()
-
-      if (updateError) {
-        console.log("   ❌ UPDATE failed:", updateError.message)
-        return {
-          success: false,
-          operation: "UPDATE",
-          error: updateError.message,
-        }
-      }
-
-      console.log("   ✅ UPDATE successful")
-
-      // Test DELETE
-      console.log("   Testing DELETE operation...")
-      const { error: deleteError } = await this.client.from("clients").delete().eq("id", testId)
-
-      if (deleteError) {
-        console.log("   ❌ DELETE failed:", deleteError.message)
-        return {
-          success: false,
-          operation: "DELETE",
-          error: deleteError.message,
-        }
-      }
-
-      console.log("   ✅ DELETE successful")
-      console.log("   ✅ All CRUD operations working correctly")
-
-      return { success: true, operations: ["CREATE", "READ", "UPDATE", "DELETE"] }
-    } catch (error: any) {
-      console.log("   ❌ CRUD test failed:", error.message)
-      return { success: false, error: error.message }
-    }
-  }
-
-  async testRealTimeConnection() {
-    console.log("9️⃣ Testing Real-time Connection...")
-
-    if (!this.client) {
-      console.log("   ❌ No client available for real-time test")
-      return { success: false, error: "No client available" }
-    }
-
-    try {
-      // Test real-time subscription
-      const channel = this.client
-        .channel("test-channel")
-        .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, (payload: any) => {
-          console.log("   📡 Real-time event received:", payload)
-        })
-
-      const subscribeResponse = await channel.subscribe()
-
-      if (subscribeResponse === "SUBSCRIBED") {
-        console.log("   ✅ Real-time connection successful")
-
-        // Clean up
-        setTimeout(() => {
-          this.client.removeChannel(channel)
-        }, 1000)
-
-        return { success: true, status: "SUBSCRIBED" }
+      const updatedClient = await clientsApi.update(createdClient.id, {
+        first_name: "Updated Test",
+      })
+      if (updatedClient.first_name === "Updated Test") {
+        this.addResult("CRUD", "pass", "UPDATE operation successful")
       } else {
-        console.log("   ❌ Real-time subscription failed:", subscribeResponse)
-        return { success: false, error: `Subscription status: ${subscribeResponse}` }
+        this.addResult("CRUD", "fail", "UPDATE operation failed")
       }
-    } catch (error: any) {
-      console.log("   ❌ Real-time test failed:", error.message)
-      return { success: false, error: error.message }
-    }
-  }
 
-  async testRowLevelSecurity() {
-    console.log("🔟 Testing Row Level Security (RLS)...")
+      // Test SOFT DELETE (if available)
+      const softDeleteAvailable = await clientsApi.isSoftDeleteAvailable()
+      if (softDeleteAvailable) {
+        const softDeleted = await clientsApi.softDelete(createdClient.id, "diagnostic_test")
+        if (softDeleted) {
+          this.addResult("CRUD", "pass", "SOFT DELETE operation successful")
 
-    if (!this.client) {
-      console.log("   ❌ No client available for RLS test")
-      return { success: false, error: "No client available" }
-    }
-
-    try {
-      // Check if RLS is enabled by trying to access tables
-      const { data, error } = await this.client.from("clients").select("id").limit(1)
-
-      if (error) {
-        if (error.code === "PGRST116" || error.message.includes("row-level security")) {
-          console.log("   ⚠️ RLS is enabled but may be blocking access")
-          console.log("   💡 Consider disabling RLS for development or setting up proper policies")
-          return {
-            success: false,
-            error: "RLS blocking access",
-            suggestion: "Disable RLS or configure policies",
-            rlsEnabled: true,
+          // Test RESTORE
+          const restored = await clientsApi.restore(createdClient.id)
+          if (restored) {
+            this.addResult("CRUD", "pass", "RESTORE operation successful")
+          } else {
+            this.addResult("CRUD", "fail", "RESTORE operation failed")
           }
         } else {
-          console.log("   ❌ RLS test failed:", error.message)
-          return { success: false, error: error.message }
+          this.addResult("CRUD", "fail", "SOFT DELETE operation failed")
         }
       }
 
-      console.log("   ✅ RLS test passed - tables accessible")
-      return { success: true, rlsEnabled: false }
-    } catch (error: any) {
-      console.log("   ❌ RLS test failed:", error.message)
-      return { success: false, error: error.message }
+      // Test HARD DELETE (cleanup)
+      const hardDeleted = await clientsApi.hardDelete(createdClient.id)
+      if (hardDeleted) {
+        this.addResult("CRUD", "pass", "HARD DELETE operation successful (cleanup)")
+      } else {
+        this.addResult("CRUD", "warning", "HARD DELETE operation failed (cleanup)")
+      }
+    } catch (error) {
+      this.addResult("CRUD", "fail", `CRUD operations test failed: ${error}`, error)
     }
   }
 
-  printDiagnosticResults(results: any) {
-    console.log("\n" + "=".repeat(50))
-    console.log("📊 DIAGNOSTIC SUMMARY")
-    console.log("=".repeat(50))
+  private async testCaseNotes() {
+    try {
+      // Create a test client first
+      const testClient = {
+        first_name: "Case Note",
+        last_name: "Test",
+        pid: `CASE_TEST_${Date.now()}`,
+        email: `casetest${Date.now()}@example.com`,
+        phone: "555-0124",
+        program: "TEST_PROGRAM",
+        status: "Active",
+      }
 
-    const issues = []
-    const warnings = []
+      const createdClient = await clientsApi.create(testClient)
 
-    // Analyze results
-    if (!results.environmentVariables.supabaseUrl.exists) {
-      issues.push("Missing NEXT_PUBLIC_SUPABASE_URL environment variable")
-    }
-    if (!results.environmentVariables.supabaseKey.exists) {
-      issues.push("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable")
-    }
-    if (!results.urlValidation.valid) {
-      issues.push(`Invalid URL: ${results.urlValidation.reason}`)
-    }
-    if (!results.keyValidation.valid) {
-      issues.push(`Invalid API Key: ${results.keyValidation.reason}`)
-    }
-    if (!results.clientCreation.success) {
-      issues.push(`Client creation failed: ${results.clientCreation.error}`)
-    }
-    if (!results.connectionTest.success) {
-      issues.push(`Network connection failed: ${results.connectionTest.error}`)
-    }
-    if (!results.tableAccess.clients.success) {
-      issues.push(`Clients table access failed: ${results.tableAccess.clients.error}`)
-    }
-    if (!results.tableAccess.case_notes.success) {
-      issues.push(`Case notes table access failed: ${results.tableAccess.case_notes.error}`)
-    }
-    if (!results.crudOperations.success) {
-      issues.push(`CRUD operations failed: ${results.crudOperations.error}`)
-    }
-    if (!results.realTimeConnection.success) {
-      warnings.push(`Real-time connection issue: ${results.realTimeConnection.error}`)
-    }
-    if (results.rowLevelSecurity.rlsEnabled) {
-      warnings.push("Row Level Security may be blocking operations")
-    }
+      // Test case note creation
+      const testCaseNote = {
+        client_id: createdClient.id,
+        note: "This is a test case note",
+        author: "Diagnostic Test",
+      }
 
-    // Print issues
-    if (issues.length > 0) {
-      console.log("🚨 CRITICAL ISSUES:")
-      issues.forEach((issue, index) => {
-        console.log(`   ${index + 1}. ${issue}`)
+      const createdCaseNote = await caseNotesApi.create(testCaseNote)
+      this.addResult("Case Notes", "pass", "Case note CREATE operation successful")
+
+      // Test case note retrieval
+      const caseNotes = await caseNotesApi.getByClientId(createdClient.id)
+      if (caseNotes.length > 0) {
+        this.addResult("Case Notes", "pass", "Case note READ operation successful")
+      } else {
+        this.addResult("Case Notes", "fail", "Case note READ operation failed")
+      }
+
+      // Test case note update
+      const updatedCaseNote = await caseNotesApi.update(createdCaseNote.id, {
+        note: "Updated test case note",
       })
-    }
+      if (updatedCaseNote.note === "Updated test case note") {
+        this.addResult("Case Notes", "pass", "Case note UPDATE operation successful")
+      } else {
+        this.addResult("Case Notes", "fail", "Case note UPDATE operation failed")
+      }
 
-    if (warnings.length > 0) {
-      console.log("\n⚠️ WARNINGS:")
-      warnings.forEach((warning, index) => {
-        console.log(`   ${index + 1}. ${warning}`)
-      })
-    }
+      // Test case note deletion
+      const deletedCaseNote = await caseNotesApi.delete(createdCaseNote.id)
+      if (deletedCaseNote) {
+        this.addResult("Case Notes", "pass", "Case note DELETE operation successful")
+      } else {
+        this.addResult("Case Notes", "fail", "Case note DELETE operation failed")
+      }
 
-    if (issues.length === 0) {
-      console.log("✅ No critical issues found!")
+      // Cleanup test client
+      await clientsApi.hardDelete(createdClient.id)
+    } catch (error) {
+      this.addResult("Case Notes", "fail", `Case notes test failed: ${error}`, error)
     }
+  }
 
-    // Recommendations
-    console.log("\n💡 RECOMMENDATIONS:")
-    if (issues.length > 0) {
-      console.log("   1. Fix the critical issues listed above first")
-      console.log("   2. Ensure your .env.local file has correct Supabase credentials")
-      console.log("   3. Verify your Supabase project is not paused")
-      console.log("   4. Check that your database schema matches the expected structure")
+  private printResults() {
+    console.log("\n📊 Supabase Diagnostic Results:")
+    console.log("================================")
+
+    const passed = this.results.filter((r) => r.status === "pass").length
+    const failed = this.results.filter((r) => r.status === "fail").length
+    const warnings = this.results.filter((r) => r.status === "warning").length
+
+    this.results.forEach((result) => {
+      const icon = result.status === "pass" ? "✅" : result.status === "fail" ? "❌" : "⚠️"
+      console.log(`${icon} ${result.test}: ${result.message}`)
+      if (result.details && result.status === "fail") {
+        console.log(`   Details:`, result.details)
+      }
+    })
+
+    console.log("\n📈 Summary:")
+    console.log(`✅ Passed: ${passed}`)
+    console.log(`❌ Failed: ${failed}`)
+    console.log(`⚠️  Warnings: ${warnings}`)
+    console.log(`📊 Total: ${this.results.length}`)
+
+    if (failed === 0) {
+      console.log("\n🎉 All critical tests passed! Your Supabase integration is working correctly.")
     } else {
-      console.log("   1. Your Supabase integration appears to be working correctly")
-      console.log("   2. If you're still experiencing issues, check the browser console for client-side errors")
-      console.log("   3. Verify that your application is using the correct API functions")
+      console.log("\n🔧 Some tests failed. Please check the errors above and fix the issues.")
     }
 
-    console.log("=".repeat(50))
+    if (warnings > 0) {
+      console.log("💡 Consider addressing the warnings to improve functionality.")
+    }
+  }
+
+  getResults(): DiagnosticResult[] {
+    return this.results
   }
 }
 
-// Export the diagnostic function
+// Global functions for browser console testing
 export const runSupabaseDiagnostic = async () => {
   const diagnostic = new SupabaseDiagnostic()
-  return await diagnostic.runFullDiagnostic()
+  return await diagnostic.runAllTests()
 }
+
+export const testSupabaseConnection = async () => {
+  try {
+    const { data, error } = await supabase.from("clients").select("count").limit(1)
+    if (error) {
+      console.error("❌ Connection failed:", error.message)
+      return false
+    } else {
+      console.log("✅ Connection successful!")
+      return true
+    }
+  } catch (error) {
+    console.error("❌ Connection test failed:", error)
+    return false
+  }
+}
+
+export const checkEnvironment = () => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  console.log("🔍 Environment Variables Check:")
+  console.log("NEXT_PUBLIC_SUPABASE_URL:", url ? "✅ Set" : "❌ Missing")
+  console.log("NEXT_PUBLIC_SUPABASE_ANON_KEY:", key ? "✅ Set" : "❌ Missing")
+
+  if (url && key) {
+    console.log("✅ All environment variables are configured")
+    return true
+  } else {
+    console.log("❌ Missing required environment variables")
+    return false
+  }
+}
+
+export const testCRUD = async () => {
+  console.log("🧪 Testing CRUD operations...")
+
+  try {
+    // Create
+    const testClient = {
+      first_name: "CRUD",
+      last_name: "Test",
+      pid: `CRUD_${Date.now()}`,
+      email: `crud${Date.now()}@test.com`,
+      phone: "555-CRUD",
+      program: "TEST",
+      status: "Active",
+    }
+
+    const created = await clientsApi.create(testClient)
+    console.log("✅ CREATE:", created.id)
+
+    // Read
+    const read = await clientsApi.getById(created.id)
+    console.log("✅ READ:", read ? "Success" : "Failed")
+
+    // Update
+    const updated = await clientsApi.update(created.id, { first_name: "Updated CRUD" })
+    console.log("✅ UPDATE:", updated.first_name)
+
+    // Delete
+    const deleted = await clientsApi.hardDelete(created.id)
+    console.log("✅ DELETE:", deleted ? "Success" : "Failed")
+
+    console.log("🎉 All CRUD operations completed successfully!")
+  } catch (error) {
+    console.error("❌ CRUD test failed:", error)
+  }
+}
+
+// Export the diagnostic class for advanced usage
+export { SupabaseDiagnostic }
+export { supabase, clientsApi, caseNotesApi }
