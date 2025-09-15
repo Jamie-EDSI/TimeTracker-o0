@@ -137,15 +137,26 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
   const [isDragOver, setIsDragOver] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
+  // Initialize editedClient with the current client data
   const [editedClient, setEditedClient] = useState<Client>(client)
 
+  // Update editedClient whenever the client prop changes
   useEffect(() => {
+    console.log("ClientProfile: Client prop changed, updating editedClient", client)
+    setEditedClient(client)
+  }, [client])
+
+  // Load case notes when component mounts or client changes
+  useEffect(() => {
+    console.log("ClientProfile: Loading case notes for client", client.id)
     loadCaseNotes()
   }, [client.id])
 
   const loadCaseNotes = async () => {
     try {
+      console.log("ClientProfile: Fetching case notes for client", client.id)
       const notes = await caseNotesApi.getByClientId(client.id)
+      console.log("ClientProfile: Loaded case notes", notes)
       setCaseNotes(notes)
     } catch (error) {
       console.error("Error loading case notes:", error)
@@ -153,16 +164,23 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
   }
 
   const handleInputChange = (field: keyof Client, value: string | number) => {
-    setEditedClient((prev) => ({ ...prev, [field]: value }))
+    console.log("ClientProfile: Updating field", field, "with value", value)
+    setEditedClient((prev) => {
+      const updated = { ...prev, [field]: value }
+      console.log("ClientProfile: Updated editedClient", updated)
+      return updated
+    })
     setError(null)
   }
 
   const handleSave = async () => {
+    console.log("ClientProfile: Saving client", editedClient)
     setIsSaving(true)
     setError(null)
 
     try {
       const updatedClient = await clientsApi.update(client.id, editedClient)
+      console.log("ClientProfile: Client updated successfully", updatedClient)
       onClientUpdated(updatedClient)
       setIsEditing(false)
     } catch (err: any) {
@@ -174,8 +192,17 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
   }
 
   const handleCancel = () => {
+    console.log("ClientProfile: Canceling edit, reverting to original client data", client)
     setEditedClient(client)
     setIsEditing(false)
+    setError(null)
+  }
+
+  const handleEdit = () => {
+    console.log("ClientProfile: Starting edit mode with client data", client)
+    // Ensure we have the latest client data when starting edit
+    setEditedClient(client)
+    setIsEditing(true)
     setError(null)
   }
 
@@ -326,6 +353,15 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
     }
   }
 
+  // Debug logging
+  console.log("ClientProfile render:", {
+    clientId: client.id,
+    clientFirstName: client.first_name,
+    editedClientFirstName: editedClient.first_name,
+    isEditing,
+    hasEditedClient: !!editedClient,
+  })
+
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       {/* Header */}
@@ -346,7 +382,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
         <div className="flex space-x-2">
           {!isEditing ? (
             <>
-              <Button onClick={() => setIsEditing(true)}>
+              <Button onClick={handleEdit}>
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
               </Button>
@@ -462,8 +498,9 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                 <Label>First Name</Label>
                 {isEditing ? (
                   <Input
-                    value={editedClient.first_name}
+                    value={editedClient.first_name || ""}
                     onChange={(e) => handleInputChange("first_name", e.target.value)}
+                    placeholder="Enter first name"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.first_name}</p>
@@ -473,8 +510,9 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                 <Label>Last Name</Label>
                 {isEditing ? (
                   <Input
-                    value={editedClient.last_name}
+                    value={editedClient.last_name || ""}
                     onChange={(e) => handleInputChange("last_name", e.target.value)}
+                    placeholder="Enter last name"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.last_name}</p>
@@ -485,7 +523,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                 {isEditing ? (
                   <Input
                     type="date"
-                    value={editedClient.date_of_birth}
+                    value={editedClient.date_of_birth || ""}
                     onChange={(e) => handleInputChange("date_of_birth", e.target.value)}
                   />
                 ) : (
@@ -495,9 +533,12 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
               <div>
                 <Label>Status</Label>
                 {isEditing ? (
-                  <Select value={editedClient.status} onValueChange={(value) => handleInputChange("status", value)}>
+                  <Select
+                    value={editedClient.status || ""}
+                    onValueChange={(value) => handleInputChange("status", value)}
+                  >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
                       {STATUS_OPTIONS.map((status) => (
@@ -528,7 +569,11 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
               <div>
                 <Label>Phone</Label>
                 {isEditing ? (
-                  <Input value={editedClient.phone} onChange={(e) => handleInputChange("phone", e.target.value)} />
+                  <Input
+                    value={editedClient.phone || ""}
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
+                    placeholder="Enter phone number"
+                  />
                 ) : (
                   <p className="mt-1 text-sm">{client.phone}</p>
                 )}
@@ -539,6 +584,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                   <Input
                     value={editedClient.cell_phone || ""}
                     onChange={(e) => handleInputChange("cell_phone", e.target.value)}
+                    placeholder="Enter cell phone number"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.cell_phone || "Not provided"}</p>
@@ -549,8 +595,9 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                 {isEditing ? (
                   <Input
                     type="email"
-                    value={editedClient.email}
+                    value={editedClient.email || ""}
                     onChange={(e) => handleInputChange("email", e.target.value)}
+                    placeholder="Enter email address"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.email}</p>
@@ -559,7 +606,11 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
               <div className="md:col-span-2">
                 <Label>Address</Label>
                 {isEditing ? (
-                  <Input value={editedClient.address} onChange={(e) => handleInputChange("address", e.target.value)} />
+                  <Input
+                    value={editedClient.address || ""}
+                    onChange={(e) => handleInputChange("address", e.target.value)}
+                    placeholder="Enter address"
+                  />
                 ) : (
                   <p className="mt-1 text-sm">{client.address}</p>
                 )}
@@ -567,7 +618,11 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
               <div>
                 <Label>City</Label>
                 {isEditing ? (
-                  <Input value={editedClient.city} onChange={(e) => handleInputChange("city", e.target.value)} />
+                  <Input
+                    value={editedClient.city || ""}
+                    onChange={(e) => handleInputChange("city", e.target.value)}
+                    placeholder="Enter city"
+                  />
                 ) : (
                   <p className="mt-1 text-sm">{client.city}</p>
                 )}
@@ -575,9 +630,9 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
               <div>
                 <Label>State</Label>
                 {isEditing ? (
-                  <Select value={editedClient.state} onValueChange={(value) => handleInputChange("state", value)}>
+                  <Select value={editedClient.state || ""} onValueChange={(value) => handleInputChange("state", value)}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select state" />
                     </SelectTrigger>
                     <SelectContent>
                       {US_STATES.map((state) => (
@@ -595,8 +650,9 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                 <Label>ZIP Code</Label>
                 {isEditing ? (
                   <Input
-                    value={editedClient.zip_code}
+                    value={editedClient.zip_code || ""}
                     onChange={(e) => handleInputChange("zip_code", e.target.value)}
+                    placeholder="Enter ZIP code"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.zip_code}</p>
@@ -617,6 +673,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                   <Input
                     value={editedClient.emergency_contact || ""}
                     onChange={(e) => handleInputChange("emergency_contact", e.target.value)}
+                    placeholder="Enter emergency contact name"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.emergency_contact || "Not provided"}</p>
@@ -628,6 +685,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                   <Input
                     value={editedClient.emergency_phone || ""}
                     onChange={(e) => handleInputChange("emergency_phone", e.target.value)}
+                    placeholder="Enter emergency contact phone"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.emergency_phone || "Not provided"}</p>
@@ -647,9 +705,12 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
               <div>
                 <Label>Program</Label>
                 {isEditing ? (
-                  <Select value={editedClient.program} onValueChange={(value) => handleInputChange("program", value)}>
+                  <Select
+                    value={editedClient.program || ""}
+                    onValueChange={(value) => handleInputChange("program", value)}
+                  >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select program" />
                     </SelectTrigger>
                     <SelectContent>
                       {PROGRAMS.map((program) => (
@@ -667,11 +728,11 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                 <Label>Case Manager</Label>
                 {isEditing ? (
                   <Select
-                    value={editedClient.case_manager}
+                    value={editedClient.case_manager || ""}
                     onValueChange={(value) => handleInputChange("case_manager", value)}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select case manager" />
                     </SelectTrigger>
                     <SelectContent>
                       {CASE_MANAGERS.map((manager) => (
@@ -690,7 +751,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                 {isEditing ? (
                   <Input
                     type="date"
-                    value={editedClient.enrollment_date}
+                    value={editedClient.enrollment_date || ""}
                     onChange={(e) => handleInputChange("enrollment_date", e.target.value)}
                   />
                 ) : (
@@ -704,6 +765,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                     type="number"
                     value={editedClient.required_hours || ""}
                     onChange={(e) => handleInputChange("required_hours", Number.parseInt(e.target.value) || 0)}
+                    placeholder="Enter required hours"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.required_hours || "Not specified"}</p>
@@ -715,6 +777,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                   <Input
                     value={editedClient.responsible_ec || ""}
                     onChange={(e) => handleInputChange("responsible_ec", e.target.value)}
+                    placeholder="Enter responsible EC"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.responsible_ec || "Not specified"}</p>
@@ -726,6 +789,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                   <Input
                     value={editedClient.cao_number || ""}
                     onChange={(e) => handleInputChange("cao_number", e.target.value)}
+                    placeholder="Enter CAO number"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.cao_number || "Not specified"}</p>
@@ -776,6 +840,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                     max="2030"
                     value={editedClient.graduation_year || ""}
                     onChange={(e) => handleInputChange("graduation_year", Number.parseInt(e.target.value) || 0)}
+                    placeholder="Enter graduation year"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.graduation_year || "Not specified"}</p>
@@ -787,6 +852,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                   <Input
                     value={editedClient.school_name || ""}
                     onChange={(e) => handleInputChange("school_name", e.target.value)}
+                    placeholder="Enter school name"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.school_name || "Not specified"}</p>
@@ -798,6 +864,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                   <Input
                     value={editedClient.field_of_study || ""}
                     onChange={(e) => handleInputChange("field_of_study", e.target.value)}
+                    placeholder="Enter field of study"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.field_of_study || "Not specified"}</p>
@@ -832,6 +899,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                     max="4"
                     value={editedClient.gpa || ""}
                     onChange={(e) => handleInputChange("gpa", Number.parseFloat(e.target.value) || 0)}
+                    placeholder="Enter GPA"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.gpa || "Not specified"}</p>
@@ -844,6 +912,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                     value={editedClient.education_notes || ""}
                     onChange={(e) => handleInputChange("education_notes", e.target.value)}
                     rows={3}
+                    placeholder="Enter education notes"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.education_notes || "No notes"}</p>
@@ -871,6 +940,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                       value={editedClient.certifications || ""}
                       onChange={(e) => handleInputChange("certifications", e.target.value)}
                       rows={3}
+                      placeholder="Enter certifications"
                     />
                   ) : (
                     <p className="mt-1 text-sm">{client.certifications || "None listed"}</p>
@@ -883,6 +953,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                       value={editedClient.licenses || ""}
                       onChange={(e) => handleInputChange("licenses", e.target.value)}
                       rows={3}
+                      placeholder="Enter licenses"
                     />
                   ) : (
                     <p className="mt-1 text-sm">{client.licenses || "None listed"}</p>
@@ -895,6 +966,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                       value={editedClient.industry_certifications || ""}
                       onChange={(e) => handleInputChange("industry_certifications", e.target.value)}
                       rows={3}
+                      placeholder="Enter industry certifications"
                     />
                   ) : (
                     <p className="mt-1 text-sm">{client.industry_certifications || "None listed"}</p>
@@ -997,6 +1069,7 @@ export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted
                     value={editedClient.certification_notes || ""}
                     onChange={(e) => handleInputChange("certification_notes", e.target.value)}
                     rows={3}
+                    placeholder="Enter certification notes"
                   />
                 ) : (
                   <p className="mt-1 text-sm">{client.certification_notes || "No notes"}</p>

@@ -28,143 +28,19 @@ import { AllClientsReport } from "./all-clients-report"
 import { RecycleBin } from "./recycle-bin"
 import { clientsApi, caseNotesApi, type Client as SupabaseClient } from "@/lib/supabase"
 
-// Transform Supabase client to component client format
-const transformSupabaseClient = (supabaseClient: SupabaseClient): Client => ({
-  id: supabaseClient.id,
-  firstName: supabaseClient.first_name,
-  lastName: supabaseClient.last_name,
-  participantId: supabaseClient.participant_id,
-  program: supabaseClient.program,
-  status: supabaseClient.status,
-  enrollmentDate: supabaseClient.enrollment_date,
-  phone: supabaseClient.phone,
-  cellPhone: supabaseClient.cell_phone,
-  email: supabaseClient.email,
-  address: supabaseClient.address,
-  city: supabaseClient.city,
-  state: supabaseClient.state,
-  zipCode: supabaseClient.zip_code,
-  dateOfBirth: supabaseClient.date_of_birth,
-  emergencyContact: supabaseClient.emergency_contact,
-  emergencyPhone: supabaseClient.emergency_phone,
-  caseManager: supabaseClient.case_manager,
-  responsibleEC: supabaseClient.responsible_ec,
-  requiredHours: supabaseClient.required_hours?.toString(),
-  caoNumber: supabaseClient.cao_number,
-  educationLevel: supabaseClient.education_level,
-  graduationYear: supabaseClient.graduation_year?.toString(),
-  schoolName: supabaseClient.school_name,
-  fieldOfStudy: supabaseClient.field_of_study,
-  educationNotes: supabaseClient.education_notes,
-  currentlyEnrolled: supabaseClient.currently_enrolled,
-  gpa: supabaseClient.gpa?.toString(),
-  certifications: supabaseClient.certifications,
-  licenses: supabaseClient.licenses,
-  industryCertifications: supabaseClient.industry_certifications,
-  certificationStatus: supabaseClient.certification_status,
-  certificationNotes: supabaseClient.certification_notes,
-  createdAt: supabaseClient.created_at,
-  lastContact: supabaseClient.last_contact,
-  lastModified: supabaseClient.last_modified,
-  modifiedBy: supabaseClient.modified_by,
-  caseNotes: [], // Will be loaded separately
-})
-
-// Transform component client to Supabase format
-const transformToSupabaseClient = (client: Client): Omit<SupabaseClient, "id" | "created_at" | "last_modified"> => ({
-  first_name: client.firstName,
-  last_name: client.lastName,
-  participant_id: client.participantId,
-  program: client.program,
-  status: client.status,
-  enrollment_date: client.enrollmentDate,
-  phone: client.phone,
-  cell_phone: client.cellPhone,
-  email: client.email,
-  address: client.address,
-  city: client.city,
-  state: client.state,
-  zip_code: client.zipCode,
-  date_of_birth: client.dateOfBirth,
-  emergency_contact: client.emergencyContact,
-  emergency_phone: client.emergencyPhone,
-  case_manager: client.caseManager,
-  responsible_ec: client.responsibleEC,
-  required_hours: client.requiredHours ? Number.parseInt(client.requiredHours) : undefined,
-  cao_number: client.caoNumber,
-  education_level: client.educationLevel,
-  graduation_year: client.graduationYear ? Number.parseInt(client.graduationYear) : undefined,
-  school_name: client.schoolName,
-  field_of_study: client.fieldOfStudy,
-  education_notes: client.educationNotes,
-  currently_enrolled: client.currentlyEnrolled,
-  gpa: client.gpa ? Number.parseFloat(client.gpa) : undefined,
-  certifications: client.certifications,
-  licenses: client.licenses,
-  industry_certifications: client.industryCertifications,
-  certification_status: client.certificationStatus,
-  certification_notes: client.certificationNotes,
-  last_contact: client.lastContact,
-  modified_by: client.modifiedBy,
-})
-
-interface Client {
-  id: string
-  firstName: string
-  lastName: string
-  participantId: string
-  program: string
-  status: string
-  enrollmentDate: string
-  phone: string
-  cellPhone?: string
-  email: string
-  address: string
-  city: string
-  state: string
-  zipCode: string
-  dateOfBirth: string
-  ssn?: string
-  emergencyContact?: string
-  emergencyPhone?: string
-  caseManager: string
-  responsibleEC?: string
-  requiredHours?: string
-  caoNumber?: string
-  isNew?: boolean
-  createdAt?: string
-  lastContact?: string
-  lastModified?: string
-  modifiedBy?: string
-  // Education fields
-  educationLevel?: string
-  graduationYear?: string
-  schoolName?: string
-  fieldOfStudy?: string
-  educationNotes?: string
-  currentlyEnrolled?: string
-  gpa?: string
-  // Certification fields
-  certifications?: string
-  licenses?: string
-  industryCertifications?: string
-  certificationStatus?: string
-  certificationNotes?: string
-  // Case notes field
-  caseNotes?: Array<{
-    id: string
-    note: string
-    date: string
-    author: string
-  }>
+interface DashboardProps {
+  onNavigate?: (view: string) => void
+  onSearch?: (query: string) => void
+  clients?: SupabaseClient[]
+  onViewClient?: (client: SupabaseClient) => void
 }
 
 const validateClientData = (clientData: any): { isValid: boolean; errors: string[] } => {
   const errors: string[] = []
 
   // Required field validation
-  if (!clientData.firstName?.trim()) errors.push("First Name is required")
-  if (!clientData.lastName?.trim()) errors.push("Last Name is required")
+  if (!clientData.first_name?.trim()) errors.push("First Name is required")
+  if (!clientData.last_name?.trim()) errors.push("Last Name is required")
   if (!clientData.program?.trim()) errors.push("Program is required")
 
   // Email validation
@@ -178,7 +54,7 @@ const validateClientData = (clientData: any): { isValid: boolean; errors: string
   }
 
   // ZIP code validation
-  if (clientData.zipCode?.trim() && !/^\d{5}(-\d{4})?$/.test(clientData.zipCode.trim())) {
+  if (clientData.zip_code?.trim() && !/^\d{5}(-\d{4})?$/.test(clientData.zip_code.trim())) {
     errors.push("Please enter a valid ZIP code")
   }
 
@@ -186,13 +62,6 @@ const validateClientData = (clientData: any): { isValid: boolean; errors: string
     isValid: errors.length === 0,
     errors,
   }
-}
-
-interface DashboardProps {
-  onNavigate?: (view: string) => void
-  onSearch?: (query: string) => void
-  clients?: Client[]
-  onViewClient?: (client: Client) => void
 }
 
 export function Dashboard({ onNavigate, onSearch, clients: propClients, onViewClient }: DashboardProps) {
@@ -206,12 +75,12 @@ export function Dashboard({ onNavigate, onSearch, clients: propClients, onViewCl
     | "all-clients"
     | "recycle-bin"
   >("dashboard")
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [selectedClient, setSelectedClient] = useState<SupabaseClient | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [participantIdSearch, setParticipantIdSearch] = useState("")
   const [quickSearch, setQuickSearch] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [clients, setClients] = useState<Client[]>(propClients || [])
+  const [clients, setClients] = useState<SupabaseClient[]>(propClients || [])
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -227,62 +96,50 @@ export function Dashboard({ onNavigate, onSearch, clients: propClients, onViewCl
     try {
       setIsLoading(true)
       setError(null)
+      console.log("Dashboard: Loading clients from Supabase...")
       const supabaseClients = await clientsApi.getAll()
-      const transformedClients = supabaseClients.map(transformSupabaseClient)
-
-      // Load case notes for each client
-      const clientsWithCaseNotes = await Promise.all(
-        transformedClients.map(async (client) => {
-          try {
-            const caseNotes = await caseNotesApi.getByClientId(client.id)
-            return {
-              ...client,
-              caseNotes: caseNotes.map((note) => ({
-                id: note.id,
-                note: note.note,
-                date: note.created_at,
-                author: note.author,
-              })),
-            }
-          } catch (error) {
-            console.error(`Error loading case notes for client ${client.id}:`, error)
-            return { ...client, caseNotes: [] }
-          }
-        }),
-      )
-
-      setClients(clientsWithCaseNotes)
+      console.log("Dashboard: Loaded clients:", supabaseClients)
+      setClients(supabaseClients)
     } catch (error) {
-      console.error("Error loading clients:", error)
+      console.error("Dashboard: Error loading clients:", error)
       setError("Failed to load clients. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleViewClient = async (client: Client) => {
+  const handleViewClient = async (client: SupabaseClient) => {
     try {
-      // Load fresh case notes for the selected client
-      const caseNotes = await caseNotesApi.getByClientId(client.id)
-      const clientWithCaseNotes = {
-        ...client,
-        caseNotes: caseNotes.map((note) => ({
-          id: note.id,
-          note: note.note,
-          date: note.created_at,
-          author: note.author,
-        })),
+      console.log("Dashboard: Viewing client:", client)
+
+      // Validate that we have a proper UUID for the client ID
+      if (!client.id || typeof client.id !== "string") {
+        console.error("Dashboard: Invalid client ID:", client.id)
+        setError("Invalid client ID format")
+        return
       }
-      setSelectedClient(clientWithCaseNotes)
+
+      // Load fresh client data from database to ensure we have the latest
+      console.log("Dashboard: Loading fresh client data for ID:", client.id)
+      const freshClient = await clientsApi.getById(client.id)
+
+      if (!freshClient) {
+        console.error("Dashboard: Client not found:", client.id)
+        setError("Client not found")
+        return
+      }
+
+      console.log("Dashboard: Fresh client data loaded:", freshClient)
+      setSelectedClient(freshClient)
       setCurrentView("client-profile")
     } catch (error) {
-      console.error("Error loading client case notes:", error)
-      setSelectedClient(client)
-      setCurrentView("client-profile")
+      console.error("Dashboard: Error loading client:", error)
+      setError("Failed to load client details. Please try again.")
     }
   }
 
   const handleBackToDashboard = () => {
+    console.log("Dashboard: Returning to dashboard from:", currentView)
     setCurrentView("dashboard")
     setSelectedClient(null)
     // Reload clients to refresh the list (in case any were restored from recycle bin)
@@ -304,49 +161,57 @@ export function Dashboard({ onNavigate, onSearch, clients: propClients, onViewCl
     setCurrentView("recycle-bin")
   }
 
-  const handleSaveClient = async (updatedClient: Client) => {
+  const handleClientUpdated = async (updatedClient: SupabaseClient) => {
     try {
-      setIsLoading(true)
-
-      // Validate the updated client data
-      const validation = validateClientData(updatedClient)
-      if (!validation.isValid) {
-        throw new Error(`Validation errors: ${validation.errors.join(", ")}`)
-      }
-
-      // Transform to Supabase format and update
-      const supabaseClientData = transformToSupabaseClient(updatedClient)
-      const savedSupabaseClient = await clientsApi.update(updatedClient.id, supabaseClientData)
-      const savedClient = transformSupabaseClient(savedSupabaseClient)
-
-      // Preserve case notes from the updated client
-      savedClient.caseNotes = updatedClient.caseNotes
+      console.log("Dashboard: Client updated:", updatedClient)
 
       // Update local state
-      setClients((prevClients) => prevClients.map((client) => (client.id === savedClient.id ? savedClient : client)))
+      setClients((prevClients) =>
+        prevClients.map((client) => (client.id === updatedClient.id ? updatedClient : client)),
+      )
 
       // Update selected client
-      setSelectedClient(savedClient)
+      setSelectedClient(updatedClient)
 
-      setSuccessMessage(`Client ${savedClient.firstName} ${savedClient.lastName} has been successfully updated!`)
+      setSuccessMessage(`Client ${updatedClient.first_name} ${updatedClient.last_name} has been successfully updated!`)
       setShowSuccessMessage(true)
 
       setTimeout(() => {
         setShowSuccessMessage(false)
       }, 5000)
-
-      return savedClient
     } catch (error) {
-      console.error("Error updating client:", error)
-      throw error
-    } finally {
-      setIsLoading(false)
+      console.error("Dashboard: Error handling client update:", error)
+      setError("Failed to update client display")
+    }
+  }
+
+  const handleClientDeleted = async (clientId: string) => {
+    try {
+      console.log("Dashboard: Client deleted:", clientId)
+
+      // Remove from local state
+      setClients((prevClients) => prevClients.filter((client) => client.id !== clientId))
+
+      // Return to dashboard
+      setCurrentView("dashboard")
+      setSelectedClient(null)
+
+      setSuccessMessage("Client has been moved to the recycle bin")
+      setShowSuccessMessage(true)
+
+      setTimeout(() => {
+        setShowSuccessMessage(false)
+      }, 5000)
+    } catch (error) {
+      console.error("Dashboard: Error handling client deletion:", error)
+      setError("Failed to update client list after deletion")
     }
   }
 
   const handleClientCreated = async (clientData: any) => {
     try {
       setIsLoading(true)
+      console.log("Dashboard: Creating new client:", clientData)
 
       // Validate client data
       const validation = validateClientData(clientData)
@@ -355,24 +220,23 @@ export function Dashboard({ onNavigate, onSearch, clients: propClients, onViewCl
         return
       }
 
-      // Transform to Supabase format
-      const supabaseClientData = transformToSupabaseClient(clientData)
-
       // Create client in Supabase
-      const savedSupabaseClient = await clientsApi.create(supabaseClientData)
-      const savedClient = transformSupabaseClient(savedSupabaseClient)
+      const savedClient = await clientsApi.create(clientData)
+      console.log("Dashboard: Client created successfully:", savedClient)
 
       // Add initial case note if provided
-      if (clientData.caseNotes && clientData.caseNotes.length > 0) {
-        const initialNote = clientData.caseNotes[0]
-        await caseNotesApi.create({
-          client_id: savedClient.id,
-          note: initialNote.note,
-          author: initialNote.author,
-        })
-        savedClient.caseNotes = clientData.caseNotes
-      } else {
-        savedClient.caseNotes = []
+      if (clientData.initialNote && clientData.initialNote.trim()) {
+        try {
+          await caseNotesApi.create({
+            client_id: savedClient.id,
+            note: clientData.initialNote.trim(),
+            author: "Current User",
+          })
+          console.log("Dashboard: Initial case note added")
+        } catch (noteError) {
+          console.error("Dashboard: Error adding initial case note:", noteError)
+          // Don't fail the whole operation for a case note error
+        }
       }
 
       // Add to local state
@@ -384,8 +248,8 @@ export function Dashboard({ onNavigate, onSearch, clients: propClients, onViewCl
 
       // Show success message
       setSuccessMessage(
-        `Client ${savedClient.firstName} ${savedClient.lastName} has been successfully created and saved to the database! 
-        Participant ID: ${savedClient.participantId}`,
+        `Client ${savedClient.first_name} ${savedClient.last_name} has been successfully created and saved to the database! 
+        Participant ID: ${savedClient.participant_id}`,
       )
       setShowSuccessMessage(true)
 
@@ -401,7 +265,7 @@ export function Dashboard({ onNavigate, onSearch, clients: propClients, onViewCl
         )
       }, 7000)
     } catch (error) {
-      console.error("Error creating client:", error)
+      console.error("Dashboard: Error creating client:", error)
       alert("There was an error creating the client. Please try again.")
     } finally {
       setIsLoading(false)
@@ -416,17 +280,17 @@ export function Dashboard({ onNavigate, onSearch, clients: propClients, onViewCl
       if (quickSearch.trim()) {
         const searchLower = quickSearch.toLowerCase()
         return (
-          `${client.firstName} ${client.lastName}`.toLowerCase().includes(searchLower) ||
-          client.participantId.toLowerCase().includes(searchLower) ||
+          `${client.first_name} ${client.last_name}`.toLowerCase().includes(searchLower) ||
+          client.participant_id.toLowerCase().includes(searchLower) ||
           client.program.toLowerCase().includes(searchLower) ||
           client.email.toLowerCase().includes(searchLower) ||
-          client.phone.toLowerCase().includes(searchLower) ||
-          client.caseManager.toLowerCase().includes(searchLower)
+          client.phone?.toLowerCase().includes(searchLower) ||
+          client.case_manager.toLowerCase().includes(searchLower)
         )
       }
 
       if (participantIdSearch.trim()) {
-        return client.participantId.toLowerCase().includes(participantIdSearch.toLowerCase())
+        return client.participant_id.toLowerCase().includes(participantIdSearch.toLowerCase())
       }
 
       return false
@@ -449,7 +313,14 @@ export function Dashboard({ onNavigate, onSearch, clients: propClients, onViewCl
   }
 
   if (currentView === "client-profile" && selectedClient) {
-    return <ClientProfile client={selectedClient} onBack={handleBackToDashboard} onSave={handleSaveClient} />
+    return (
+      <ClientProfile
+        client={selectedClient}
+        onBack={handleBackToDashboard}
+        onClientUpdated={handleClientUpdated}
+        onClientDeleted={handleClientDeleted}
+      />
+    )
   }
 
   if (currentView === "new-client") {
@@ -826,7 +697,7 @@ export function Dashboard({ onNavigate, onSearch, clients: propClients, onViewCl
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <p className="text-sm font-medium truncate">
-                                    {client.firstName} {client.lastName}
+                                    {client.first_name} {client.last_name}
                                   </p>
                                   {client.isNew && (
                                     <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs animate-pulse">
@@ -835,7 +706,7 @@ export function Dashboard({ onNavigate, onSearch, clients: propClients, onViewCl
                                   )}
                                 </div>
                                 <p className="text-xs text-gray-500">
-                                  PID: {client.participantId} • {client.program}
+                                  PID: {client.participant_id} • {client.program}
                                 </p>
                                 <div className="flex items-center gap-2 mt-1">{getStatusBadge(client.status)}</div>
                               </div>
@@ -970,19 +841,19 @@ export function Dashboard({ onNavigate, onSearch, clients: propClients, onViewCl
               <CardContent className="space-y-4">
                 <div className="space-y-3 text-sm">
                   {clients
-                    .filter((client) => client.createdAt)
-                    .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
+                    .filter((client) => client.created_at)
+                    .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime())
                     .slice(0, 3)
                     .map((client, index) => (
                       <div key={client.id} className="flex items-start gap-2">
                         <Calendar className="w-4 h-4 text-gray-400 mt-0.5" />
                         <div>
                           <p className="text-gray-600">
-                            {client.createdAt ? new Date(client.createdAt).toLocaleDateString() : "Recently"}
+                            {client.created_at ? new Date(client.created_at).toLocaleDateString() : "Recently"}
                           </p>
                           <p className="font-medium">
                             {client.isNew ? "New client created: " : "Client enrolled: "}
-                            {client.firstName} {client.lastName}
+                            {client.first_name} {client.last_name}
                           </p>
                         </div>
                       </div>
