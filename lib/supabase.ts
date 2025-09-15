@@ -1,9 +1,9 @@
 import { createClient } from "@supabase/supabase-js"
-import { SupabaseDebugger, NetworkMonitor, DataValidator } from "./supabase-debug"
+import { NetworkMonitor, DataValidator } from "./supabase-debug"
 
 // Environment variable validation with fallbacks for development
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 console.log("🔧 Supabase Configuration Check:")
 console.log("URL:", supabaseUrl ? "✅ Set" : "❌ Missing")
@@ -19,12 +19,11 @@ const hasValidConfig =
   !supabaseUrl.includes("placeholder") &&
   !supabaseAnonKey.includes("placeholder")
 
-let supabase: any = null
 let configError: string | null = null
 
 if (hasValidConfig) {
   try {
-    supabase = createClient(supabaseUrl, supabaseAnonKey)
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
     console.log("✅ Supabase client created successfully")
 
     // Test connection immediately
@@ -45,8 +44,6 @@ if (hasValidConfig) {
   console.log("   - NEXT_PUBLIC_SUPABASE_ANON_KEY is set correctly")
   console.log("   - Both values are not placeholder text")
 }
-
-export { supabase }
 
 // Database types with enhanced validation
 export interface Client {
@@ -69,21 +66,21 @@ export interface Client {
   emergency_phone?: string
   case_manager: string
   responsible_ec?: string
-  required_hours?: string
+  required_hours?: number
   cao_number?: string
   education_level?: string
-  graduation_year?: string
+  graduation_year?: number
   school_name?: string
   field_of_study?: string
   education_notes?: string
   currently_enrolled?: string
-  gpa?: string
+  gpa?: number
   certifications?: string
   licenses?: string
   industry_certifications?: string
   certification_status?: string
   certification_notes?: string
-  created_at?: string
+  created_at: string
   last_contact?: string
   last_modified?: string
   modified_by?: string
@@ -95,10 +92,8 @@ export interface CaseNote {
   id: string
   client_id: string
   note: string
-  created_at: string
   author: string
-  deleted_at?: string
-  deleted_by?: string
+  created_at: string
 }
 
 // Enhanced mock data for comprehensive testing
@@ -123,15 +118,15 @@ const mockClients: Client[] = [
     emergency_phone: "484-555-0203",
     case_manager: "Brown, Lisa",
     responsible_ec: "Wilson, John",
-    required_hours: "40",
+    required_hours: 40,
     cao_number: "CAO-001",
     education_level: "High School Diploma/GED",
-    graduation_year: "2008",
+    graduation_year: 2008,
     school_name: "Philadelphia High School",
     field_of_study: "General Studies",
     education_notes: "Graduated with honors",
     currently_enrolled: "No",
-    gpa: "3.5",
+    gpa: 3.5,
     certifications: "CPR Certified",
     licenses: "Driver's License",
     industry_certifications: "OSHA 10",
@@ -277,77 +272,55 @@ const simulateDelay = (ms = 500) => new Promise((resolve) => setTimeout(resolve,
 export const clientsApi = {
   // Get all active clients (excluding deleted ones)
   async getAll(): Promise<Client[]> {
-    if (!supabase || configError) {
+    if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       return mockClients.filter((client) => !client.deleted_at)
     }
 
-    return SupabaseDebugger.logOperation("SELECT", "clients", null, async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+    const { data, error } = await supabaseClient
+      .from("clients")
+      .select("*")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
 
-      if (error) {
-        console.error("🚨 Supabase SELECT error:", error)
-        console.log("🔄 Falling back to demo data")
-        await simulateDelay()
-        return mockClients.filter((client) => !client.deleted_at)
-      }
-
-      console.log(`✅ Successfully loaded ${data?.length || 0} clients from Supabase`)
-      return data || []
-    })
+    if (error) throw error
+    return data || []
   },
 
   // Get deleted clients for recycle bin
   async getDeleted(): Promise<Client[]> {
-    if (!supabase || configError) {
+    if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       return mockClients.filter((client) => client.deleted_at)
     }
 
-    return SupabaseDebugger.logOperation("SELECT_DELETED", "clients", null, async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .not("deleted_at", "is", null)
-        .order("deleted_at", { ascending: false })
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+    const { data, error } = await supabaseClient
+      .from("clients")
+      .select("*")
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false })
 
-      if (error) {
-        console.error("🚨 Supabase SELECT_DELETED error:", error)
-        console.log("🔄 Falling back to demo data")
-        await simulateDelay()
-        return mockClients.filter((client) => client.deleted_at)
-      }
-
-      console.log(`✅ Successfully loaded ${data?.length || 0} deleted clients from Supabase`)
-      return data || []
-    })
+    if (error) throw error
+    return data || []
   },
 
   // Get client by ID with debugging
   async getById(id: string): Promise<Client | null> {
-    if (!supabase || configError) {
+    if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
-      return mockClients.find((client) => client.id === id && !client.deleted_at) || null
+      return mockClients.find((client) => client.id === id) || null
     }
 
-    return SupabaseDebugger.logOperation("SELECT_BY_ID", "clients", { id }, async () => {
-      const { data, error } = await supabase.from("clients").select("*").eq("id", id).is("deleted_at", null).single()
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+    const { data, error } = await supabaseClient.from("clients").select("*").eq("id", id).single()
 
-      if (error) {
-        console.error("🚨 Supabase SELECT_BY_ID error:", error)
-        console.log("🔄 Falling back to demo data")
-        return mockClients.find((client) => client.id === id && !client.deleted_at) || null
-      }
-
-      return data
-    })
+    if (error) throw error
+    return data
   },
 
   // Create new client with comprehensive validation and debugging
@@ -360,7 +333,7 @@ export const clientsApi = {
       throw new Error(errorMessage)
     }
 
-    if (!supabase || configError) {
+    if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       const newClient: Client = {
@@ -373,38 +346,25 @@ export const clientsApi = {
       return newClient
     }
 
-    const clientData = {
-      ...client,
-      created_at: new Date().toISOString(),
-      last_modified: new Date().toISOString(),
-    }
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+    const { data, error } = await supabaseClient
+      .from("clients")
+      .insert([
+        {
+          ...client,
+          last_modified: new Date().toISOString(),
+          modified_by: "Current User",
+        },
+      ])
+      .select()
+      .single()
 
-    return SupabaseDebugger.logOperation("INSERT", "clients", clientData, async () => {
-      const { data, error } = await supabase.from("clients").insert([clientData]).select().single()
-
-      if (error) {
-        console.error("🚨 Supabase INSERT error:", error)
-        console.error("📤 Data that failed to insert:", clientData)
-
-        // Detailed error analysis
-        if (error.code === "23505") {
-          throw new Error("Duplicate participant ID. Please use a unique participant ID.")
-        } else if (error.code === "23502") {
-          throw new Error("Missing required field. Please check all required fields are filled.")
-        } else if (error.code === "42703") {
-          throw new Error("Database schema mismatch. Please check the database setup.")
-        } else {
-          throw new Error(`Database error: ${error.message}`)
-        }
-      }
-
-      console.log("✅ Client successfully created in Supabase:", data.id)
-      return data
-    })
+    if (error) throw error
+    return data
   },
 
   // Update client with comprehensive validation and debugging
-  async update(id: string, updates: Partial<Client>): Promise<Client> {
+  async update(id: string, updates: Partial<Omit<Client, "id" | "created_at">>): Promise<Client> {
     // Validate updates
     const validation = DataValidator.validateClient({ ...updates, id })
     if (!validation.isValid) {
@@ -413,7 +373,7 @@ export const clientsApi = {
       throw new Error(errorMessage)
     }
 
-    if (!supabase || configError) {
+    if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       const clientIndex = mockClients.findIndex((client) => client.id === id)
@@ -422,42 +382,32 @@ export const clientsApi = {
           ...mockClients[clientIndex],
           ...updates,
           last_modified: new Date().toISOString(),
+          modified_by: "Current User",
         }
         return mockClients[clientIndex]
       }
       throw new Error("Client not found")
     }
 
-    const updateData = {
-      ...updates,
-      last_modified: new Date().toISOString(),
-    }
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+    const { data, error } = await supabaseClient
+      .from("clients")
+      .update({
+        ...updates,
+        last_modified: new Date().toISOString(),
+        modified_by: "Current User",
+      })
+      .eq("id", id)
+      .select()
+      .single()
 
-    return SupabaseDebugger.logOperation("UPDATE", "clients", { id, updates: updateData }, async () => {
-      const { data, error } = await supabase.from("clients").update(updateData).eq("id", id).select().single()
-
-      if (error) {
-        console.error("🚨 Supabase UPDATE error:", error)
-        console.error("📤 Data that failed to update:", updateData)
-        console.error("🔍 Client ID:", id)
-
-        if (error.code === "23505") {
-          throw new Error("Duplicate participant ID. Please use a unique participant ID.")
-        } else if (error.code === "42703") {
-          throw new Error("Database schema mismatch. Please check the database setup.")
-        } else {
-          throw new Error(`Database error: ${error.message}`)
-        }
-      }
-
-      console.log("✅ Client successfully updated in Supabase:", id)
-      return data
-    })
+    if (error) throw error
+    return data
   },
 
   // Soft delete client (move to recycle bin)
   async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
-    if (!supabase || configError) {
+    if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       const clientIndex = mockClients.findIndex((client) => client.id === id)
@@ -471,35 +421,29 @@ export const clientsApi = {
       return
     }
 
-    return SupabaseDebugger.logOperation("SOFT_DELETE", "clients", { id }, async () => {
-      const { error } = await supabase
-        .from("clients")
-        .update({
-          deleted_at: new Date().toISOString(),
-          deleted_by: deletedBy,
-        })
-        .eq("id", id)
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+    const { error } = await supabaseClient
+      .from("clients")
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: deletedBy,
+      })
+      .eq("id", id)
 
-      if (error) {
-        console.error("🚨 Supabase SOFT_DELETE error:", error)
-        throw new Error(`Database error: ${error.message}`)
-      }
-
-      console.log("✅ Client successfully moved to recycle bin:", id)
-    })
+    if (error) throw error
   },
 
   // Restore client from recycle bin
   async restore(id: string): Promise<Client> {
-    if (!supabase || configError) {
+    if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       const clientIndex = mockClients.findIndex((client) => client.id === id)
       if (clientIndex !== -1) {
         mockClients[clientIndex] = {
           ...mockClients[clientIndex],
-          deleted_at: undefined,
-          deleted_by: undefined,
+          deleted_at: null,
+          deleted_by: null,
           last_modified: new Date().toISOString(),
           modified_by: "Current User",
         }
@@ -508,32 +452,26 @@ export const clientsApi = {
       throw new Error("Client not found")
     }
 
-    return SupabaseDebugger.logOperation("RESTORE", "clients", { id }, async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .update({
-          deleted_at: null,
-          deleted_by: null,
-          last_modified: new Date().toISOString(),
-          modified_by: "Current User",
-        })
-        .eq("id", id)
-        .select()
-        .single()
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+    const { data, error } = await supabaseClient
+      .from("clients")
+      .update({
+        deleted_at: null,
+        deleted_by: null,
+        last_modified: new Date().toISOString(),
+        modified_by: "Current User",
+      })
+      .eq("id", id)
+      .select()
+      .single()
 
-      if (error) {
-        console.error("🚨 Supabase RESTORE error:", error)
-        throw new Error(`Database error: ${error.message}`)
-      }
-
-      console.log("✅ Client successfully restored from recycle bin:", id)
-      return data
-    })
+    if (error) throw error
+    return data
   },
 
   // Permanently delete client
   async permanentDelete(id: string): Promise<void> {
-    if (!supabase || configError) {
+    if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       const clientIndex = mockClients.findIndex((client) => client.id === id)
@@ -543,16 +481,10 @@ export const clientsApi = {
       return
     }
 
-    return SupabaseDebugger.logOperation("PERMANENT_DELETE", "clients", { id }, async () => {
-      const { error } = await supabase.from("clients").delete().eq("id", id)
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+    const { error } = await supabaseClient.from("clients").delete().eq("id", id)
 
-      if (error) {
-        console.error("🚨 Supabase PERMANENT_DELETE error:", error)
-        throw new Error(`Database error: ${error.message}`)
-      }
-
-      console.log("✅ Client permanently deleted from Supabase:", id)
-    })
+    if (error) throw error
   },
 }
 
@@ -560,29 +492,21 @@ export const clientsApi = {
 export const caseNotesApi = {
   // Get case notes for a client with debugging (excluding deleted ones)
   async getByClientId(clientId: string): Promise<CaseNote[]> {
-    if (!supabase || configError) {
+    if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
-      return mockCaseNotes.filter((note) => note.client_id === clientId && !note.deleted_at)
+      return mockCaseNotes.filter((note) => note.client_id === clientId)
     }
 
-    return SupabaseDebugger.logOperation("SELECT_BY_CLIENT", "case_notes", { clientId }, async () => {
-      const { data, error } = await supabase
-        .from("case_notes")
-        .select("*")
-        .eq("client_id", clientId)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+    const { data, error } = await supabaseClient
+      .from("case_notes")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
 
-      if (error) {
-        console.error("🚨 Supabase SELECT_BY_CLIENT error:", error)
-        console.log("🔄 Falling back to demo data")
-        return mockCaseNotes.filter((note) => note.client_id === clientId && !note.deleted_at)
-      }
-
-      console.log(`✅ Successfully loaded ${data?.length || 0} case notes for client ${clientId}`)
-      return data || []
-    })
+    if (error) throw error
+    return data || []
   },
 
   // Create new case note with validation and debugging
@@ -595,7 +519,7 @@ export const caseNotesApi = {
       throw new Error(errorMessage)
     }
 
-    if (!supabase || configError) {
+    if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       const newNote: CaseNote = {
@@ -607,57 +531,54 @@ export const caseNotesApi = {
       return newNote
     }
 
-    const noteData = {
-      ...caseNote,
-      created_at: new Date().toISOString(),
-    }
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+    const { data, error } = await supabaseClient.from("case_notes").insert([caseNote]).select().single()
 
-    return SupabaseDebugger.logOperation("INSERT", "case_notes", noteData, async () => {
-      const { data, error } = await supabase.from("case_notes").insert([noteData]).select().single()
-
-      if (error) {
-        console.error("🚨 Supabase INSERT error:", error)
-        console.error("📤 Data that failed to insert:", noteData)
-        throw new Error(`Database error: ${error.message}`)
-      }
-
-      console.log("✅ Case note successfully created in Supabase:", data.id)
-      return data
-    })
+    if (error) throw error
+    return data
   },
 
-  // Soft delete case note
-  async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
-    if (!supabase || configError) {
+  // Update case note
+  async update(id: string, updates: Partial<Omit<CaseNote, "id" | "created_at">>): Promise<CaseNote> {
+    if (!hasValidConfig || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
       await simulateDelay()
       const noteIndex = mockCaseNotes.findIndex((note) => note.id === id)
       if (noteIndex !== -1) {
         mockCaseNotes[noteIndex] = {
           ...mockCaseNotes[noteIndex],
-          deleted_at: new Date().toISOString(),
-          deleted_by: deletedBy,
+          ...updates,
+          last_modified: new Date().toISOString(),
+          modified_by: "Current User",
         }
+        return mockCaseNotes[noteIndex]
+      }
+      throw new Error("Case note not found")
+    }
+
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+    const { data, error } = await supabaseClient.from("case_notes").update(updates).eq("id", id).select().single()
+
+    if (error) throw error
+    return data
+  },
+
+  // Delete case note
+  async delete(id: string): Promise<void> {
+    if (!hasValidConfig || configError) {
+      console.log("📊 Using demo data - Supabase not configured properly")
+      await simulateDelay()
+      const noteIndex = mockCaseNotes.findIndex((note) => note.id === id)
+      if (noteIndex !== -1) {
+        mockCaseNotes.splice(noteIndex, 1)
       }
       return
     }
 
-    return SupabaseDebugger.logOperation("SOFT_DELETE", "case_notes", { id }, async () => {
-      const { error } = await supabase
-        .from("case_notes")
-        .update({
-          deleted_at: new Date().toISOString(),
-          deleted_by: deletedBy,
-        })
-        .eq("id", id)
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+    const { error } = await supabaseClient.from("case_notes").delete().eq("id", id)
 
-      if (error) {
-        console.error("🚨 Supabase SOFT_DELETE error:", error)
-        throw new Error(`Database error: ${error.message}`)
-      }
-
-      console.log("✅ Case note successfully moved to recycle bin:", id)
-    })
+    if (error) throw error
   },
 }
 
@@ -731,7 +652,7 @@ export const testSupabaseSync = async () => {
     console.log("✅ Test client restored")
 
     // Clean up test data
-    await caseNotesApi.softDelete(testNote.id, "Test User")
+    await caseNotesApi.delete(testNote.id)
     await clientsApi.permanentDelete(createdClient.id)
     console.log("✅ Test data cleaned up")
 

@@ -1,9 +1,11 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Edit, Save, X, User, Phone, GraduationCap, FileText, Trash2 } from "lucide-react"
+import { ArrowLeft, Edit, Save, X, User, Phone, GraduationCap, FileText, Trash2, Upload } from "lucide-react"
 import { caseNotesApi, clientsApi } from "@/lib/supabase"
 
 interface Client {
@@ -80,6 +82,16 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   const [showSaveSuccess, setShowSaveSuccess] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<
+    Array<{
+      id: string
+      name: string
+      size: number
+      type: string
+      url?: string
+    }>
+  >([])
+  const [isUploading, setIsUploading] = useState(false)
 
   // Update local state when client prop changes
   useEffect(() => {
@@ -294,6 +306,86 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
     } catch {
       return dateString
     }
+  }
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+
+    setIsUploading(true)
+
+    try {
+      const newFiles: Array<{
+        id: string
+        name: string
+        size: number
+        type: string
+        url?: string
+      }> = []
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+
+        // Validate file type (documents only)
+        const allowedTypes = [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "image/jpeg",
+          "image/png",
+          "image/gif",
+        ]
+
+        if (!allowedTypes.includes(file.type)) {
+          setSaveError(`File type not supported: ${file.name}`)
+          continue
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          setSaveError(`File too large: ${file.name} (max 5MB)`)
+          continue
+        }
+
+        // Create file object (in a real app, you'd upload to a server/cloud storage)
+        const uploadedFile = {
+          id: `file_${Date.now()}_${i}`,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: URL.createObjectURL(file), // Temporary URL for preview
+        }
+
+        newFiles.push(uploadedFile)
+      }
+
+      setUploadedFiles((prev) => [...prev, ...newFiles])
+    } catch (error) {
+      console.error("File upload error:", error)
+      setSaveError("Failed to upload files. Please try again.")
+    } finally {
+      setIsUploading(false)
+      // Reset the input
+      event.target.value = ""
+    }
+  }
+
+  const handleRemoveFile = (fileId: string) => {
+    setUploadedFiles((prev) => {
+      const fileToRemove = prev.find((f) => f.id === fileId)
+      if (fileToRemove?.url) {
+        URL.revokeObjectURL(fileToRemove.url)
+      }
+      return prev.filter((f) => f.id !== fileId)
+    })
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes"
+    const k = 1024
+    const sizes = ["Bytes", "KB", "MB", "GB"]
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
   // Use currentClient for display when not editing, editedClient when editing
@@ -986,6 +1078,83 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                     />
                   ) : (
                     <p className="text-gray-900 text-sm">{displayClient.certificationNotes || "Not provided"}</p>
+                  )}
+                </div>
+
+                {/* File Upload Section */}
+                <div className="border-t pt-4">
+                  <label className="text-sm font-medium text-gray-600">Upload Certification Documents</label>
+                  {isEditing ? (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-center w-full">
+                        <label
+                          htmlFor="fileUpload"
+                          className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <Upload className="w-8 h-8 mb-2 text-gray-500" />
+                            <p className="mb-2 text-sm text-gray-500">
+                              <span className="font-semibold">Click to upload</span> certification documents
+                            </p>
+                            <p className="text-xs text-gray-500">PDF, DOC, DOCX, JPG, PNG (MAX. 5MB each)</p>
+                          </div>
+                          <input
+                            id="fileUpload"
+                            type="file"
+                            className="hidden"
+                            multiple
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+                            onChange={handleFileUpload}
+                            disabled={isSaving || isUploading}
+                          />
+                        </label>
+                      </div>
+
+                      {isUploading && <div className="mt-2 text-sm text-blue-600">Uploading files...</div>}
+                    </div>
+                  ) : (
+                    <p className="text-gray-900 text-sm mt-1">
+                      {uploadedFiles.length > 0
+                        ? `${uploadedFiles.length} document(s) uploaded`
+                        : "No documents uploaded"}
+                    </p>
+                  )}
+
+                  {/* Uploaded Files List */}
+                  {uploadedFiles.length > 0 && (
+                    <div className="mt-4">
+                      <label className="text-sm font-medium text-gray-700">
+                        Uploaded Documents ({uploadedFiles.length})
+                      </label>
+                      <div className="mt-2 space-y-2">
+                        {uploadedFiles.map((file) => (
+                          <div
+                            key={file.id}
+                            className="flex items-center justify-between p-2 bg-gray-50 rounded-md border"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <FileText className="w-4 h-4 text-gray-500" />
+                              <div>
+                                <p className="text-sm font-medium text-gray-900 truncate max-w-[200px]">{file.name}</p>
+                                <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                              </div>
+                            </div>
+                            {isEditing && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveFile(file.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                disabled={isSaving}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </CardContent>
