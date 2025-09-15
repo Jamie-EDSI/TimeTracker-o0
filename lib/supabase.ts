@@ -101,6 +101,25 @@ export interface CaseNote {
   deleted_by?: string
 }
 
+export interface ClientFile {
+  id: string
+  client_id: string
+  file_name: string
+  file_size: number
+  file_type: string
+  file_category: "certification" | "education" | "general"
+  storage_path: string
+  public_url?: string
+  upload_date: string
+  uploaded_by: string
+  description?: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  deleted_at?: string
+  deleted_by?: string
+}
+
 // Enhanced mock data for comprehensive testing
 const mockClients: Client[] = [
   {
@@ -267,6 +286,42 @@ const mockCaseNotes: CaseNote[] = [
     note: "Client has excellent technical skills. Recommended for advanced placement program.",
     created_at: "2023-05-12T11:00:00Z",
     author: "Brown, Lisa",
+  },
+]
+
+// Mock client files for demo
+const mockClientFiles: ClientFile[] = [
+  {
+    id: "file-1",
+    client_id: "1",
+    file_name: "CPR_Certificate.pdf",
+    file_size: 245760,
+    file_type: "application/pdf",
+    file_category: "certification",
+    storage_path: "client-files/1/CPR_Certificate.pdf",
+    public_url: "/placeholder.svg?height=400&width=600&text=CPR+Certificate",
+    upload_date: "2023-02-20T11:00:00Z",
+    uploaded_by: "Brown, Lisa",
+    description: "CPR Certification from American Red Cross",
+    is_active: true,
+    created_at: "2023-02-20T11:00:00Z",
+    updated_at: "2023-02-20T11:00:00Z",
+  },
+  {
+    id: "file-2",
+    client_id: "1",
+    file_name: "OSHA_10_Certificate.jpg",
+    file_size: 156432,
+    file_type: "image/jpeg",
+    file_category: "certification",
+    storage_path: "client-files/1/OSHA_10_Certificate.jpg",
+    public_url: "/placeholder.svg?height=400&width=600&text=OSHA+10+Certificate",
+    upload_date: "2023-02-20T11:05:00Z",
+    uploaded_by: "Brown, Lisa",
+    description: "OSHA 10-Hour Safety Training Certificate",
+    is_active: true,
+    created_at: "2023-02-20T11:05:00Z",
+    updated_at: "2023-02-20T11:05:00Z",
   },
 ]
 
@@ -717,6 +772,286 @@ export const caseNotesApi = {
   },
 }
 
+// Client Files API for managing file uploads and associations
+export const clientFilesApi = {
+  // Get all files for a specific client
+  async getByClientId(clientId: string, category?: string): Promise<ClientFile[]> {
+    if (!supabase || configError) {
+      console.log("📊 Using demo data - Supabase not configured properly")
+      await simulateDelay()
+      let files = mockClientFiles.filter((file) => file.client_id === clientId && file.is_active)
+      if (category) {
+        files = files.filter((file) => file.file_category === category)
+      }
+      return files
+    }
+
+    return SupabaseDebugger.logOperation("SELECT_FILES_BY_CLIENT", "client_files", { clientId, category }, async () => {
+      let query = supabase
+        .from("client_files")
+        .select("*")
+        .eq("client_id", clientId)
+        .eq("is_active", true)
+        .is("deleted_at", null)
+        .order("upload_date", { ascending: false })
+
+      if (category) {
+        query = query.eq("file_category", category)
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        console.error("🚨 Supabase SELECT_FILES_BY_CLIENT error:", error)
+        console.log("🔄 Falling back to demo data")
+        let files = mockClientFiles.filter((file) => file.client_id === clientId && file.is_active)
+        if (category) {
+          files = files.filter((file) => file.file_category === category)
+        }
+        return files
+      }
+
+      console.log(`✅ Successfully loaded ${data?.length || 0} files for client ${clientId}`)
+      return data || []
+    })
+  },
+
+  // Upload a file to storage and create database record
+  async uploadFile(
+    file: File,
+    clientId: string,
+    category: "certification" | "education" | "general" = "certification",
+    description?: string,
+    uploadedBy = "Current User",
+  ): Promise<ClientFile> {
+    if (!supabase || configError) {
+      console.log("📊 Using demo data - Supabase not configured properly")
+      await simulateDelay()
+
+      // Create a mock file record
+      const mockFile: ClientFile = {
+        id: `file-${Date.now()}`,
+        client_id: clientId,
+        file_name: file.name,
+        file_size: file.size,
+        file_type: file.type,
+        file_category: category,
+        storage_path: `client-files/${clientId}/${file.name}`,
+        public_url: URL.createObjectURL(file),
+        upload_date: new Date().toISOString(),
+        uploaded_by: uploadedBy,
+        description: description || undefined,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      mockClientFiles.push(mockFile)
+      return mockFile
+    }
+
+    return SupabaseDebugger.logOperation("UPLOAD_FILE", "client_files", { fileName: file.name, clientId }, async () => {
+      // Generate unique file path
+      const fileExt = file.name.split(".").pop()
+      const timestamp = Date.now()
+      const fileName = `${clientId}/${category}/${timestamp}_${file.name}`
+
+      try {
+        // Upload file to Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("client-files")
+          .upload(fileName, file, {
+            cacheControl: "3600",
+            upsert: false,
+          })
+
+        if (uploadError) {
+          console.error("🚨 File upload error:", uploadError)
+          throw new Error(`File upload failed: ${uploadError.message}`)
+        }
+
+        // Get public URL for the uploaded file
+        const { data: urlData } = supabase.storage.from("client-files").getPublicUrl(fileName)
+
+        // Create database record
+        const fileRecord = {
+          client_id: clientId,
+          file_name: file.name,
+          file_size: file.size,
+          file_type: file.type,
+          file_category: category,
+          storage_path: fileName,
+          public_url: urlData.publicUrl,
+          upload_date: new Date().toISOString(),
+          uploaded_by: uploadedBy,
+          description: description || null,
+          is_active: true,
+        }
+
+        const { data: dbData, error: dbError } = await supabase
+          .from("client_files")
+          .insert([fileRecord])
+          .select()
+          .single()
+
+        if (dbError) {
+          // If database insert fails, clean up the uploaded file
+          await supabase.storage.from("client-files").remove([fileName])
+          console.error("🚨 Database insert error:", dbError)
+          throw new Error(`Database error: ${dbError.message}`)
+        }
+
+        console.log("✅ File successfully uploaded and recorded:", dbData.id)
+        return dbData
+      } catch (error) {
+        console.error("🚨 File upload process failed:", error)
+        throw error
+      }
+    })
+  },
+
+  // Delete a file (soft delete in database and remove from storage)
+  async deleteFile(fileId: string, deletedBy = "Current User"): Promise<void> {
+    if (!supabase || configError) {
+      console.log("📊 Using demo data - Supabase not configured properly")
+      await simulateDelay()
+
+      const fileIndex = mockClientFiles.findIndex((file) => file.id === fileId)
+      if (fileIndex !== -1) {
+        // Revoke the blob URL if it exists
+        if (mockClientFiles[fileIndex].public_url?.startsWith("blob:")) {
+          URL.revokeObjectURL(mockClientFiles[fileIndex].public_url!)
+        }
+        mockClientFiles[fileIndex].is_active = false
+        mockClientFiles[fileIndex].deleted_at = new Date().toISOString()
+        mockClientFiles[fileIndex].deleted_by = deletedBy
+      }
+      return
+    }
+
+    return SupabaseDebugger.logOperation("DELETE_FILE", "client_files", { fileId }, async () => {
+      // First get the file record to get storage path
+      const { data: fileData, error: selectError } = await supabase
+        .from("client_files")
+        .select("storage_path")
+        .eq("id", fileId)
+        .single()
+
+      if (selectError) {
+        console.error("🚨 Error finding file record:", selectError)
+        throw new Error(`File not found: ${selectError.message}`)
+      }
+
+      // Soft delete in database
+      const { error: updateError } = await supabase
+        .from("client_files")
+        .update({
+          is_active: false,
+          deleted_at: new Date().toISOString(),
+          deleted_by: deletedBy,
+        })
+        .eq("id", fileId)
+
+      if (updateError) {
+        console.error("🚨 Error soft deleting file record:", updateError)
+        throw new Error(`Database error: ${updateError.message}`)
+      }
+
+      // Remove from storage
+      const { error: storageError } = await supabase.storage.from("client-files").remove([fileData.storage_path])
+
+      if (storageError) {
+        console.warn("⚠️ Warning: File removed from database but storage cleanup failed:", storageError)
+        // Don't throw error here as the main operation (database soft delete) succeeded
+      }
+
+      console.log("✅ File successfully deleted:", fileId)
+    })
+  },
+
+  // Update file metadata
+  async updateFile(
+    fileId: string,
+    updates: Partial<Pick<ClientFile, "description" | "file_category">>,
+  ): Promise<ClientFile> {
+    if (!supabase || configError) {
+      console.log("📊 Using demo data - Supabase not configured properly")
+      await simulateDelay()
+
+      const fileIndex = mockClientFiles.findIndex((file) => file.id === fileId)
+      if (fileIndex !== -1) {
+        mockClientFiles[fileIndex] = {
+          ...mockClientFiles[fileIndex],
+          ...updates,
+          updated_at: new Date().toISOString(),
+        }
+        return mockClientFiles[fileIndex]
+      }
+      throw new Error("File not found")
+    }
+
+    return SupabaseDebugger.logOperation("UPDATE_FILE", "client_files", { fileId, updates }, async () => {
+      const { data, error } = await supabase
+        .from("client_files")
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", fileId)
+        .select()
+        .single()
+
+      if (error) {
+        console.error("🚨 Error updating file record:", error)
+        throw new Error(`Database error: ${error.message}`)
+      }
+
+      console.log("✅ File successfully updated:", fileId)
+      return data
+    })
+  },
+
+  // Get file download URL (for private files)
+  async getDownloadUrl(fileId: string): Promise<string> {
+    if (!supabase || configError) {
+      console.log("📊 Using demo data - Supabase not configured properly")
+      const file = mockClientFiles.find((f) => f.id === fileId)
+      return file?.public_url || ""
+    }
+
+    return SupabaseDebugger.logOperation("GET_DOWNLOAD_URL", "client_files", { fileId }, async () => {
+      // Get file record to get storage path
+      const { data: fileData, error: selectError } = await supabase
+        .from("client_files")
+        .select("storage_path, public_url")
+        .eq("id", fileId)
+        .single()
+
+      if (selectError) {
+        console.error("🚨 Error finding file record:", selectError)
+        throw new Error(`File not found: ${selectError.message}`)
+      }
+
+      // For public files, return the public URL
+      if (fileData.public_url) {
+        return fileData.public_url
+      }
+
+      // For private files, create a signed URL
+      const { data: urlData, error: urlError } = await supabase.storage
+        .from("client-files")
+        .createSignedUrl(fileData.storage_path, 3600) // 1 hour expiry
+
+      if (urlError) {
+        console.error("🚨 Error creating signed URL:", urlError)
+        throw new Error(`URL generation failed: ${urlError.message}`)
+      }
+
+      return urlData.signedUrl
+    })
+  },
+}
+
 // Utility functions with enhanced debugging
 export const isSupabaseConfigured = () => hasValidConfig && !configError
 export const getSupabaseStatus = () => {
@@ -778,6 +1113,22 @@ export const testSupabaseSync = async () => {
     })
     console.log("✅ Test case note created:", testNote.id)
 
+    // Test file operations
+    const testFileContent = new Blob(["Test file content"], { type: "text/plain" })
+    const testFile = new File([testFileContent], "test-file.txt", { type: "text/plain" })
+
+    const uploadedFile = await clientFilesApi.uploadFile(
+      testFile,
+      createdClient.id,
+      "certification",
+      "Test file upload",
+    )
+    console.log("✅ Test file uploaded:", uploadedFile.id)
+
+    // Test file retrieval
+    const clientFiles = await clientFilesApi.getByClientId(createdClient.id)
+    console.log("✅ Test file retrieval:", clientFiles.length)
+
     // Test soft delete
     await clientsApi.softDelete(createdClient.id, "Test User")
     console.log("✅ Test client soft deleted")
@@ -787,6 +1138,7 @@ export const testSupabaseSync = async () => {
     console.log("✅ Test client restored")
 
     // Clean up test data
+    await clientFilesApi.deleteFile(uploadedFile.id, "Test User")
     await caseNotesApi.softDelete(testNote.id, "Test User")
     await clientsApi.permanentDelete(createdClient.id)
     console.log("✅ Test data cleaned up")
