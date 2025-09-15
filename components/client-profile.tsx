@@ -1,1130 +1,1090 @@
 "use client"
 
-import type React from "react"
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  ArrowLeft,
-  Edit,
-  Save,
-  X,
-  Trash2,
-  Plus,
-  Calendar,
-  Phone,
-  User,
-  GraduationCap,
-  Award,
-  Upload,
-  FileText,
-  AlertCircle,
-} from "lucide-react"
-import { clientsApi, caseNotesApi, type Client, type CaseNote } from "@/lib/supabase"
+import { Button } from "@/components/ui/button"
+import { ArrowLeft, Edit, Save, X, User, Phone, GraduationCap, FileText, Trash2 } from "lucide-react"
+import { caseNotesApi, clientsApi } from "@/lib/supabase"
+
+interface Client {
+  id: string
+  firstName: string
+  lastName: string
+  participantId: string
+  program: string
+  status: string
+  enrollmentDate: string
+  phone: string
+  cellPhone?: string
+  email: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  dateOfBirth: string
+  emergencyContact?: string
+  emergencyPhone?: string
+  caseManager: string
+  responsibleEC?: string
+  requiredHours?: string
+  caoNumber?: string
+  // Education fields
+  educationLevel?: string
+  graduationYear?: string
+  schoolName?: string
+  fieldOfStudy?: string
+  educationNotes?: string
+  currentlyEnrolled?: string
+  gpa?: string
+  // Certification fields
+  certifications?: string
+  licenses?: string
+  industryCertifications?: string
+  certificationStatus?: string
+  certificationNotes?: string
+  lastContact?: string
+  lastModified?: string
+  modifiedBy?: string
+  // Case notes field
+  caseNotes?: Array<{
+    id: string
+    note: string
+    date: string
+    author: string
+  }>
+}
 
 interface ClientProfileProps {
   client: Client
   onBack: () => void
-  onClientUpdated: (client: Client) => void
-  onClientDeleted: (clientId: string) => void
+  onSave: (updatedClient: Client) => void
 }
 
-interface FileUpload {
-  id: string
-  file: File
-  name: string
-  size: number
-  type: string
-  preview?: string
-}
-
-const US_STATES = [
-  "AL",
-  "AK",
-  "AZ",
-  "AR",
-  "CA",
-  "CO",
-  "CT",
-  "DE",
-  "FL",
-  "GA",
-  "HI",
-  "ID",
-  "IL",
-  "IN",
-  "IA",
-  "KS",
-  "KY",
-  "LA",
-  "ME",
-  "MD",
-  "MA",
-  "MI",
-  "MN",
-  "MS",
-  "MO",
-  "MT",
-  "NE",
-  "NV",
-  "NH",
-  "NJ",
-  "NM",
-  "NY",
-  "NC",
-  "ND",
-  "OH",
-  "OK",
-  "OR",
-  "PA",
-  "RI",
-  "SC",
-  "SD",
-  "TN",
-  "TX",
-  "UT",
-  "VT",
-  "VA",
-  "WA",
-  "WV",
-  "WI",
-  "WY",
-]
-
-const PROGRAMS = ["EARN", "Job Readiness", "YOUTH", "Skills Training", "Career Development", "Other"]
-
-const STATUS_OPTIONS = ["Active", "Pending", "Inactive", "Completed", "Withdrawn"]
-
-const EDUCATION_LEVELS = [
-  "Less than High School",
-  "High School Diploma/GED",
-  "Some College",
-  "Associate Degree",
-  "Bachelor's Degree",
-  "Master's Degree",
-  "Doctoral Degree",
-  "Professional Degree",
-  "Trade/Vocational Certificate",
-]
-
-const CASE_MANAGERS = [
-  "Brown, Lisa",
-  "Smith, John",
-  "Johnson, Mary",
-  "Wilson, David",
-  "Davis, Sarah",
-  "Martinez, Carlos",
-  "Anderson, Jennifer",
-  "Taylor, Michael",
-]
-
-export function ClientProfile({ client, onBack, onClientUpdated, onClientDeleted }: ClientProfileProps) {
+export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   const [isEditing, setIsEditing] = useState(false)
+  const [editedClient, setEditedClient] = useState<Client>({ ...client })
+  const [currentClient, setCurrentClient] = useState<Client>(client)
+  const [showCaseNoteForm, setShowCaseNoteForm] = useState(false)
+  const [caseNote, setCaseNote] = useState("")
+  const [caseNotes, setCaseNotes] = useState<
+    Array<{
+      id: string
+      note: string
+      date: string
+      author: string
+    }>
+  >(client.caseNotes || [])
+  const [showNoteSuccess, setShowNoteSuccess] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [caseNotes, setCaseNotes] = useState<CaseNote[]>([])
-  const [newNote, setNewNote] = useState("")
-  const [isAddingNote, setIsAddingNote] = useState(false)
-  const [uploadedFiles, setUploadedFiles] = useState<FileUpload[]>([])
-  const [isDragOver, setIsDragOver] = useState(false)
-  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  // Initialize editedClient with the current client data
-  const [editedClient, setEditedClient] = useState<Client>(client)
-
-  // Update editedClient whenever the client prop changes
+  // Update local state when client prop changes
   useEffect(() => {
-    console.log("ClientProfile: Client prop changed, updating editedClient", client)
-    setEditedClient(client)
+    setCurrentClient(client)
+    setEditedClient({ ...client })
+    if (client.caseNotes) {
+      setCaseNotes(client.caseNotes)
+    }
   }, [client])
 
-  // Load case notes when component mounts or client changes
-  useEffect(() => {
-    console.log("ClientProfile: Loading case notes for client", client.id)
-    loadCaseNotes()
-  }, [client.id])
+  const handleEdit = () => {
+    setIsEditing(true)
+    // Reset edited client to current state to ensure we have latest data
+    setEditedClient({ ...currentClient })
+    setSaveError(null)
+  }
 
-  const loadCaseNotes = async () => {
-    try {
-      console.log("ClientProfile: Fetching case notes for client", client.id)
-      const notes = await caseNotesApi.getByClientId(client.id)
-      console.log("ClientProfile: Loaded case notes", notes)
-      setCaseNotes(notes)
-    } catch (error) {
-      console.error("Error loading case notes:", error)
+  const validateClientData = (clientData: Client): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = []
+
+    // Required field validation
+    if (!clientData.firstName?.trim()) errors.push("First Name is required")
+    if (!clientData.lastName?.trim()) errors.push("Last Name is required")
+    if (!clientData.program?.trim()) errors.push("Program is required")
+
+    // Email validation
+    if (clientData.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientData.email.trim())) {
+      errors.push("Please enter a valid email address")
+    }
+
+    // Phone validation
+    if (clientData.phone?.trim() && !/^[\d\s\-()]+$/.test(clientData.phone.trim())) {
+      errors.push("Please enter a valid phone number")
+    }
+
+    // ZIP code validation
+    if (clientData.zipCode?.trim() && !/^\d{5}(-\d{4})?$/.test(clientData.zipCode.trim())) {
+      errors.push("Please enter a valid ZIP code")
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
     }
   }
 
-  const handleInputChange = (field: keyof Client, value: string | number) => {
-    console.log("ClientProfile: Updating field", field, "with value", value)
-    setEditedClient((prev) => {
-      const updated = { ...prev, [field]: value }
-      console.log("ClientProfile: Updated editedClient", updated)
-      return updated
-    })
-    setError(null)
-  }
-
   const handleSave = async () => {
-    console.log("ClientProfile: Saving client", editedClient)
-    setIsSaving(true)
-    setError(null)
-
     try {
-      const updatedClient = await clientsApi.update(client.id, editedClient)
-      console.log("ClientProfile: Client updated successfully", updatedClient)
-      onClientUpdated(updatedClient)
+      setIsSaving(true)
+      setSaveError(null)
+
+      // Validate the data before saving
+      const validation = validateClientData(editedClient)
+      if (!validation.isValid) {
+        setSaveError(`Validation errors: ${validation.errors.join(", ")}`)
+        return
+      }
+
+      // Create a complete client object with all current data
+      const clientToSave = {
+        ...editedClient, // Use all the edited data
+        id: currentClient.id, // Preserve the original ID
+        participantId: currentClient.participantId, // Preserve PID
+        lastModified: new Date().toISOString(),
+        modifiedBy: "Current User",
+        caseNotes: caseNotes, // Include current case notes
+      }
+
+      // Call the parent save function and wait for it to complete
+      await onSave(clientToSave)
+
+      // Update local state with saved data only after successful save
+      setCurrentClient(clientToSave)
       setIsEditing(false)
-    } catch (err: any) {
-      console.error("Error updating client:", err)
-      setError(err.message || "Failed to update client")
+
+      // Show success message
+      setShowSaveSuccess(true)
+      setTimeout(() => setShowSaveSuccess(false), 3000)
+    } catch (error) {
+      console.error("Error saving client:", error)
+      setSaveError("Failed to save client data. Please try again.")
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleCancel = () => {
-    console.log("ClientProfile: Canceling edit, reverting to original client data", client)
-    setEditedClient(client)
+    // Reset to current saved state
+    setEditedClient({ ...currentClient })
     setIsEditing(false)
-    setError(null)
+    setSaveError(null)
   }
 
-  const handleEdit = () => {
-    console.log("ClientProfile: Starting edit mode with client data", client)
-    // Ensure we have the latest client data when starting edit
-    setEditedClient(client)
-    setIsEditing(true)
-    setError(null)
+  const handleInputChange = (field: keyof Client, value: string) => {
+    setEditedClient((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+    // Clear save error when user makes changes
+    if (saveError) {
+      setSaveError(null)
+    }
   }
 
-  const handleDelete = async () => {
-    setIsDeleting(true)
+  const handleAddCaseNote = () => {
+    setShowCaseNoteForm(true)
+  }
+
+  const handleSaveCaseNote = async () => {
+    if (caseNote.trim()) {
+      try {
+        setIsSaving(true)
+
+        // Save case note to Supabase
+        const newCaseNote = await caseNotesApi.create({
+          client_id: currentClient.id,
+          note: caseNote.trim(),
+          author: "Current User",
+        })
+
+        // Transform to component format
+        const transformedNote = {
+          id: newCaseNote.id,
+          note: newCaseNote.note,
+          date: newCaseNote.created_at,
+          author: newCaseNote.author,
+        }
+
+        const updatedCaseNotes = [transformedNote, ...caseNotes]
+        setCaseNotes(updatedCaseNotes)
+        setCaseNote("")
+        setShowCaseNoteForm(false)
+
+        // Update the client with new case note
+        const updatedClient = {
+          ...currentClient,
+          lastContact: new Date().toISOString(),
+          lastModified: new Date().toISOString(),
+          modifiedBy: "Current User",
+          caseNotes: updatedCaseNotes,
+        }
+
+        // Save the updated client
+        await onSave(updatedClient)
+        setCurrentClient(updatedClient)
+        setEditedClient(updatedClient)
+
+        setShowNoteSuccess(true)
+        setTimeout(() => setShowNoteSuccess(false), 3000)
+      } catch (error) {
+        console.error("Error saving case note:", error)
+        setSaveError("Failed to save case note. Please try again.")
+      } finally {
+        setIsSaving(false)
+      }
+    }
+  }
+
+  const handleCancelCaseNote = () => {
+    setCaseNote("")
+    setShowCaseNoteForm(false)
+  }
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDeleteConfirm = async () => {
     try {
-      await clientsApi.softDelete(client.id, "Current User")
-      onClientDeleted(client.id)
-    } catch (err: any) {
-      console.error("Error deleting client:", err)
-      setError(err.message || "Failed to delete client")
+      setIsDeleting(true)
+
+      // Soft delete the client (move to recycle bin)
+      await clientsApi.softDelete(currentClient.id, "Current User")
+
+      // Show success message and navigate back
+      setShowDeleteConfirm(false)
+
+      // Navigate back to dashboard after successful deletion
+      setTimeout(() => {
+        onBack()
+      }, 1000)
+    } catch (error) {
+      console.error("Error deleting client:", error)
+      setSaveError("Failed to delete client. Please try again.")
+      setShowDeleteConfirm(false)
     } finally {
       setIsDeleting(false)
-      setShowDeleteConfirm(false)
     }
   }
 
-  const handleAddNote = async () => {
-    if (!newNote.trim()) return
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false)
+  }
 
-    setIsAddingNote(true)
-    try {
-      const note = await caseNotesApi.create({
-        client_id: client.id,
-        note: newNote.trim(),
-        author: "Current User",
-      })
-      setCaseNotes((prev) => [note, ...prev])
-      setNewNote("")
-    } catch (err: any) {
-      console.error("Error adding case note:", err)
-      setError(err.message || "Failed to add case note")
-    } finally {
-      setIsAddingNote(false)
+  const getStatusBadge = (status: string) => {
+    const baseClasses = "px-2 py-1 text-xs font-medium rounded-full"
+    switch (status.toLowerCase()) {
+      case "active":
+        return `${baseClasses} bg-green-100 text-green-800`
+      case "inactive":
+        return `${baseClasses} bg-red-100 text-red-800`
+      case "pending":
+        return `${baseClasses} bg-yellow-100 text-yellow-800`
+      default:
+        return `${baseClasses} bg-gray-100 text-gray-800`
     }
-  }
-
-  // File upload handlers
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || [])
-    processFiles(files)
-  }
-
-  const handleDragOver = (event: React.DragEvent) => {
-    event.preventDefault()
-    setIsDragOver(true)
-  }
-
-  const handleDragLeave = (event: React.DragEvent) => {
-    event.preventDefault()
-    setIsDragOver(false)
-  }
-
-  const handleDrop = (event: React.DragEvent) => {
-    event.preventDefault()
-    setIsDragOver(false)
-    const files = Array.from(event.dataTransfer.files)
-    processFiles(files)
-  }
-
-  const processFiles = (files: File[]) => {
-    setUploadError(null)
-
-    const validFiles: FileUpload[] = []
-    const errors: string[] = []
-
-    files.forEach((file) => {
-      // Validate file type
-      const allowedTypes = [
-        "application/pdf",
-        "image/jpeg",
-        "image/png",
-        "image/gif",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ]
-
-      if (!allowedTypes.includes(file.type)) {
-        errors.push(`${file.name}: Unsupported file type`)
-        return
-      }
-
-      // Validate file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        errors.push(`${file.name}: File too large (max 5MB)`)
-        return
-      }
-
-      const fileUpload: FileUpload = {
-        id: `${Date.now()}-${Math.random()}`,
-        file,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-      }
-
-      // Create preview for images
-      if (file.type.startsWith("image/")) {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          fileUpload.preview = e.target?.result as string
-          setUploadedFiles((prev) => prev.map((f) => (f.id === fileUpload.id ? fileUpload : f)))
-        }
-        reader.readAsDataURL(file)
-      }
-
-      validFiles.push(fileUpload)
-    })
-
-    if (errors.length > 0) {
-      setUploadError(errors.join(", "))
-    }
-
-    setUploadedFiles((prev) => [...prev, ...validFiles])
-  }
-
-  const removeFile = (fileId: string) => {
-    setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId))
-  }
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes"
-    const k = 1024
-    const sizes = ["Bytes", "KB", "MB", "GB"]
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return "Not specified"
-    return new Date(dateString).toLocaleDateString()
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "active":
-        return "bg-green-100 text-green-800"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      case "inactive":
-        return "bg-gray-100 text-gray-800"
-      case "completed":
-        return "bg-blue-100 text-blue-800"
-      case "withdrawn":
-        return "bg-red-100 text-red-800"
-      default:
-        return "bg-gray-100 text-gray-800"
+    try {
+      return new Date(dateString).toLocaleDateString()
+    } catch {
+      return dateString
     }
   }
 
-  // Debug logging
-  console.log("ClientProfile render:", {
-    clientId: client.id,
-    clientFirstName: client.first_name,
-    editedClientFirstName: editedClient.first_name,
-    isEditing,
-    hasEditedClient: !!editedClient,
-  })
+  // Use currentClient for display when not editing, editedClient when editing
+  const displayClient = isEditing ? editedClient : currentClient
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="outline" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">
-              {client.first_name} {client.last_name}
-            </h1>
-            <p className="text-gray-600">ID: {client.participant_id}</p>
-          </div>
-          <Badge className={getStatusColor(client.status)}>{client.status}</Badge>
-        </div>
-        <div className="flex space-x-2">
-          {!isEditing ? (
-            <>
-              <Button onClick={handleEdit}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-              <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)} disabled={isDeleting}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                {isDeleting ? "Deleting..." : "Delete"}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button onClick={handleSave} disabled={isSaving}>
-                <Save className="h-4 w-4 mr-2" />
-                {isSaving ? "Saving..." : "Save"}
-              </Button>
-              <Button variant="outline" onClick={handleCancel}>
-                <X className="h-4 w-4 mr-2" />
-                Cancel
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <div className="flex">
-            <AlertCircle className="h-5 w-5 text-red-400" />
-            <div className="ml-3">
-              <p className="text-sm text-red-800">{error}</p>
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" onClick={onBack} className="flex items-center gap-2" disabled={isSaving}>
+              <ArrowLeft className="w-4 h-4" />
+              Back to Client List
+            </Button>
+            <div className="h-6 w-px bg-gray-300" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {displayClient.firstName} {displayClient.lastName}
+              </h1>
+              <p className="text-gray-600">
+                PID: {displayClient.participantId} • {displayClient.program}
+              </p>
+              {displayClient.lastModified && (
+                <p className="text-xs text-gray-500">
+                  Last modified: {formatDate(displayClient.lastModified)} by {displayClient.modifiedBy || "Unknown"}
+                </p>
+              )}
             </div>
           </div>
+          <div className="flex items-center gap-3">
+            <span className={getStatusBadge(displayClient.status)}>{displayClient.status}</span>
+            <div className="text-sm text-gray-500">1 of 6</div>
+            {isEditing ? (
+              <div className="flex gap-2">
+                <Button onClick={handleSave} size="sm" className="bg-green-600 hover:bg-green-700" disabled={isSaving}>
+                  <Save className="w-4 h-4 mr-2" />
+                  {isSaving ? "Saving..." : "Save"}
+                </Button>
+                <Button onClick={handleCancel} variant="outline" size="sm" disabled={isSaving}>
+                  <X className="w-4 h-4 mr-2" />
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={handleEdit} variant="outline" size="sm">
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Client
+              </Button>
+            )}
+            <Button
+              onClick={handleDeleteClick}
+              variant="outline"
+              size="sm"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 bg-transparent"
+              disabled={isSaving || isDeleting}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Confirm Delete</h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this client? This action will move the client to the recycle bin.
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Delete Client</h3>
+                <p className="text-sm text-gray-600">This action can be undone from the recycle bin</p>
+              </div>
+            </div>
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to delete{" "}
+              <strong>
+                {displayClient.firstName} {displayClient.lastName}
+              </strong>
+              ? This client will be moved to the recycle bin and can be restored later.
             </p>
-            <div className="flex justify-end space-x-4">
-              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+            <div className="flex gap-3 justify-end">
+              <Button onClick={handleDeleteCancel} variant="outline" disabled={isDeleting}>
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-                {isDeleting ? "Deleting..." : "Delete"}
+              <Button
+                onClick={handleDeleteConfirm}
+                className="bg-red-600 hover:bg-red-700 text-white"
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Deleting..." : "Delete Client"}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="contact">Contact</TabsTrigger>
-          <TabsTrigger value="program">Program</TabsTrigger>
-          <TabsTrigger value="education">Education</TabsTrigger>
-          <TabsTrigger value="certifications">Certifications</TabsTrigger>
-          <TabsTrigger value="notes">Case Notes</TabsTrigger>
-        </TabsList>
+      {/* Success/Error Messages */}
+      {showSaveSuccess && (
+        <div className="bg-green-50 border-l-4 border-green-400 p-4 mx-6 mt-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-green-700">✓ Client information saved successfully!</p>
+            </div>
+          </div>
+        </div>
+      )}
 
-        {/* Overview Tab */}
-        <TabsContent value="overview">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Quick Info Cards */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-3">
-                  <User className="h-8 w-8 text-blue-600" />
+      {saveError && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{saveError}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={() => setSaveError(null)}
+                className="inline-flex bg-red-50 rounded-md p-1.5 text-red-500 hover:bg-red-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Main Content - Smaller Information Cards */}
+          <div className="space-y-3">
+            <Card className="border border-gray-200">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <User className="w-5 h-5 text-blue-600" />
+                  Personal Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4 pb-3 pt-0">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-sm text-gray-600">Program</p>
-                    <p className="font-semibold">{client.program}</p>
+                    <label className="text-sm font-medium text-gray-600">First Name</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedClient.firstName}
+                        onChange={(e) => handleInputChange("firstName", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.firstName}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Last Name</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedClient.lastName}
+                        onChange={(e) => handleInputChange("lastName", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.lastName}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Participant ID</label>
+                    <p className="text-gray-900 font-mono text-sm">{displayClient.participantId}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Date of Birth</label>
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        value={editedClient.dateOfBirth}
+                        onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{formatDate(displayClient.dateOfBirth)}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Status</label>
+                    {isEditing ? (
+                      <select
+                        value={editedClient.status}
+                        onChange={(e) => handleInputChange("status", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Pending">Pending</option>
+                      </select>
+                    ) : (
+                      <span className={getStatusBadge(displayClient.status)}>{displayClient.status}</span>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Enrollment Date</label>
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        value={editedClient.enrollmentDate}
+                        onChange={(e) => handleInputChange("enrollmentDate", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{formatDate(displayClient.enrollmentDate)}</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-3">
-                  <Calendar className="h-8 w-8 text-green-600" />
+            <Card className="border border-gray-200">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Phone className="w-5 h-5 text-green-600" />
+                  Contact Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4 pb-3 pt-0">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Phone Number</label>
+                  {isEditing ? (
+                    <input
+                      type="tel"
+                      value={editedClient.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isSaving}
+                    />
+                  ) : (
+                    <p className="text-gray-900 text-sm">{displayClient.phone}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Email Address</label>
+                  {isEditing ? (
+                    <input
+                      type="email"
+                      value={editedClient.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isSaving}
+                    />
+                  ) : (
+                    <p className="text-gray-900 text-sm">{displayClient.email}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Address</label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editedClient.address}
+                      onChange={(e) => handleInputChange("address", e.target.value)}
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isSaving}
+                    />
+                  ) : (
+                    <p className="text-gray-900 text-sm">{displayClient.address}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <p className="text-sm text-gray-600">Enrollment Date</p>
-                    <p className="font-semibold">{formatDate(client.enrollment_date)}</p>
+                    <label className="text-sm font-medium text-gray-600">City</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedClient.city}
+                        onChange={(e) => handleInputChange("city", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.city}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">State</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedClient.state}
+                        onChange={(e) => handleInputChange("state", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.state}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">ZIP Code</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedClient.zipCode}
+                        onChange={(e) => handleInputChange("zipCode", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.zipCode}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Emergency Contact</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedClient.emergencyContact || ""}
+                        onChange={(e) => handleInputChange("emergencyContact", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.emergencyContact || "Not provided"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Emergency Phone</label>
+                    {isEditing ? (
+                      <input
+                        type="tel"
+                        value={editedClient.emergencyPhone || ""}
+                        onChange={(e) => handleInputChange("emergencyPhone", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.emergencyPhone || "Not provided"}</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-3">
-                  <User className="h-8 w-8 text-purple-600" />
+            <Card className="border border-gray-200">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <GraduationCap className="w-5 h-5 text-purple-600" />
+                  Program Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4 pb-3 pt-0">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Program</label>
+                  {isEditing ? (
+                    <select
+                      value={editedClient.program}
+                      onChange={(e) => handleInputChange("program", e.target.value)}
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isSaving}
+                    >
+                      <option value="Job Readiness">Job Readiness</option>
+                      <option value="EARN">EARN</option>
+                      <option value="Ex-Offender">Ex-Offender</option>
+                      <option value="YOUTH">YOUTH</option>
+                      <option value="Next Step Program">Next Step Program</option>
+                      <option value="Career Development">Career Development</option>
+                      <option value="Skills Training">Skills Training</option>
+                    </select>
+                  ) : (
+                    <p className="text-gray-900 text-sm">{displayClient.program}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Case Manager</label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editedClient.caseManager}
+                      onChange={(e) => handleInputChange("caseManager", e.target.value)}
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isSaving}
+                    />
+                  ) : (
+                    <p className="text-gray-900 text-sm">{displayClient.caseManager}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-sm text-gray-600">Case Manager</p>
-                    <p className="font-semibold">{client.case_manager}</p>
+                    <label className="text-sm font-medium text-gray-600">Required Hours</label>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editedClient.requiredHours || ""}
+                        onChange={(e) => handleInputChange("requiredHours", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.requiredHours || "Not specified"}</p>
+                    )}
                   </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">CAO Number</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedClient.caoNumber || ""}
+                        onChange={(e) => handleInputChange("caoNumber", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.caoNumber || "Not provided"}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <GraduationCap className="w-5 h-5 text-indigo-600" />
+                  Education Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4 pb-3 pt-0">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Highest Education Level</label>
+                    {isEditing ? (
+                      <select
+                        value={editedClient.educationLevel || ""}
+                        onChange={(e) => handleInputChange("educationLevel", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      >
+                        <option value="">Select education level</option>
+                        <option value="Less than High School">Less than High School</option>
+                        <option value="High School Diploma/GED">High School Diploma/GED</option>
+                        <option value="Some College">Some College</option>
+                        <option value="Associate Degree">Associate Degree</option>
+                        <option value="Bachelor's Degree">Bachelor's Degree</option>
+                        <option value="Master's Degree">Master's Degree</option>
+                        <option value="Doctoral Degree">Doctoral Degree</option>
+                        <option value="Professional Degree">Professional Degree</option>
+                      </select>
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.educationLevel || "Not provided"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Graduation Year</label>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        min="1950"
+                        max={new Date().getFullYear()}
+                        value={editedClient.graduationYear || ""}
+                        onChange={(e) => handleInputChange("graduationYear", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g., 2020"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.graduationYear || "Not provided"}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">School/Institution Name</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedClient.schoolName || ""}
+                        onChange={(e) => handleInputChange("schoolName", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter school or institution name"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.schoolName || "Not provided"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Field of Study/Major</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedClient.fieldOfStudy || ""}
+                        onChange={(e) => handleInputChange("fieldOfStudy", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter field of study or major"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.fieldOfStudy || "Not provided"}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Additional Education Details</label>
+                  {isEditing ? (
+                    <textarea
+                      value={editedClient.educationNotes || ""}
+                      onChange={(e) => handleInputChange("educationNotes", e.target.value)}
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      rows={2}
+                      placeholder="Enter any additional education details, honors, relevant coursework, etc."
+                      disabled={isSaving}
+                    />
+                  ) : (
+                    <p className="text-gray-900 text-sm whitespace-pre-line">
+                      {displayClient.educationNotes || "Not provided"}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Currently Enrolled</label>
+                    {isEditing ? (
+                      <select
+                        value={editedClient.currentlyEnrolled || "No"}
+                        onChange={(e) => handleInputChange("currentlyEnrolled", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      >
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.currentlyEnrolled || "No"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">GPA (if applicable)</label>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        min="0"
+                        max="4"
+                        step="0.01"
+                        value={editedClient.gpa || ""}
+                        onChange={(e) => handleInputChange("gpa", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g., 3.5"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.gpa || "Not provided"}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileText className="w-5 h-5 text-orange-600" />
+                  Certifications & Licenses
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4 pb-3 pt-0">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Professional Certifications</label>
+                    {isEditing ? (
+                      <textarea
+                        value={editedClient.certifications || ""}
+                        onChange={(e) => handleInputChange("certifications", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        rows={2}
+                        placeholder="List professional certifications (e.g., CompTIA A+, Microsoft Office Specialist, etc.)"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm whitespace-pre-line">
+                        {displayClient.certifications || "Not provided"}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Licenses</label>
+                    {isEditing ? (
+                      <textarea
+                        value={editedClient.licenses || ""}
+                        onChange={(e) => handleInputChange("licenses", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        rows={2}
+                        placeholder="List professional licenses (e.g., Driver's License, CDL, Professional License, etc.)"
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm whitespace-pre-line">
+                        {displayClient.licenses || "Not provided"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Industry Certifications</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedClient.industryCertifications || ""}
+                        onChange={(e) => handleInputChange("industryCertifications", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g., OSHA 10, Food Handler's License, etc."
+                        disabled={isSaving}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.industryCertifications || "Not provided"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Certification Status</label>
+                    {isEditing ? (
+                      <select
+                        value={editedClient.certificationStatus || ""}
+                        onChange={(e) => handleInputChange("certificationStatus", e.target.value)}
+                        className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isSaving}
+                      >
+                        <option value="">Select status</option>
+                        <option value="Current">Current</option>
+                        <option value="Expired">Expired</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Renewal Required">Renewal Required</option>
+                      </select>
+                    ) : (
+                      <p className="text-gray-900 text-sm">{displayClient.certificationStatus || "Not provided"}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Certification Notes</label>
+                  {isEditing ? (
+                    <textarea
+                      value={editedClient.certificationNotes || ""}
+                      onChange={(e) => handleInputChange("certificationNotes", e.target.value)}
+                      className="w-full mt-1 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      rows={2}
+                      placeholder="Additional notes about certifications, renewal dates, etc."
+                      disabled={isSaving}
+                    />
+                  ) : (
+                    <p className="text-gray-900 text-sm">{displayClient.certificationNotes || "Not provided"}</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>First Name</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedClient.first_name || ""}
-                    onChange={(e) => handleInputChange("first_name", e.target.value)}
-                    placeholder="Enter first name"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.first_name}</p>
-                )}
-              </div>
-              <div>
-                <Label>Last Name</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedClient.last_name || ""}
-                    onChange={(e) => handleInputChange("last_name", e.target.value)}
-                    placeholder="Enter last name"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.last_name}</p>
-                )}
-              </div>
-              <div>
-                <Label>Date of Birth</Label>
-                {isEditing ? (
-                  <Input
-                    type="date"
-                    value={editedClient.date_of_birth || ""}
-                    onChange={(e) => handleInputChange("date_of_birth", e.target.value)}
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{formatDate(client.date_of_birth)}</p>
-                )}
-              </div>
-              <div>
-                <Label>Status</Label>
-                {isEditing ? (
-                  <Select
-                    value={editedClient.status || ""}
-                    onValueChange={(value) => handleInputChange("status", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STATUS_OPTIONS.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {status}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Badge className={getStatusColor(client.status)}>{client.status}</Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Contact Tab */}
-        <TabsContent value="contact">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Phone className="h-5 w-5 mr-2" />
-                Contact Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Phone</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedClient.phone || ""}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    placeholder="Enter phone number"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.phone}</p>
-                )}
-              </div>
-              <div>
-                <Label>Cell Phone</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedClient.cell_phone || ""}
-                    onChange={(e) => handleInputChange("cell_phone", e.target.value)}
-                    placeholder="Enter cell phone number"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.cell_phone || "Not provided"}</p>
-                )}
-              </div>
-              <div className="md:col-span-2">
-                <Label>Email</Label>
-                {isEditing ? (
-                  <Input
-                    type="email"
-                    value={editedClient.email || ""}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    placeholder="Enter email address"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.email}</p>
-                )}
-              </div>
-              <div className="md:col-span-2">
-                <Label>Address</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedClient.address || ""}
-                    onChange={(e) => handleInputChange("address", e.target.value)}
-                    placeholder="Enter address"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.address}</p>
-                )}
-              </div>
-              <div>
-                <Label>City</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedClient.city || ""}
-                    onChange={(e) => handleInputChange("city", e.target.value)}
-                    placeholder="Enter city"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.city}</p>
-                )}
-              </div>
-              <div>
-                <Label>State</Label>
-                {isEditing ? (
-                  <Select value={editedClient.state || ""} onValueChange={(value) => handleInputChange("state", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {US_STATES.map((state) => (
-                        <SelectItem key={state} value={state}>
-                          {state}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="mt-1 text-sm">{client.state}</p>
-                )}
-              </div>
-              <div>
-                <Label>ZIP Code</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedClient.zip_code || ""}
-                    onChange={(e) => handleInputChange("zip_code", e.target.value)}
-                    placeholder="Enter ZIP code"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.zip_code}</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Emergency Contact */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Emergency Contact</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Emergency Contact Name</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedClient.emergency_contact || ""}
-                    onChange={(e) => handleInputChange("emergency_contact", e.target.value)}
-                    placeholder="Enter emergency contact name"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.emergency_contact || "Not provided"}</p>
-                )}
-              </div>
-              <div>
-                <Label>Emergency Contact Phone</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedClient.emergency_phone || ""}
-                    onChange={(e) => handleInputChange("emergency_phone", e.target.value)}
-                    placeholder="Enter emergency contact phone"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.emergency_phone || "Not provided"}</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Program Tab */}
-        <TabsContent value="program">
-          <Card>
-            <CardHeader>
-              <CardTitle>Program Details</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Program</Label>
-                {isEditing ? (
-                  <Select
-                    value={editedClient.program || ""}
-                    onValueChange={(value) => handleInputChange("program", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select program" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PROGRAMS.map((program) => (
-                        <SelectItem key={program} value={program}>
-                          {program}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="mt-1 text-sm">{client.program}</p>
-                )}
-              </div>
-              <div>
-                <Label>Case Manager</Label>
-                {isEditing ? (
-                  <Select
-                    value={editedClient.case_manager || ""}
-                    onValueChange={(value) => handleInputChange("case_manager", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select case manager" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CASE_MANAGERS.map((manager) => (
-                        <SelectItem key={manager} value={manager}>
-                          {manager}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="mt-1 text-sm">{client.case_manager}</p>
-                )}
-              </div>
-              <div>
-                <Label>Enrollment Date</Label>
-                {isEditing ? (
-                  <Input
-                    type="date"
-                    value={editedClient.enrollment_date || ""}
-                    onChange={(e) => handleInputChange("enrollment_date", e.target.value)}
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{formatDate(client.enrollment_date)}</p>
-                )}
-              </div>
-              <div>
-                <Label>Required Hours</Label>
-                {isEditing ? (
-                  <Input
-                    type="number"
-                    value={editedClient.required_hours || ""}
-                    onChange={(e) => handleInputChange("required_hours", Number.parseInt(e.target.value) || 0)}
-                    placeholder="Enter required hours"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.required_hours || "Not specified"}</p>
-                )}
-              </div>
-              <div>
-                <Label>Responsible EC</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedClient.responsible_ec || ""}
-                    onChange={(e) => handleInputChange("responsible_ec", e.target.value)}
-                    placeholder="Enter responsible EC"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.responsible_ec || "Not specified"}</p>
-                )}
-              </div>
-              <div>
-                <Label>CAO Number</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedClient.cao_number || ""}
-                    onChange={(e) => handleInputChange("cao_number", e.target.value)}
-                    placeholder="Enter CAO number"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.cao_number || "Not specified"}</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Education Tab */}
-        <TabsContent value="education">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <GraduationCap className="h-5 w-5 mr-2" />
-                Education Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Education Level</Label>
-                {isEditing ? (
-                  <Select
-                    value={editedClient.education_level || ""}
-                    onValueChange={(value) => handleInputChange("education_level", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select education level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EDUCATION_LEVELS.map((level) => (
-                        <SelectItem key={level} value={level}>
-                          {level}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="mt-1 text-sm">{client.education_level || "Not specified"}</p>
-                )}
-              </div>
-              <div>
-                <Label>Graduation Year</Label>
-                {isEditing ? (
-                  <Input
-                    type="number"
-                    min="1950"
-                    max="2030"
-                    value={editedClient.graduation_year || ""}
-                    onChange={(e) => handleInputChange("graduation_year", Number.parseInt(e.target.value) || 0)}
-                    placeholder="Enter graduation year"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.graduation_year || "Not specified"}</p>
-                )}
-              </div>
-              <div>
-                <Label>School Name</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedClient.school_name || ""}
-                    onChange={(e) => handleInputChange("school_name", e.target.value)}
-                    placeholder="Enter school name"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.school_name || "Not specified"}</p>
-                )}
-              </div>
-              <div>
-                <Label>Field of Study</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedClient.field_of_study || ""}
-                    onChange={(e) => handleInputChange("field_of_study", e.target.value)}
-                    placeholder="Enter field of study"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.field_of_study || "Not specified"}</p>
-                )}
-              </div>
-              <div>
-                <Label>Currently Enrolled</Label>
-                {isEditing ? (
-                  <Select
-                    value={editedClient.currently_enrolled || ""}
-                    onValueChange={(value) => handleInputChange("currently_enrolled", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Yes">Yes</SelectItem>
-                      <SelectItem value="No">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="mt-1 text-sm">{client.currently_enrolled || "Not specified"}</p>
-                )}
-              </div>
-              <div>
-                <Label>GPA</Label>
-                {isEditing ? (
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="4"
-                    value={editedClient.gpa || ""}
-                    onChange={(e) => handleInputChange("gpa", Number.parseFloat(e.target.value) || 0)}
-                    placeholder="Enter GPA"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.gpa || "Not specified"}</p>
-                )}
-              </div>
-              <div className="md:col-span-2">
-                <Label>Education Notes</Label>
-                {isEditing ? (
-                  <Textarea
-                    value={editedClient.education_notes || ""}
-                    onChange={(e) => handleInputChange("education_notes", e.target.value)}
-                    rows={3}
-                    placeholder="Enter education notes"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.education_notes || "No notes"}</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Certifications Tab */}
-        <TabsContent value="certifications">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Award className="h-5 w-5 mr-2" />
-                Certifications and Licenses
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Certifications</Label>
-                  {isEditing ? (
-                    <Textarea
-                      value={editedClient.certifications || ""}
-                      onChange={(e) => handleInputChange("certifications", e.target.value)}
-                      rows={3}
-                      placeholder="Enter certifications"
-                    />
-                  ) : (
-                    <p className="mt-1 text-sm">{client.certifications || "None listed"}</p>
-                  )}
-                </div>
-                <div>
-                  <Label>Licenses</Label>
-                  {isEditing ? (
-                    <Textarea
-                      value={editedClient.licenses || ""}
-                      onChange={(e) => handleInputChange("licenses", e.target.value)}
-                      rows={3}
-                      placeholder="Enter licenses"
-                    />
-                  ) : (
-                    <p className="mt-1 text-sm">{client.licenses || "None listed"}</p>
-                  )}
-                </div>
-                <div>
-                  <Label>Industry Certifications</Label>
-                  {isEditing ? (
-                    <Textarea
-                      value={editedClient.industry_certifications || ""}
-                      onChange={(e) => handleInputChange("industry_certifications", e.target.value)}
-                      rows={3}
-                      placeholder="Enter industry certifications"
-                    />
-                  ) : (
-                    <p className="mt-1 text-sm">{client.industry_certifications || "None listed"}</p>
-                  )}
-                </div>
-                <div>
-                  <Label>Certification Status</Label>
-                  {isEditing ? (
-                    <Select
-                      value={editedClient.certification_status || ""}
-                      onValueChange={(value) => handleInputChange("certification_status", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Current">Current</SelectItem>
-                        <SelectItem value="Expired">Expired</SelectItem>
-                        <SelectItem value="Pending">Pending</SelectItem>
-                        <SelectItem value="Not Applicable">Not Applicable</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="mt-1 text-sm">{client.certification_status || "Not specified"}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* File Upload Section - Only show in edit mode */}
-              {isEditing && (
-                <div>
-                  <Label>Upload Certification Documents</Label>
-                  <div
-                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                      isDragOver ? "border-blue-400 bg-blue-50" : "border-gray-300"
-                    }`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                  >
-                    <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                    <div className="mt-4">
-                      <label htmlFor="file-upload" className="cursor-pointer">
-                        <span className="mt-2 block text-sm font-medium text-gray-900">
-                          Drop files here or click to upload
-                        </span>
-                        <span className="mt-1 block text-xs text-gray-500">
-                          PDF, DOC, DOCX, JPG, PNG up to 5MB each
-                        </span>
-                      </label>
-                      <input
-                        id="file-upload"
-                        name="file-upload"
-                        type="file"
-                        className="sr-only"
-                        multiple
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
-                        onChange={handleFileSelect}
-                      />
-                    </div>
-                  </div>
-
-                  {uploadError && <div className="mt-2 text-sm text-red-600">{uploadError}</div>}
-
-                  {/* Uploaded Files List */}
-                  {uploadedFiles.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      <Label>Uploaded Files</Label>
-                      {uploadedFiles.map((file) => (
-                        <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            {file.preview ? (
-                              <img
-                                src={file.preview || "/placeholder.svg"}
-                                alt={file.name}
-                                className="h-10 w-10 object-cover rounded"
-                              />
-                            ) : (
-                              <FileText className="h-10 w-10 text-gray-400" />
-                            )}
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                              <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
-                            </div>
-                          </div>
-                          <Button type="button" variant="ghost" size="sm" onClick={() => removeFile(file.id)}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="md:col-span-2">
-                <Label>Certification Notes</Label>
-                {isEditing ? (
-                  <Textarea
-                    value={editedClient.certification_notes || ""}
-                    onChange={(e) => handleInputChange("certification_notes", e.target.value)}
-                    rows={3}
-                    placeholder="Enter certification notes"
-                  />
-                ) : (
-                  <p className="mt-1 text-sm">{client.certification_notes || "No notes"}</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Case Notes Tab */}
-        <TabsContent value="notes">
-          <Card>
-            <CardHeader>
-              <CardTitle>Case Notes</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Add New Note */}
-              <div className="space-y-2">
-                <Label htmlFor="new-note">Add New Case Note</Label>
-                <Textarea
-                  id="new-note"
-                  placeholder="Enter case note..."
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  rows={3}
-                />
-                <Button onClick={handleAddNote} disabled={!newNote.trim() || isAddingNote} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  {isAddingNote ? "Adding..." : "Add Note"}
+          {/* Sidebar - Quick Actions and Case Notes */}
+          <div className="space-y-3">
+            {/* Quick Actions */}
+            <Card className="border border-gray-200">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle>Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4 pb-3 pt-0">
+                <Button
+                  onClick={handleEdit}
+                  className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={isEditing || isSaving}
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Client
                 </Button>
-              </div>
+                <Button
+                  onClick={handleAddCaseNote}
+                  className="w-full justify-start bg-green-600 hover:bg-green-700 text-white"
+                  disabled={isSaving}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Add Case Note
+                </Button>
+              </CardContent>
+            </Card>
 
-              {/* Case Notes List */}
-              <div className="space-y-4">
-                {caseNotes.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">No case notes yet</p>
-                ) : (
-                  caseNotes.map((note) => (
-                    <div key={note.id} className="border rounded-lg p-4 bg-gray-50">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="text-sm text-gray-600">
-                          <span className="font-medium">{note.author}</span>
-                          <span className="mx-2">•</span>
-                          <span>{formatDate(note.created_at)}</span>
-                        </div>
-                      </div>
-                      <p className="text-sm">{note.note}</p>
-                    </div>
-                  ))
+            {/* Case Note Form */}
+            {showCaseNoteForm && (
+              <Card className="border border-gray-200">
+                <CardHeader className="pb-2 px-4 pt-3">
+                  <CardTitle>Add Case Note</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 px-4 pb-3 pt-0">
+                  <textarea
+                    value={caseNote}
+                    onChange={(e) => setCaseNote(e.target.value)}
+                    placeholder="Enter case note details..."
+                    className="w-full h-32 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    disabled={isSaving}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSaveCaseNote}
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700"
+                      disabled={isSaving || !caseNote.trim()}
+                    >
+                      {isSaving ? "Saving..." : "Save Note"}
+                    </Button>
+                    <Button onClick={handleCancelCaseNote} variant="outline" size="sm" disabled={isSaving}>
+                      Cancel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Case Notes History - Large and Prominent */}
+            <Card className="border border-gray-200 min-h-[700px]">
+              <CardHeader className="pb-3 px-4 pt-4">
+                <CardTitle className="text-xl font-bold">Case Notes ({caseNotes.length})</CardTitle>
+                {showNoteSuccess && (
+                  <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded-md">
+                    <p className="text-sm text-green-700">✓ Case note added successfully</p>
+                  </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 pt-0">
+                <div className="space-y-4 max-h-[600px] overflow-y-auto">
+                  <div className="space-y-3">
+                    {caseNotes.map((note) => (
+                      <div key={note.id} className="border-l-4 border-blue-500 pl-4 py-2 bg-gray-50 rounded-r">
+                        <div className="flex items-start justify-between mb-1">
+                          <span className="text-sm font-medium text-blue-600">{note.author}</span>
+                          <span className="text-sm text-gray-500">
+                            {new Date(note.date).toLocaleDateString()} at{" "}
+                            {new Date(note.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700">{note.note}</p>
+                      </div>
+                    ))}
+                    {caseNotes.length === 0 && (
+                      <p className="text-sm text-gray-500 italic text-center py-4">No case notes yet</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
