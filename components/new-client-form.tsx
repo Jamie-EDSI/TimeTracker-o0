@@ -31,7 +31,7 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
     lastName: "",
     participantId: "",
     program: "",
-    status: "Active",
+    status: "Active", // Default status set to Active
     enrollmentDate: new Date().toISOString().split("T")[0],
     dateOfBirth: "",
     phone: "",
@@ -68,13 +68,18 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [errors, setErrors] = useState<string[]>([])
 
-  // Generate a unique participant ID
+  // Generate a unique participant ID with exactly 7 digits
   const generateParticipantId = () => {
-    const timestamp = Date.now().toString().slice(-6)
-    const random = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0")
-    return `${timestamp}${random}`
+    // Generate 7 unique digits
+    const digits = new Set<number>()
+
+    // Keep generating until we have 7 unique digits
+    while (digits.size < 7) {
+      digits.add(Math.floor(Math.random() * 10))
+    }
+
+    // Convert to array and join to create the ID
+    return Array.from(digits).join("")
   }
 
   // Initialize with generated participant ID on first render
@@ -158,6 +163,23 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
     if (!formData.lastName.trim()) newErrors.push("Last Name is required")
     if (!formData.program.trim()) newErrors.push("Program is required")
     if (!formData.participantId.trim()) newErrors.push("Participant ID is required")
+
+    // Participant ID validation - must be exactly 7 digits with all unique digits
+    if (formData.participantId.trim()) {
+      const participantId = formData.participantId.trim()
+
+      // Check if it's exactly 7 digits
+      if (!/^\d{7}$/.test(participantId)) {
+        newErrors.push("Participant ID must be exactly 7 digits")
+      } else {
+        // Check if all digits are unique
+        const digits = participantId.split("")
+        const uniqueDigits = new Set(digits)
+        if (uniqueDigits.size !== 7) {
+          newErrors.push("Participant ID must contain 7 unique digits (no repeated digits)")
+        }
+      }
+    }
 
     // Email validation
     if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
@@ -352,7 +374,7 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="participantId">Participant ID</Label>
+                    <Label htmlFor="participantId">Participant ID *</Label>
                     <div className="flex gap-2">
                       <Input
                         id="participantId"
@@ -360,6 +382,8 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
                         onChange={(e) => handleInputChange("participantId", e.target.value)}
                         className="font-mono"
                         disabled={isLoading}
+                        placeholder="7 unique digits"
+                        maxLength={7}
                       />
                       <Button
                         type="button"
@@ -371,6 +395,7 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
                         Regenerate
                       </Button>
                     </div>
+                    <p className="text-xs text-gray-500 mt-1">Must be exactly 7 unique digits</p>
                   </div>
                   <div>
                     <Label htmlFor="dateOfBirth">Date of Birth</Label>
