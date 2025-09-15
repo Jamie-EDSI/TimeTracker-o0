@@ -1,10 +1,36 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Edit, Save, X, User, Phone, GraduationCap, FileText, Trash2 } from "lucide-react"
+import {
+  ArrowLeft,
+  Edit,
+  Save,
+  X,
+  User,
+  Phone,
+  GraduationCap,
+  FileText,
+  Trash2,
+  Upload,
+  Download,
+  Eye,
+  File,
+} from "lucide-react"
 import { caseNotesApi, clientsApi } from "@/lib/supabase"
+
+interface ClientFile {
+  id: string
+  name: string
+  size: number
+  type: string
+  uploadDate: string
+  url?: string
+  file?: File
+}
 
 interface Client {
   id: string
@@ -52,6 +78,8 @@ interface Client {
     date: string
     author: string
   }>
+  // Uploaded files - now properly typed
+  certificationFiles?: ClientFile[]
 }
 
 interface ClientProfileProps {
@@ -80,6 +108,8 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   const [showSaveSuccess, setShowSaveSuccess] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [certificationFiles, setCertificationFiles] = useState<ClientFile[]>([])
+  const [showFilePreview, setShowFilePreview] = useState<ClientFile | null>(null)
 
   // Update local state when client prop changes
   useEffect(() => {
@@ -87,6 +117,9 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
     setEditedClient({ ...client })
     if (client.caseNotes) {
       setCaseNotes(client.caseNotes)
+    }
+    if (client.certificationFiles) {
+      setCertificationFiles([...client.certificationFiles])
     }
   }, [client])
 
@@ -146,6 +179,14 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
         lastModified: new Date().toISOString(),
         modifiedBy: "Current User",
         caseNotes: caseNotes, // Include current case notes
+        certificationFiles: certificationFiles.map((file) => ({
+          id: file.id,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          uploadDate: file.uploadDate,
+          url: file.url,
+        })), // Include certification files without File objects
       }
 
       // Call the parent save function and wait for it to complete
@@ -171,6 +212,12 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
     setEditedClient({ ...currentClient })
     setIsEditing(false)
     setSaveError(null)
+    // Reset certification files to current state
+    if (currentClient.certificationFiles) {
+      setCertificationFiles([...currentClient.certificationFiles])
+    } else {
+      setCertificationFiles([])
+    }
   }
 
   const handleInputChange = (field: keyof Client, value: string) => {
@@ -182,6 +229,110 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
     if (saveError) {
       setSaveError(null)
     }
+  }
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files) return
+
+    const newFiles: ClientFile[] = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+
+      // Validate file type
+      const allowedTypes = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "image/jpeg",
+        "image/png",
+        "image/jpg",
+      ]
+      if (!allowedTypes.includes(file.type)) {
+        alert(`File type not supported: ${file.name}. Please upload PDF, DOC, DOCX, JPG, or PNG files.`)
+        continue
+      }
+
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`File too large: ${file.name}. Please upload files smaller than 10MB.`)
+        continue
+      }
+
+      // Create URL for the file for preview/download
+      const fileUrl = URL.createObjectURL(file)
+
+      newFiles.push({
+        id: `${Date.now()}-${i}`,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploadDate: new Date().toISOString(),
+        url: fileUrl,
+        file: file,
+      })
+    }
+
+    setCertificationFiles((prev) => [...prev, ...newFiles])
+
+    // Clear the input
+    event.target.value = ""
+  }
+
+  const removeFile = (fileId: string) => {
+    setCertificationFiles((prev) => {
+      const fileToRemove = prev.find((f) => f.id === fileId)
+      if (fileToRemove?.url && fileToRemove.url.startsWith("blob:")) {
+        URL.revokeObjectURL(fileToRemove.url)
+      }
+      return prev.filter((file) => file.id !== fileId)
+    })
+  }
+
+  const downloadFile = (file: ClientFile) => {
+    if (file.url) {
+      const link = document.createElement("a")
+      link.href = file.url
+      link.download = file.name
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } else if (file.file) {
+      // If we have the File object, create a download link
+      const url = URL.createObjectURL(file.file)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = file.name
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    }
+  }
+
+  const viewFile = (file: ClientFile) => {
+    if (file.type.includes("image") || file.type.includes("pdf")) {
+      setShowFilePreview(file)
+    } else {
+      // For non-previewable files, just download them
+      downloadFile(file)
+    }
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes"
+    const k = 1024
+    const sizes = ["Bytes", "KB", "MB", "GB"]
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+  }
+
+  const getFileIcon = (type: string) => {
+    if (type.includes("pdf")) return "📄"
+    if (type.includes("image")) return "🖼️"
+    if (type.includes("word")) return "📝"
+    return "📎"
   }
 
   const handleAddCaseNote = () => {
@@ -307,7 +458,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={onBack} className="flex items-center gap-2" disabled={isSaving}>
               <ArrowLeft className="w-4 h-4" />
-              Back to Client List
+              Back to Dashboard
             </Button>
             <div className="h-6 w-px bg-gray-300" />
             <div>
@@ -357,6 +508,56 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
           </div>
         </div>
       </div>
+
+      {/* File Preview Modal */}
+      {showFilePreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl max-h-[90vh] w-full mx-4 overflow-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{showFilePreview.name}</h3>
+                <p className="text-sm text-gray-600">
+                  {formatFileSize(showFilePreview.size)} • Uploaded {formatDate(showFilePreview.uploadDate)}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => downloadFile(showFilePreview)}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Download
+                </Button>
+                <Button onClick={() => setShowFilePreview(null)} variant="outline" size="sm">
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="border rounded-lg overflow-hidden">
+              {showFilePreview.type.includes("image") ? (
+                <img
+                  src={showFilePreview.url || "/placeholder.svg"}
+                  alt={showFilePreview.name}
+                  className="max-w-full max-h-[60vh] object-contain mx-auto"
+                />
+              ) : showFilePreview.type.includes("pdf") ? (
+                <iframe src={showFilePreview.url} className="w-full h-[60vh]" title={showFilePreview.name} />
+              ) : (
+                <div className="p-8 text-center">
+                  <File className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-600">Preview not available for this file type</p>
+                  <Button onClick={() => downloadFile(showFilePreview)} className="mt-4">
+                    <Download className="w-4 h-4 mr-2" />
+                    Download to View
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
@@ -972,6 +1173,96 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
                     )}
                   </div>
                 </div>
+
+                {/* File Upload Section - Only visible when editing */}
+                {isEditing && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Certification Documents</label>
+                    <div className="mt-2">
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                        <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                        <div className="text-sm text-gray-600 mb-2">
+                          <label htmlFor="file-upload" className="cursor-pointer text-blue-600 hover:text-blue-500">
+                            Click to upload files
+                          </label>
+                          {" or drag and drop"}
+                        </div>
+                        <p className="text-xs text-gray-500">PDF, DOC, DOCX, JPG, PNG up to 10MB each</p>
+                        <input
+                          id="file-upload"
+                          type="file"
+                          multiple
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          disabled={isSaving}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Display certification files */}
+                {certificationFiles.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">
+                      Certification Documents ({certificationFiles.length})
+                    </label>
+                    <div className="mt-2 space-y-2">
+                      {certificationFiles.map((file) => (
+                        <div
+                          key={file.id}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="text-2xl">{getFileIcon(file.type)}</div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{file.name}</p>
+                              <p className="text-xs text-gray-500">
+                                {formatFileSize(file.size)} • Uploaded {formatDate(file.uploadDate)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              onClick={() => viewFile(file)}
+                              variant="ghost"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                              title="View file"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={() => downloadFile(file)}
+                              variant="ghost"
+                              size="sm"
+                              className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                              title="Download file"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                            {isEditing && (
+                              <Button
+                                type="button"
+                                onClick={() => removeFile(file.id)}
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                                disabled={isSaving}
+                                title="Remove file"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="text-sm font-medium text-gray-600">Certification Notes</label>
