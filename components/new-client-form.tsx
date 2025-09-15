@@ -9,14 +9,22 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, User, Phone, GraduationCap, Award, X } from "lucide-react"
-import { FileUploadManager } from "./file-upload-manager"
-import type { ClientFile } from "@/lib/supabase"
+import { ArrowLeft, User, Phone, GraduationCap, Award, Upload, X, Download, Eye } from "lucide-react"
 
 interface NewClientFormProps {
   onClientCreated: (clientData: any) => void
   onCancel: () => void
   isLoading?: boolean
+}
+
+interface UploadedFile {
+  id: string
+  name: string
+  size: number
+  type: string
+  file: File
+  uploadDate: string
+  url?: string
 }
 
 export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: NewClientFormProps) {
@@ -59,9 +67,9 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
     initialCaseNote: "",
   })
 
-  const [certificationFiles, setCertificationFiles] = useState<ClientFile[]>([])
-  const [educationFiles, setEducationFiles] = useState<ClientFile[]>([])
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [errors, setErrors] = useState<string[]>([])
+  const [showFilePreview, setShowFilePreview] = useState<UploadedFile | null>(null)
 
   // Generate a unique participant ID with exactly 7 digits
   const generateParticipantId = () => {
@@ -93,6 +101,108 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
     // Clear errors when user starts typing
     if (errors.length > 0) {
       setErrors([])
+    }
+  }
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files) return
+
+    const newFiles: UploadedFile[] = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+
+      // Validate file type
+      const allowedTypes = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "image/jpeg",
+        "image/png",
+        "image/jpg",
+      ]
+      if (!allowedTypes.includes(file.type)) {
+        alert(`File type not supported: ${file.name}. Please upload PDF, DOC, DOCX, JPG, or PNG files.`)
+        continue
+      }
+
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`File too large: ${file.name}. Please upload files smaller than 10MB.`)
+        continue
+      }
+
+      // Create URL for the file for preview/download
+      const fileUrl = URL.createObjectURL(file)
+
+      newFiles.push({
+        id: `${Date.now()}-${i}`,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        file: file,
+        uploadDate: new Date().toISOString(),
+        url: fileUrl,
+      })
+    }
+
+    setUploadedFiles((prev) => [...prev, ...newFiles])
+
+    // Clear the input
+    event.target.value = ""
+  }
+
+  const removeFile = (fileId: string) => {
+    setUploadedFiles((prev) => {
+      const fileToRemove = prev.find((f) => f.id === fileId)
+      if (fileToRemove?.url) {
+        URL.revokeObjectURL(fileToRemove.url)
+      }
+      return prev.filter((file) => file.id !== fileId)
+    })
+  }
+
+  const downloadFile = (file: UploadedFile) => {
+    if (file.url) {
+      const link = document.createElement("a")
+      link.href = file.url
+      link.download = file.name
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
+  }
+
+  const viewFile = (file: UploadedFile) => {
+    if (file.type.includes("image") || file.type.includes("pdf")) {
+      setShowFilePreview(file)
+    } else {
+      // For non-previewable files, just download them
+      downloadFile(file)
+    }
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes"
+    const k = 1024
+    const sizes = ["Bytes", "KB", "MB", "GB"]
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+  }
+
+  const getFileIcon = (type: string) => {
+    if (type.includes("pdf")) return "📄"
+    if (type.includes("image")) return "🖼️"
+    if (type.includes("word")) return "📝"
+    return "📎"
+  }
+
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString()
+    } catch {
+      return dateString
     }
   }
 
@@ -147,7 +257,7 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
       return
     }
 
-    // Prepare client data with case notes and files if provided
+    // Prepare client data with case notes and certification files if provided
     const clientData = {
       ...formData,
       caseNotes: formData.initialCaseNote.trim()
@@ -160,8 +270,14 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
             },
           ]
         : [],
-      certificationFiles: certificationFiles,
-      educationFiles: educationFiles,
+      certificationFiles: uploadedFiles.map((file) => ({
+        id: file.id,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploadDate: file.uploadDate,
+        url: file.url,
+      })),
     }
 
     onClientCreated(clientData)
@@ -205,6 +321,58 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* File Preview Modal */}
+      {showFilePreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl max-h-[90vh] w-full mx-4 overflow-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{showFilePreview.name}</h3>
+                <p className="text-sm text-gray-600">
+                  {formatFileSize(showFilePreview.size)} • Uploaded {formatDate(showFilePreview.uploadDate)}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => downloadFile(showFilePreview)}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Download
+                </Button>
+                <Button onClick={() => setShowFilePreview(null)} variant="outline" size="sm">
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="border rounded-lg overflow-hidden">
+              {showFilePreview.type.includes("image") ? (
+                <img
+                  src={showFilePreview.url || "/placeholder.svg"}
+                  alt={showFilePreview.name}
+                  className="max-w-full max-h-[60vh] object-contain mx-auto"
+                />
+              ) : showFilePreview.type.includes("pdf") ? (
+                <iframe src={showFilePreview.url} className="w-full h-[60vh]" title={showFilePreview.name} />
+              ) : (
+                <div className="p-8 text-center">
+                  <div className="w-16 h-16 mx-auto text-gray-400 mb-4 text-4xl">
+                    {getFileIcon(showFilePreview.type)}
+                  </div>
+                  <p className="text-gray-600">Preview not available for this file type</p>
+                  <Button onClick={() => downloadFile(showFilePreview)} className="mt-4">
+                    <Download className="w-4 h-4 mr-2" />
+                    Download to View
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="px-6 py-4">
@@ -724,6 +892,88 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
                   </div>
                 </div>
 
+                {/* File Upload Section */}
+                <div>
+                  <Label>Certification Documents</Label>
+                  <div className="mt-2">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                      <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                      <div className="text-sm text-gray-600 mb-2">
+                        <label htmlFor="file-upload" className="cursor-pointer text-blue-600 hover:text-blue-500">
+                          Click to upload files
+                        </label>
+                        {" or drag and drop"}
+                      </div>
+                      <p className="text-xs text-gray-500">PDF, DOC, DOCX, JPG, PNG up to 10MB each</p>
+                      <input
+                        id="file-upload"
+                        type="file"
+                        multiple
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    {/* Uploaded Files List */}
+                    {uploadedFiles.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        <Label className="text-sm font-medium">Uploaded Files ({uploadedFiles.length}):</Label>
+                        {uploadedFiles.map((file) => (
+                          <div
+                            key={file.id}
+                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
+                          >
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="text-2xl">{getFileIcon(file.type)}</div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{file.name}</p>
+                                <p className="text-xs text-gray-500">
+                                  {formatFileSize(file.size)} • Uploaded {formatDate(file.uploadDate)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                onClick={() => viewFile(file)}
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                title="View file"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={() => downloadFile(file)}
+                                variant="ghost"
+                                size="sm"
+                                className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                                title="Download file"
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={() => removeFile(file.id)}
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                                disabled={isLoading}
+                                title="Remove file"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <Label htmlFor="certificationNotes">Certification Notes</Label>
                   <Textarea
@@ -737,42 +987,6 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading = false }: 
                 </div>
               </CardContent>
             </Card>
-
-            {/* File Upload Sections */}
-            <div className="space-y-4">
-              {/* Certification Files */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Certification Documents</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Upload certification documents, licenses, and related files. These will be saved when the client is
-                  created.
-                </p>
-                <FileUploadManager
-                  clientId="temp-new-client"
-                  category="certification"
-                  files={certificationFiles}
-                  onFilesChange={setCertificationFiles}
-                  isEditing={true}
-                  title="Certification Files"
-                />
-              </div>
-
-              {/* Education Files */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Education Documents</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Upload transcripts, diplomas, and other education-related documents.
-                </p>
-                <FileUploadManager
-                  clientId="temp-new-client"
-                  category="education"
-                  files={educationFiles}
-                  onFilesChange={setEducationFiles}
-                  isEditing={true}
-                  title="Education Files"
-                />
-              </div>
-            </div>
 
             {/* Initial Case Note */}
             <Card>
