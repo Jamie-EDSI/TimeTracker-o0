@@ -5,32 +5,33 @@ import type { LucideIcon } from "lucide-react"
 
 interface InteractiveButtonProps {
   icon: LucideIcon
-  title: string
-  description: string
+  label: string
   onClick: () => void
-  variant?: "default" | "outline"
+  variant?: "default" | "outline" | "ghost" | "destructive"
+  size?: "sm" | "default" | "lg"
   className?: string
+  disabled?: boolean
 }
 
 export function InteractiveButton({
   icon: Icon,
-  title,
-  description,
+  label,
   onClick,
   variant = "default",
+  size = "default",
   className = "",
+  disabled = false,
 }: InteractiveButtonProps) {
   return (
     <Button
       onClick={onClick}
       variant={variant}
-      className={`h-auto p-4 flex flex-col items-start gap-2 text-left ${className}`}
+      size={size}
+      className={`flex items-center gap-2 ${className}`}
+      disabled={disabled}
     >
-      <div className="flex items-center gap-2">
-        <Icon className="w-5 h-5" />
-        <span className="font-medium">{title}</span>
-      </div>
-      <span className="text-sm opacity-80">{description}</span>
+      <Icon className="w-4 h-4" />
+      {label}
     </Button>
   )
 }

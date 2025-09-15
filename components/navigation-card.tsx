@@ -1,89 +1,43 @@
 "use client"
 
-import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Search, Users, UserPlus, Phone, Briefcase, BarChart3 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 
 interface NavigationCardProps {
-  onNavigate: (view: string) => void
-  onSearch: (query: string) => void
+  title: string
+  description: string
+  icon: LucideIcon
+  onClick: () => void
+  className?: string
+  disabled?: boolean
 }
 
-export function NavigationCard({ onNavigate, onSearch }: NavigationCardProps) {
-  const [searchQuery, setSearchQuery] = useState("")
-
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
-    onSearch(query)
-  }
-
+export function NavigationCard({
+  title,
+  description,
+  icon: Icon,
+  onClick,
+  className = "",
+  disabled = false,
+}: NavigationCardProps) {
   return (
-    <Card className="h-fit">
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Search className="w-5 h-5" />
-          Client Navigation
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            placeholder="Search clients..."
-            value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="pl-10"
-          />
+    <Card
+      className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105 ${className} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+    >
+      <Button onClick={onClick} variant="ghost" className="w-full h-full p-0 hover:bg-transparent" disabled={disabled}>
+        <div className="w-full">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-3 text-lg">
+              <Icon className="w-6 h-6 text-blue-600" />
+              {title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm text-gray-600 text-left">{description}</p>
+          </CardContent>
         </div>
-
-        {/* Quick Actions */}
-        <div className="space-y-2">
-          <Button
-            onClick={() => onNavigate("new-client")}
-            className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <UserPlus className="w-4 h-4 mr-2" />
-            New Client
-          </Button>
-
-          <Button onClick={() => onNavigate("all-clients")} variant="outline" className="w-full justify-start">
-            <Users className="w-4 h-4 mr-2" />
-            View All Clients
-          </Button>
-        </div>
-
-        {/* Reports */}
-        <div className="pt-4 border-t">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Reports</h3>
-          <div className="space-y-2">
-            <Button
-              onClick={() => onNavigate("active-clients")}
-              variant="ghost"
-              className="w-full justify-start text-sm"
-            >
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Active Clients
-            </Button>
-
-            <Button onClick={() => onNavigate("call-log")} variant="ghost" className="w-full justify-start text-sm">
-              <Phone className="w-4 h-4 mr-2" />
-              Call Log
-            </Button>
-
-            <Button
-              onClick={() => onNavigate("jobs-placements")}
-              variant="ghost"
-              className="w-full justify-start text-sm"
-            >
-              <Briefcase className="w-4 h-4 mr-2" />
-              Job Placements
-            </Button>
-          </div>
-        </div>
-      </CardContent>
+      </Button>
     </Card>
   )
 }
