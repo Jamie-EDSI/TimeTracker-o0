@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -46,6 +48,7 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
     certificationStatus: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -67,12 +70,24 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
     handleInputChange("participantId", newId)
   }
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (files) {
+      setUploadedFiles((prev) => [...prev, ...Array.from(files)])
+    }
+  }
+
+  const removeFile = (index: number) => {
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
     if (!formData.firstName.trim()) newErrors.firstName = "First name is required"
     if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
     if (!formData.participantId.trim()) newErrors.participantId = "Participant ID is required"
+    if (!formData.program.trim()) newErrors.program = "Program is required"
     if (!formData.phone.trim()) newErrors.phone = "Phone number is required"
     if (!formData.email.trim()) newErrors.email = "Email is required"
 
@@ -99,6 +114,7 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
 
     const clientData = {
       ...formData,
+      uploadedFiles: uploadedFiles,
     }
 
     onClientCreated(clientData)
@@ -166,6 +182,19 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
     "Bachelor's Degree",
     "Master's Degree",
     "Doctoral Degree",
+    "Other",
+  ]
+
+  const programs = [
+    "EARN",
+    "Job Readiness",
+    "YOUTH",
+    "WIOA Adult",
+    "WIOA Dislocated Worker",
+    "SNAP E&T",
+    "TANF",
+    "Trade Adjustment Assistance",
+    "Apprenticeship",
     "Other",
   ]
 
@@ -302,6 +331,28 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
                         </SelectContent>
                       </Select>
                     </div>
+                    <div>
+                      <Label htmlFor="program">Program</Label>
+                      <Select
+                        value={formData.program}
+                        onValueChange={(value) => handleInputChange("program", value)}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a program" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {programs.map((program) => (
+                            <SelectItem key={program} value={program}>
+                              {program}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="enrollmentDate">Enrollment Date</Label>
                       <Input
@@ -623,11 +674,46 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
 
                   <div>
                     <Label>Certification Documents</Label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                      <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                      <div className="mt-4">
-                        <p className="text-sm text-gray-600">Click to upload certification documents</p>
+                    <div className="space-y-2">
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                        <input
+                          type="file"
+                          multiple
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          id="file-upload"
+                          disabled={isLoading}
+                        />
+                        <label htmlFor="file-upload" className="cursor-pointer">
+                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="mt-4">
+                            <p className="text-sm text-gray-600">Click to upload certification documents</p>
+                            <p className="text-xs text-gray-500 mt-1">PDF, DOC, DOCX, JPG, PNG files accepted</p>
+                          </div>
+                        </label>
                       </div>
+
+                      {uploadedFiles.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700">Uploaded Files:</p>
+                          {uploadedFiles.map((file, index) => (
+                            <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                              <span className="text-sm text-gray-600 truncate">{file.name}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeFile(index)}
+                                disabled={isLoading}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
