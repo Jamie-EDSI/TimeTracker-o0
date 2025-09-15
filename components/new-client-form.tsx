@@ -57,7 +57,6 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }))
     }
@@ -79,7 +78,6 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
-    // Required fields
     if (!formData.firstName.trim()) newErrors.firstName = "First name is required"
     if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
     if (!formData.participantId.trim()) newErrors.participantId = "Participant ID is required"
@@ -92,17 +90,14 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
     if (!formData.dateOfBirth.trim()) newErrors.dateOfBirth = "Date of birth is required"
     if (!formData.caseManager.trim()) newErrors.caseManager = "Case manager is required"
 
-    // Email validation
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Please enter a valid email address"
     }
 
-    // Phone validation
     if (formData.phone && !/^[\d\s\-()]+$/.test(formData.phone)) {
       newErrors.phone = "Please enter a valid phone number"
     }
 
-    // ZIP code validation
     if (formData.zipCode && !/^\d{5}(-\d{4})?$/.test(formData.zipCode)) {
       newErrors.zipCode = "Please enter a valid ZIP code"
     }
@@ -113,15 +108,63 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
 
   const handleSubmit = () => {
     if (!validateForm()) {
-      // Find the first tab with errors and switch to it
       const errorFields = Object.keys(errors)
-      if (errorFields.some((field) => ["firstName", "lastName", "participantId", "program", "status", "enrollmentDate", "dateOfBirth", "caseManager"].includes(field))) {
+      if (
+        errorFields.some((field) =>
+          [
+            "firstName",
+            "lastName",
+            "participantId",
+            "program",
+            "status",
+            "enrollmentDate",
+            "dateOfBirth",
+            "caseManager",
+          ].includes(field),
+        )
+      ) {
         setActiveTab("personal")
-      } else if (errorFields.some((field) => ["phone", "cellPhone", "email", "address", "city", "state", "zipCode", "emergencyContact", "emergencyPhone"].includes(field))) {
+      } else if (
+        errorFields.some((field) =>
+          [
+            "phone",
+            "cellPhone",
+            "email",
+            "address",
+            "city",
+            "state",
+            "zipCode",
+            "emergencyContact",
+            "emergencyPhone",
+          ].includes(field),
+        )
+      ) {
         setActiveTab("contact")
-      } else if (errorFields.some((field) => ["educationLevel", "graduationYear", "schoolName", "fieldOfStudy", "educationNotes", "currentlyEnrolled", "gpa"].includes(field))) {
+      } else if (
+        errorFields.some((field) =>
+          [
+            "educationLevel",
+            "graduationYear",
+            "schoolName",
+            "fieldOfStudy",
+            "educationNotes",
+            "currentlyEnrolled",
+            "gpa",
+          ].includes(field),
+        )
+      ) {
         setActiveTab("education")
-      } else if (errorFields.some((field) => ["certifications", "licenses", "industryCertifications", "certificationStatus", "certificationNotes"].includes(field))) {
+      } else if (
+        errorFields.some((field) =>
+          [
+            "certifications",
+            "licenses",
+            "industryCertifications",
+            "certificationStatus",
+            "certificationNotes",
+          ].includes(field),
+        )
+      ) {
         setActiveTab("certifications")
       }
       return
@@ -145,11 +188,56 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
   }
 
   const states = [
-    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-    "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-    "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-    "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-    "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
+    "AL",
+    "AK",
+    "AZ",
+    "AR",
+    "CA",
+    "CO",
+    "CT",
+    "DE",
+    "FL",
+    "GA",
+    "HI",
+    "ID",
+    "IL",
+    "IN",
+    "IA",
+    "KS",
+    "KY",
+    "LA",
+    "ME",
+    "MD",
+    "MA",
+    "MI",
+    "MN",
+    "MS",
+    "MO",
+    "MT",
+    "NE",
+    "NV",
+    "NH",
+    "NJ",
+    "NM",
+    "NY",
+    "NC",
+    "ND",
+    "OH",
+    "OK",
+    "OR",
+    "PA",
+    "RI",
+    "SC",
+    "SD",
+    "TN",
+    "TX",
+    "UT",
+    "VT",
+    "VA",
+    "WA",
+    "WV",
+    "WI",
+    "WY",
   ]
 
   const programs = [
@@ -179,12 +267,17 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button onClick={onCancel} variant="ghost" size="sm" className="flex items-center gap-2" disabled={isLoading}>
+              <Button
+                onClick={onCancel}
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-2"
+                disabled={isLoading}
+              >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Dashboard
               </Button>
@@ -561,4 +654,92 @@ export function NewClientForm({ onClientCreated, onCancel, isLoading }: NewClien
               </TabsContent>
 
               <TabsContent value="certifications" className="space-y-6 mt-6">
-                <div className\
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="certifications">Certifications</Label>
+                      <Textarea
+                        id="certifications"
+                        value={formData.certifications}
+                        onChange={(e) => handleInputChange("certifications", e.target.value)}
+                        rows={4}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="licenses">Licenses</Label>
+                      <Textarea
+                        id="licenses"
+                        value={formData.licenses}
+                        onChange={(e) => handleInputChange("licenses", e.target.value)}
+                        rows={4}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="industryCertifications">Industry Certifications</Label>
+                      <Textarea
+                        id="industryCertifications"
+                        value={formData.industryCertifications}
+                        onChange={(e) => handleInputChange("industryCertifications", e.target.value)}
+                        rows={4}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="certificationStatus">Certification Status</Label>
+                      <Select
+                        value={formData.certificationStatus}
+                        onValueChange={(value) => handleInputChange("certificationStatus", value)}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Current">Current</SelectItem>
+                          <SelectItem value="Expired">Expired</SelectItem>
+                          <SelectItem value="Pending">Pending</SelectItem>
+                          <SelectItem value="Not Applicable">Not Applicable</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="certificationNotes">Certification Notes</Label>
+                      <Textarea
+                        id="certificationNotes"
+                        value={formData.certificationNotes}
+                        onChange={(e) => handleInputChange("certificationNotes", e.target.value)}
+                        rows={4}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="notes" className="space-y-6 mt-6">
+                <div>
+                  <Label htmlFor="initialCaseNote">Initial Case Note</Label>
+                  <Textarea
+                    id="initialCaseNote"
+                    value={initialCaseNote}
+                    onChange={(e) => setInitialCaseNote(e.target.value)}
+                    rows={8}
+                    placeholder="Enter any initial notes about this client..."
+                    disabled={isLoading}
+                  />
+                  <p className="text-sm text-gray-500 mt-2">
+                    This note will be added to the client's case notes upon creation.
+                  </p>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
