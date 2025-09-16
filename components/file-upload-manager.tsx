@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Upload, Download, Eye, X, File, Trash2, Edit3 } from "lucide-react"
+import { Upload, Download, Eye, X, File, Trash2, Edit3, AlertCircle, CheckCircle } from "lucide-react"
 import { clientFilesApi, type ClientFile } from "@/lib/supabase"
 
 interface FileUploadManagerProps {
@@ -27,9 +27,11 @@ export function FileUploadManager({
 }: FileUploadManagerProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
+  const [uploadStatus, setUploadStatus] = useState<{ [key: string]: "uploading" | "success" | "error" }>({})
   const [showFilePreview, setShowFilePreview] = useState<ClientFile | null>(null)
   const [editingFile, setEditingFile] = useState<ClientFile | null>(null)
   const [editDescription, setEditDescription] = useState("")
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   // Load files when component mounts or clientId changes
   useEffect(() => {
@@ -50,7 +52,9 @@ export function FileUploadManager({
     if (!selectedFiles) return
 
     setIsUploading(true)
+    setUploadError(null)
     const newFiles: ClientFile[] = []
+    const failedFiles: string[] = []
 
     for (let i = 0; i < selectedFiles.length; i++) {
       const file = selectedFiles[i]
@@ -63,45 +67,72 @@ export function FileUploadManager({
         "image/jpeg",
         "image/png",
         "image/jpg",
+        "text/plain",
       ]
+
       if (!allowedTypes.includes(file.type)) {
-        alert(`File type not supported: ${file.name}. Please upload PDF, DOC, DOCX, JPG, or PNG files.`)
+        failedFiles.push(`${file.name} (unsupported file type)`)
         continue
       }
 
       // Validate file size (10MB limit)
       if (file.size > 10 * 1024 * 1024) {
-        alert(`File too large: ${file.name}. Please upload files smaller than 10MB.`)
+        failedFiles.push(`${file.name} (file too large - max 10MB)`)
         continue
       }
 
       try {
-        // Set upload progress
+        // Set upload progress and status
         setUploadProgress((prev) => ({ ...prev, [file.name]: 0 }))
+        setUploadStatus((prev) => ({ ...prev, [file.name]: "uploading" }))
+
+        // Simulate progress for better UX
+        const progressInterval = setInterval(() => {
+          setUploadProgress((prev) => {
+            const current = prev[file.name] || 0
+            if (current < 90) {
+              return { ...prev, [file.name]: current + 10 }
+            }
+            return prev
+          })
+        }, 100)
 
         // Upload file to database and storage
         const uploadedFile = await clientFilesApi.uploadFile(file, clientId, category, undefined, "Current User")
 
-        // Update progress to 100%
+        // Clear progress interval and set to 100%
+        clearInterval(progressInterval)
         setUploadProgress((prev) => ({ ...prev, [file.name]: 100 }))
+        setUploadStatus((prev) => ({ ...prev, [file.name]: "success" }))
 
         newFiles.push(uploadedFile)
+        console.log(`✅ Successfully uploaded: ${file.name}`)
       } catch (error) {
         console.error("Error uploading file:", error)
-        alert(`Failed to upload ${file.name}. Please try again.`)
+        setUploadStatus((prev) => ({ ...prev, [file.name]: "error" }))
+        failedFiles.push(`${file.name} (upload failed)`)
       }
     }
 
-    // Update files list
+    // Update files list with successfully uploaded files
     if (newFiles.length > 0) {
       const updatedFiles = [...files, ...newFiles]
       onFilesChange(updatedFiles)
     }
 
-    // Clear upload progress
+    // Show error message if any files failed
+    if (failedFiles.length > 0) {
+      setUploadError(`Failed to upload: ${failedFiles.join(", ")}`)
+    }
+
+    // Clear upload progress and status after a delay
     setTimeout(() => {
       setUploadProgress({})
-    }, 1000)
+      setUploadStatus({})
+      if (failedFiles.length === 0) {
+        setUploadError(null)
+      }
+    }, 3000)
 
     setIsUploading(false)
     // Clear the input
@@ -115,22 +146,27 @@ export function FileUploadManager({
       onFilesChange(updatedFiles)
     } catch (error) {
       console.error("Error removing file:", error)
-      alert("Failed to remove file. Please try again.")
+      setUploadError("Failed to remove file. Please try again.")
     }
   }
 
   const downloadFile = async (file: ClientFile) => {
     try {
       const downloadUrl = await clientFilesApi.getDownloadUrl(file.id)
-      const link = document.createElement("a")
-      link.href = downloadUrl
-      link.download = file.file_name
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      if (downloadUrl) {
+        const link = document.createElement("a")
+        link.href = downloadUrl
+        link.download = file.file_name
+        link.target = "_blank"
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } else {
+        setUploadError("Unable to download file. Please try again.")
+      }
     } catch (error) {
       console.error("Error downloading file:", error)
-      alert("Failed to download file. Please try again.")
+      setUploadError("Failed to download file. Please try again.")
     }
   }
 
@@ -155,6 +191,7 @@ export function FileUploadManager({
     if (type.includes("pdf")) return "📄"
     if (type.includes("image")) return "🖼️"
     if (type.includes("word")) return "📝"
+    if (type.includes("text")) return "📄"
     return "📎"
   }
 
@@ -186,7 +223,7 @@ export function FileUploadManager({
       setEditDescription("")
     } catch (error) {
       console.error("Error updating file:", error)
-      alert("Failed to update file. Please try again.")
+      setUploadError("Failed to update file. Please try again.")
     }
   }
 
@@ -205,6 +242,19 @@ export function FileUploadManager({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 px-4 pb-3 pt-0">
+          {/* Upload Error Message */}
+          {uploadError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm text-red-700">{uploadError}</p>
+              </div>
+              <button onClick={() => setUploadError(null)} className="text-red-500 hover:text-red-700">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {/* File Upload Section - Only visible when editing */}
           {isEditing && (
             <div>
@@ -221,12 +271,12 @@ export function FileUploadManager({
                     </label>
                     {" or drag and drop"}
                   </div>
-                  <p className="text-xs text-gray-500">PDF, DOC, DOCX, JPG, PNG up to 10MB each</p>
+                  <p className="text-xs text-gray-500">PDF, DOC, DOCX, JPG, PNG, TXT up to 10MB each</p>
                   <input
                     id={`file-upload-${category}`}
                     type="file"
                     multiple
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
                     onChange={handleFileUpload}
                     className="hidden"
                     disabled={isUploading}
@@ -239,15 +289,26 @@ export function FileUploadManager({
           {/* Upload Progress */}
           {Object.keys(uploadProgress).length > 0 && (
             <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-600">Upload Progress</label>
               {Object.entries(uploadProgress).map(([fileName, progress]) => (
-                <div key={fileName} className="bg-gray-50 p-3 rounded-lg">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium truncate">{fileName}</span>
+                <div key={fileName} className="bg-gray-50 p-3 rounded-lg border">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium truncate">{fileName}</span>
+                      {uploadStatus[fileName] === "success" && <CheckCircle className="w-4 h-4 text-green-500" />}
+                      {uploadStatus[fileName] === "error" && <AlertCircle className="w-4 h-4 text-red-500" />}
+                    </div>
                     <span className="text-sm text-gray-500">{progress}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        uploadStatus[fileName] === "success"
+                          ? "bg-green-500"
+                          : uploadStatus[fileName] === "error"
+                            ? "bg-red-500"
+                            : "bg-blue-600"
+                      }`}
                       style={{ width: `${progress}%` }}
                     />
                   </div>
