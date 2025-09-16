@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CheckCircle, AlertCircle, Database, HardDrive, Settings, ChevronDown } from "lucide-react"
+import { CheckCircle, AlertCircle, Database, HardDrive, Settings, ChevronDown, RefreshCw } from "lucide-react"
 import { checkSetupStatus, getSetupInstructions, type SetupStatus } from "@/lib/setup-checker"
 import { verifyClientFilesBucket } from "@/lib/supabase"
 
@@ -13,25 +13,46 @@ export function SetupStatusIndicator() {
   const [isExpanded, setIsExpanded] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [bucketInfo, setBucketInfo] = useState<any>(null)
+  const [lastChecked, setLastChecked] = useState<Date | null>(null)
 
   const checkStatus = async () => {
     setIsLoading(true)
     try {
+      console.log("🔄 Running setup status check...")
       const setupStatus = await checkSetupStatus()
       setStatus(setupStatus)
+      setLastChecked(new Date())
 
-      // Also check bucket info specifically
+      // Also check bucket info specifically with detailed logging
+      console.log("🔄 Running bucket verification...")
       const bucketVerification = await verifyClientFilesBucket()
       setBucketInfo(bucketVerification)
 
-      // Auto-minimize if everything is working
-      if (setupStatus.configured && setupStatus.database && setupStatus.storage && setupStatus.tables) {
-        setIsExpanded(false)
-      } else {
+      console.log("📊 Setup Status Summary:")
+      console.log("  - Configured:", setupStatus.configured)
+      console.log("  - Database:", setupStatus.database)
+      console.log("  - Storage:", setupStatus.storage)
+      console.log("  - Tables:", setupStatus.tables)
+      console.log("  - Bucket exists:", bucketVerification.exists)
+      console.log("  - Bucket accessible:", bucketVerification.accessible)
+
+      // Auto-expand if there are issues
+      const hasIssues =
+        !setupStatus.configured ||
+        !setupStatus.database ||
+        !setupStatus.storage ||
+        !setupStatus.tables ||
+        !bucketVerification.exists
+
+      if (hasIssues) {
         setIsExpanded(true)
+      } else {
+        // Auto-minimize after 5 seconds if everything is working
+        setTimeout(() => setIsExpanded(false), 5000)
       }
     } catch (error) {
       console.error("Setup check failed:", error)
+      setIsExpanded(true) // Expand on error
     } finally {
       setIsLoading(false)
     }
@@ -39,17 +60,17 @@ export function SetupStatusIndicator() {
 
   useEffect(() => {
     checkStatus()
-    // Check status every 30 seconds
-    const interval = setInterval(checkStatus, 30000)
+    // Check status every 60 seconds (reduced frequency)
+    const interval = setInterval(checkStatus, 60000)
     return () => clearInterval(interval)
   }, [])
 
-  if (isLoading) {
+  if (isLoading && !status) {
     return (
       <div className="fixed bottom-4 right-4 z-[1]">
         <Card className="w-16 h-12 shadow-lg border-2">
           <CardContent className="p-2 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
           </CardContent>
         </Card>
       </div>
@@ -58,7 +79,7 @@ export function SetupStatusIndicator() {
 
   if (!status) return null
 
-  const isSetupComplete = status.configured && status.database && status.storage && status.tables
+  const isSetupComplete = status.configured && status.database && status.storage && status.tables && bucketInfo?.exists
   const instructions = getSetupInstructions(status)
 
   // Minimized view when setup is complete
@@ -144,20 +165,41 @@ export function SetupStatusIndicator() {
                 <HardDrive className="h-3 w-3" />
                 Storage (client-files)
               </span>
-              <Badge variant={status.storage ? "default" : "destructive"} className="text-xs px-1 py-0">
-                {status.storage ? "Ready" : "Missing"}
+              <Badge
+                variant={status.storage && bucketInfo?.exists ? "default" : "destructive"}
+                className="text-xs px-1 py-0"
+              >
+                {status.storage && bucketInfo?.exists ? "Ready" : "Missing"}
               </Badge>
             </div>
 
             {bucketInfo && (
-              <div className="text-xs text-gray-600 ml-4">
+              <div className="text-xs text-gray-600 ml-4 space-y-1">
                 {bucketInfo.exists ? (
-                  <span className="text-green-600">✓ client-files bucket found and accessible</span>
+                  <>
+                    <div className="text-green-600">✓ client-files bucket found</div>
+                    {bucketInfo.accessible !== undefined && (
+                      <div className={bucketInfo.accessible ? "text-green-600" : "text-orange-600"}>
+                        {bucketInfo.accessible ? "✓ Bucket accessible" : "⚠ Limited access"}
+                      </div>
+                    )}
+                    {bucketInfo.fileCount !== undefined && (
+                      <div className="text-gray-500">📁 {bucketInfo.fileCount} files</div>
+                    )}
+                  </>
                 ) : (
-                  <span className="text-red-600">✗ client-files bucket missing</span>
-                )}
-                {bucketInfo.fileCount !== undefined && (
-                  <span className="text-gray-500 ml-2">({bucketInfo.fileCount} files)</span>
+                  <>
+                    <div className="text-red-600">✗ client-files bucket missing</div>
+                    {bucketInfo.buckets && bucketInfo.buckets.length > 0 && (
+                      <div className="text-gray-500">
+                        Available: {bucketInfo.buckets.slice(0, 3).join(", ")}
+                        {bucketInfo.buckets.length > 3 && ` +${bucketInfo.buckets.length - 3} more`}
+                      </div>
+                    )}
+                    {bucketInfo.similarBuckets && bucketInfo.similarBuckets.length > 0 && (
+                      <div className="text-orange-600">Similar: {bucketInfo.similarBuckets.join(", ")}</div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -175,22 +217,34 @@ export function SetupStatusIndicator() {
           )}
 
           <div className="flex gap-2 mt-3">
-            <Button variant="outline" size="sm" onClick={checkStatus} className="text-xs h-7 bg-transparent">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={checkStatus}
+              disabled={isLoading}
+              className="text-xs h-7 bg-transparent"
+            >
+              {isLoading ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : null}
               Refresh
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={async () => {
+                console.log("🔍 Manual bucket verification triggered...")
                 const verification = await verifyClientFilesBucket()
                 setBucketInfo(verification)
-                console.log("Bucket verification:", verification)
+                console.log("📊 Manual bucket verification result:", verification)
               }}
               className="text-xs h-7"
             >
               Check Bucket
             </Button>
           </div>
+
+          {lastChecked && (
+            <div className="text-xs text-gray-500 mt-2">Last checked: {lastChecked.toLocaleTimeString()}</div>
+          )}
 
           {status.errors.length > 0 && (
             <div className="mt-3 p-2 bg-red-50 rounded text-xs">
@@ -200,6 +254,16 @@ export function SetupStatusIndicator() {
                   • {error}
                 </p>
               ))}
+              {status.errors.length > 2 && (
+                <p className="text-red-600 italic">+{status.errors.length - 2} more errors (check console)</p>
+              )}
+            </div>
+          )}
+
+          {bucketInfo?.error && (
+            <div className="mt-2 p-2 bg-orange-50 rounded text-xs">
+              <p className="font-medium text-orange-800 mb-1">Storage Issue:</p>
+              <p className="text-orange-700">{bucketInfo.error}</p>
             </div>
           )}
         </CardContent>
