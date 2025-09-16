@@ -58,16 +58,16 @@ CREATE TABLE IF NOT EXISTS client_files (
     is_deleted BOOLEAN DEFAULT FALSE
 );
 
--- Create storage bucket for client files
+-- Create storage bucket for client files (using client_files with underscore)
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('client-files', 'client-files', true)
+VALUES ('client_files', 'client_files', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Set up storage policies for client-files bucket
-CREATE POLICY IF NOT EXISTS "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'client-files');
-CREATE POLICY IF NOT EXISTS "Public Upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'client-files');
-CREATE POLICY IF NOT EXISTS "Public Update" ON storage.objects FOR UPDATE USING (bucket_id = 'client-files');
-CREATE POLICY IF NOT EXISTS "Public Delete" ON storage.objects FOR DELETE USING (bucket_id = 'client-files');
+-- Set up storage policies for client_files bucket
+CREATE POLICY IF NOT EXISTS "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'client_files');
+CREATE POLICY IF NOT EXISTS "Public Upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'client_files');
+CREATE POLICY IF NOT EXISTS "Public Update" ON storage.objects FOR UPDATE USING (bucket_id = 'client_files');
+CREATE POLICY IF NOT EXISTS "Public Delete" ON storage.objects FOR DELETE USING (bucket_id = 'client_files');
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_clients_participant_id ON clients(participant_id);
@@ -119,5 +119,5 @@ CREATE TRIGGER update_case_notes_updated_at
 -- Success message
 DO $$
 BEGIN
-    RAISE NOTICE 'Setup completed successfully! All tables, storage bucket, and policies have been created.';
+    RAISE NOTICE 'Setup completed successfully! All tables, storage bucket (client_files), and policies have been created.';
 END $$;

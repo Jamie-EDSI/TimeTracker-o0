@@ -1,8 +1,8 @@
-// Enhanced bucket debugging script
+// Enhanced bucket debugging script for client_files bucket
 // Run this in the browser console to get detailed bucket information
 
 async function debugClientFilesBucket() {
-  console.log("🔍 Starting comprehensive bucket debugging...")
+  console.log("🔍 Starting comprehensive bucket debugging for client_files...")
 
   try {
     // Check if Supabase is available
@@ -18,6 +18,7 @@ async function debugClientFilesBucket() {
 
     console.log("📊 BUCKET VERIFICATION RESULTS:")
     console.log("================================")
+    console.log("Bucket Name: client_files (with underscore)")
     console.log("Exists:", result.exists ? "✅ YES" : "❌ NO")
     console.log("Accessible:", result.accessible ? "✅ YES" : "❌ NO")
     console.log("File Count:", result.fileCount || "Unknown")
@@ -46,7 +47,7 @@ async function debugClientFilesBucket() {
 
     // Additional debugging
     if (result.exists) {
-      console.log("\n✅ SUCCESS: client-files bucket is properly configured!")
+      console.log("\n✅ SUCCESS: client_files bucket is properly configured!")
 
       // Test file operations if accessible
       if (result.accessible && typeof window.clientFilesApi !== "undefined") {
@@ -84,8 +85,9 @@ async function debugClientFilesBucket() {
         }
       }
     } else {
-      console.log("\n❌ ISSUE: client-files bucket not found")
+      console.log("\n❌ ISSUE: client_files bucket not found")
       console.log("💡 Please create the bucket manually or run the setup script")
+      console.log("💡 Make sure the bucket name is exactly 'client_files' (with underscore)")
     }
 
     return result
@@ -119,6 +121,11 @@ async function listAllBuckets() {
         console.log(`   Created: ${bucket.created_at}`)
         console.log(`   Updated: ${bucket.updated_at}`)
         console.log("")
+
+        // Highlight if this is the client_files bucket
+        if (bucket.name === "client_files") {
+          console.log("   🎯 THIS IS THE TARGET BUCKET!")
+        }
       })
     } else {
       console.log("📦 No buckets found")
@@ -131,7 +138,7 @@ async function listAllBuckets() {
 }
 
 // Run the debugging
-console.log("🚀 Starting bucket debugging...")
+console.log("🚀 Starting bucket debugging for client_files...")
 debugClientFilesBucket()
 
 // Make functions available

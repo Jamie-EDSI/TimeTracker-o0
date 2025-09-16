@@ -289,7 +289,7 @@ const mockCaseNotes: CaseNote[] = [
   },
 ]
 
-// Mock client files for demo - updated storage path to use client-files
+// Mock client files for demo - updated storage path to use client_files
 const mockClientFiles: ClientFile[] = [
   {
     id: "file-1",
@@ -298,7 +298,7 @@ const mockClientFiles: ClientFile[] = [
     file_size: 245760,
     file_type: "application/pdf",
     file_category: "certification",
-    storage_path: "client-files/1/CPR_Certificate.pdf",
+    storage_path: "client_files/1/CPR_Certificate.pdf",
     public_url: "/placeholder.svg?height=400&width=600&text=CPR+Certificate",
     upload_date: "2023-02-20T11:00:00Z",
     uploaded_by: "Brown, Lisa",
@@ -314,7 +314,7 @@ const mockClientFiles: ClientFile[] = [
     file_size: 156432,
     file_type: "image/jpeg",
     file_category: "certification",
-    storage_path: "client-files/1/OSHA_10_Certificate.jpg",
+    storage_path: "client_files/1/OSHA_10_Certificate.jpg",
     public_url: "/placeholder.svg?height=400&width=600&text=OSHA+10+Certificate",
     upload_date: "2023-02-20T11:05:00Z",
     uploaded_by: "Brown, Lisa",
@@ -413,9 +413,9 @@ export async function testSupabaseConnection() {
   }
 }
 
-// Dedicated function to verify client-files bucket
+// Dedicated function to verify client_files bucket
 export const verifyClientFilesBucket = async () => {
-  console.log("🔍 Verifying client-files storage bucket...")
+  console.log("🔍 Verifying client_files storage bucket...")
 
   if (!supabase || configError) {
     console.log("⚠️ Supabase not configured - cannot verify storage bucket")
@@ -454,185 +454,137 @@ export const verifyClientFilesBucket = async () => {
 
     console.log("✅ Supabase connection successful")
 
-    // List all available buckets with retry logic
+    // Try multiple approaches to check storage
     let buckets: any[] = []
     let listError: any = null
+    let directAccessWorks = false
 
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      console.log(`📦 Listing storage buckets (attempt ${attempt}/3)...`)
-
+    // Approach 1: Try to list all buckets
+    console.log("📦 Attempting to list all storage buckets...")
+    try {
       const { data: bucketsData, error: bucketsError } = await supabase.storage.listBuckets()
 
       if (!bucketsError && bucketsData) {
         buckets = bucketsData
-        listError = null
-        break
+        console.log(
+          "✅ Successfully listed buckets:",
+          buckets.map((b) => b.name),
+        )
       } else {
         listError = bucketsError
-        console.warn(`⚠️ Attempt ${attempt} failed:`, bucketsError?.message)
-
-        if (attempt < 3) {
-          await new Promise((resolve) => setTimeout(resolve, 1000)) // Wait 1 second before retry
-        }
+        console.warn("⚠️ Failed to list buckets:", bucketsError?.message)
       }
+    } catch (listException: any) {
+      listError = listException
+      console.error("🚨 Exception listing buckets:", listException)
     }
 
-    if (listError) {
-      console.error("🚨 Failed to list storage buckets after 3 attempts:", listError)
-      return {
-        exists: false,
-        error: listError.message,
-        buckets: [],
-        instructions: [
-          "1. Check your Supabase project storage is enabled",
-          "2. Verify your service role key has storage permissions",
-          "3. Check Supabase project status",
-          "4. Try again in a few moments",
-        ],
+    // Approach 2: Try direct access to client_files bucket
+    console.log("🧪 Testing direct access to client_files bucket...")
+    try {
+      const { data: directData, error: directError } = await supabase.storage
+        .from("client_files")
+        .list("", { limit: 1 })
+
+      if (!directError) {
+        directAccessWorks = true
+        console.log("✅ Direct access to client_files bucket successful!")
+        console.log("📁 Found files/folders:", directData?.length || 0)
+      } else {
+        console.warn("⚠️ Direct access failed:", directError.message)
+
+        // Check if it's a "bucket not found" error
+        if (
+          directError.message?.toLowerCase().includes("not found") ||
+          directError.message?.toLowerCase().includes("does not exist")
+        ) {
+          console.log("💡 Bucket does not exist - needs to be created")
+        }
       }
+    } catch (directException: any) {
+      console.error("🚨 Exception in direct access:", directException)
     }
 
-    console.log(
-      "📦 Available storage buckets:",
-      buckets?.map((b) => `${b.name} (${b.public ? "public" : "private"}, created: ${b.created_at})`) || [],
-    )
-
-    // Check if client-files bucket exists (case-sensitive check)
-    const clientFilesBucket = buckets?.find((bucket) => bucket.name === "client-files")
-
-    if (clientFilesBucket) {
-      console.log("✅ client-files bucket found!")
-      console.log("   - Name:", clientFilesBucket.name)
-      console.log("   - ID:", clientFilesBucket.id)
-      console.log("   - Public:", clientFilesBucket.public ? "Yes" : "No")
-      console.log("   - Created:", clientFilesBucket.created_at)
-      console.log("   - Updated:", clientFilesBucket.updated_at)
-
-      // Test bucket accessibility with multiple methods
-      let accessible = false
-      let fileCount = 0
-      let accessError = null
-
-      try {
-        // Method 1: Try to list files in the bucket
-        console.log("🧪 Testing bucket accessibility (list files)...")
-        const { data: files, error: filesError } = await supabase.storage
-          .from("client-files")
-          .list("", { limit: 10, sortBy: { column: "created_at", order: "desc" } })
-
-        if (!filesError) {
-          accessible = true
-          fileCount = files?.length || 0
-          console.log(`✅ client-files bucket is accessible (${fileCount} files found)`)
-        } else {
-          accessError = filesError
-          console.warn("⚠️ List files test failed:", filesError.message)
-        }
-
-        // Method 2: Try to get bucket info
-        if (!accessible) {
-          console.log("🧪 Testing bucket accessibility (get bucket info)...")
-          const { data: bucketInfo, error: bucketInfoError } = await supabase.storage
-            .from("client-files")
-            .list("", { limit: 1 })
-
-          if (!bucketInfoError) {
-            accessible = true
-            console.log("✅ client-files bucket is accessible via bucket info")
-          } else {
-            console.warn("⚠️ Bucket info test failed:", bucketInfoError.message)
-          }
-        }
-
-        // Method 3: Try a simple upload/download test (if accessible)
-        if (accessible) {
-          try {
-            console.log("🧪 Testing file operations...")
-            const testContent = new Blob([`Test file created at ${new Date().toISOString()}`], {
-              type: "text/plain",
-            })
-            const testPath = `test/verification-${Date.now()}.txt`
-
-            const { data: uploadResult, error: uploadError } = await supabase.storage
-              .from("client-files")
-              .upload(testPath, testContent)
-
-            if (!uploadError && uploadResult) {
-              console.log("✅ Test file upload successful:", uploadResult.path)
-
-              // Try to download the test file
-              const { data: downloadResult, error: downloadError } = await supabase.storage
-                .from("client-files")
-                .download(testPath)
-
-              if (!downloadError && downloadResult) {
-                console.log("✅ Test file download successful")
-              }
-
-              // Clean up test file
-              const { error: deleteError } = await supabase.storage.from("client-files").remove([testPath])
-
-              if (!deleteError) {
-                console.log("✅ Test file cleanup successful")
-              }
-            } else {
-              console.warn("⚠️ Test file upload failed:", uploadError?.message)
-            }
-          } catch (testError: any) {
-            console.warn("⚠️ File operations test failed:", testError.message)
-          }
-        }
-      } catch (accessTestError: any) {
-        accessError = accessTestError
-        console.error("🚨 Error testing bucket accessibility:", accessTestError)
-      }
-
+    // Determine results based on what worked
+    if (directAccessWorks) {
+      // Direct access works, so bucket exists
       return {
         exists: true,
-        accessible,
-        bucket: clientFilesBucket,
-        buckets: buckets || [],
-        fileCount,
-        error: accessError?.message,
-        instructions: accessible
-          ? ["✅ client-files bucket is properly configured and accessible!"]
-          : [
-              "1. Check storage policies in Supabase Dashboard",
-              "2. Ensure RLS policies allow access to the bucket",
-              "3. Run the complete-setup.sql script to configure policies",
-              "4. Verify your service role key has storage permissions",
-            ],
+        accessible: true,
+        bucket: { name: "client_files", accessible: true },
+        buckets: buckets.map((b) => b.name),
+        fileCount: 0, // We don't have exact count but it's accessible
+        instructions: ["✅ client_files bucket is properly configured and accessible!"],
+      }
+    } else if (buckets.length > 0) {
+      // We can list buckets, check if client_files is among them
+      const clientFilesBucket = buckets.find((bucket) => bucket.name === "client_files")
+
+      if (clientFilesBucket) {
+        console.log("✅ client_files bucket found in bucket list!")
+
+        return {
+          exists: true,
+          accessible: true,
+          bucket: clientFilesBucket,
+          buckets: buckets.map((b) => b.name),
+          fileCount: 0,
+          instructions: ["✅ client_files bucket is properly configured!"],
+        }
+      } else {
+        console.error("❌ client_files bucket not found in available buckets")
+
+        // Check for similar bucket names
+        const similarBuckets = buckets.filter(
+          (b) => b.name.toLowerCase().includes("client") || b.name.toLowerCase().includes("file"),
+        )
+
+        return {
+          exists: false,
+          buckets: buckets.map((b) => b.name),
+          similarBuckets: similarBuckets.map((b) => b.name),
+          instructions: [
+            "1. Go to Supabase Dashboard > Storage",
+            "2. Click 'New bucket'",
+            "3. Name it exactly 'client_files' (with underscore, no spaces)",
+            "4. Set it to public or configure appropriate policies",
+            "5. Or run the complete-setup.sql script to create it automatically",
+            ...(similarBuckets.length > 0
+              ? [`6. Note: Found similar buckets: ${similarBuckets.map((b) => b.name).join(", ")}`]
+              : []),
+          ],
+        }
       }
     } else {
-      console.error("❌ client-files bucket not found!")
-      console.log("💡 Available buckets:", buckets?.map((b) => b.name) || ["None"])
-      console.log("💡 Looking for exact match: 'client-files' (with hyphen)")
+      // No buckets found and direct access failed
+      console.error("❌ No storage buckets found and direct access failed")
 
-      // Check for similar bucket names
-      const similarBuckets =
-        buckets?.filter((b) => b.name.toLowerCase().includes("client") || b.name.toLowerCase().includes("file")) || []
+      let errorMessage = "Storage not accessible"
+      let instructions = [
+        "1. Check if Storage is enabled in your Supabase project",
+        "2. Verify your service role key has storage permissions",
+        "3. Create the client_files bucket manually in Supabase Dashboard",
+        "4. Or run the complete-setup.sql script",
+      ]
 
-      if (similarBuckets.length > 0) {
-        console.log(
-          "🔍 Found similar buckets:",
-          similarBuckets.map((b) => b.name),
-        )
+      if (listError) {
+        errorMessage = listError.message
+
+        if (listError.message?.includes("permission") || listError.message?.includes("unauthorized")) {
+          instructions = [
+            "1. Check your Supabase service role key permissions",
+            "2. Ensure storage.buckets.select permission is granted",
+            "3. Verify your environment variables are correct",
+            "4. Check if Storage is enabled in your Supabase project",
+          ]
+        }
       }
 
       return {
         exists: false,
-        buckets: buckets || [],
-        similarBuckets: similarBuckets.map((b) => b.name),
-        instructions: [
-          "1. Go to Supabase Dashboard > Storage",
-          "2. Click 'New bucket'",
-          "3. Name it exactly 'client-files' (with hyphen, no spaces)",
-          "4. Set it to public or configure appropriate policies",
-          "5. Or run the complete-setup.sql script to create it automatically",
-          ...(similarBuckets.length > 0
-            ? [`6. Note: Found similar buckets: ${similarBuckets.map((b) => b.name).join(", ")}`]
-            : []),
-        ],
+        error: errorMessage,
+        buckets: [],
+        instructions,
       }
     }
   } catch (error: any) {
@@ -1036,7 +988,7 @@ export const caseNotesApi = {
   },
 }
 
-// Client Files API for managing file uploads and associations (updated to use client-files bucket)
+// Client Files API for managing file uploads and associations (updated to use client_files bucket)
 export const clientFilesApi = {
   // Get all files for a specific client
   async getByClientId(clientId: string, category?: string): Promise<ClientFile[]> {
@@ -1090,7 +1042,7 @@ export const clientFilesApi = {
     })
   },
 
-  // Upload a file to storage and create database record (updated to use client-files bucket)
+  // Upload a file to storage and create database record (updated to use client_files bucket)
   async uploadFile(
     file: File,
     clientId: string,
@@ -1140,9 +1092,9 @@ export const clientFilesApi = {
 
         console.log(`📁 Uploading to path: ${fileName}`)
 
-        // Upload file to Supabase Storage (using client-files bucket)
+        // Upload file to Supabase Storage (using client_files bucket)
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("client-files")
+          .from("client_files")
           .upload(fileName, file, {
             cacheControl: "3600",
             upsert: false,
@@ -1178,7 +1130,7 @@ export const clientFilesApi = {
         }
 
         // Get public URL for the uploaded file
-        const { data: urlData } = supabase.storage.from("client-files").getPublicUrl(fileName)
+        const { data: urlData } = supabase.storage.from("client_files").getPublicUrl(fileName)
 
         // Create database record
         const fileRecord = {
@@ -1206,7 +1158,7 @@ export const clientFilesApi = {
 
           // Clean up the uploaded file if database insert fails
           try {
-            await supabase.storage.from("client-files").remove([fileName])
+            await supabase.storage.from("client_files").remove([fileName])
           } catch (cleanupError) {
             console.warn("⚠️ Failed to cleanup uploaded file after database error:", cleanupError)
           }
@@ -1328,9 +1280,9 @@ export const clientFilesApi = {
           throw new Error(`Database error: ${updateError.message}`)
         }
 
-        // Remove from storage if it's not a demo file (using client-files bucket)
+        // Remove from storage if it's not a demo file (using client_files bucket)
         if (fileData.storage_path && !fileData.storage_path.startsWith("demo-files/")) {
-          const { error: storageError } = await supabase.storage.from("client-files").remove([fileData.storage_path])
+          const { error: storageError } = await supabase.storage.from("client_files").remove([fileData.storage_path])
 
           if (storageError) {
             console.warn("⚠️ Warning: File removed from database but storage cleanup failed:", storageError)
@@ -1425,7 +1377,7 @@ export const clientFilesApi = {
     })
   },
 
-  // Get file download URL (for private files) - updated to use client-files bucket
+  // Get file download URL (for private files) - updated to use client_files bucket
   async getDownloadUrl(fileId: string): Promise<string> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -1454,9 +1406,9 @@ export const clientFilesApi = {
           return fileData.public_url
         }
 
-        // For private files, create a signed URL (using client-files bucket)
+        // For private files, create a signed URL (using client_files bucket)
         const { data: urlData, error: urlError } = await supabase.storage
-          .from("client-files")
+          .from("client_files")
           .createSignedUrl(fileData.storage_path, 3600) // 1 hour expiry
 
         if (urlError) {

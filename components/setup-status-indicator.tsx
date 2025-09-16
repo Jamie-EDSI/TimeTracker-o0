@@ -163,7 +163,7 @@ export function SetupStatusIndicator() {
             <div className="flex items-center justify-between text-xs">
               <span className="flex items-center gap-1">
                 <HardDrive className="h-3 w-3" />
-                Storage (client-files)
+                Storage (client_files)
               </span>
               <Badge
                 variant={status.storage && bucketInfo?.exists ? "default" : "destructive"}
@@ -177,7 +177,7 @@ export function SetupStatusIndicator() {
               <div className="text-xs text-gray-600 ml-4 space-y-1">
                 {bucketInfo.exists ? (
                   <>
-                    <div className="text-green-600">✓ client-files bucket found</div>
+                    <div className="text-green-600">✓ client_files bucket found</div>
                     {bucketInfo.accessible !== undefined && (
                       <div className={bucketInfo.accessible ? "text-green-600" : "text-orange-600"}>
                         {bucketInfo.accessible ? "✓ Bucket accessible" : "⚠ Limited access"}
@@ -189,7 +189,7 @@ export function SetupStatusIndicator() {
                   </>
                 ) : (
                   <>
-                    <div className="text-red-600">✗ client-files bucket missing</div>
+                    <div className="text-red-600">✗ client_files bucket missing</div>
                     {bucketInfo.buckets && bucketInfo.buckets.length > 0 && (
                       <div className="text-gray-500">
                         Available: {bucketInfo.buckets.slice(0, 3).join(", ")}
