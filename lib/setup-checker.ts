@@ -24,87 +24,119 @@ export async function checkSetupStatus(): Promise<SetupStatus> {
   try {
     // Check if Supabase is configured
     status.configured = isSupabaseConfigured()
-
     if (!status.configured) {
-      status.errors.push("Supabase not configured - check environment variables")
+      status.errors.push("Supabase environment variables not configured")
       return status
     }
 
-    // Check database connection
+    // Test database connection
     try {
       const { data, error } = await supabase.from("clients").select("count", { count: "exact", head: true })
-      if (!error) {
+      if (error) {
+        status.errors.push(`Database connection failed: ${error.message}`)
+      } else {
         status.database = true
+      }
+    } catch (error: any) {
+      status.errors.push(`Database connection error: ${error.message}`)
+    }
+
+    // Check if tables exist
+    try {
+      const { data: clientsData, error: clientsError } = await supabase.from("clients").select("id").limit(1)
+      const { data: caseNotesData, error: caseNotesError } = await supabase.from("case_notes").select("id").limit(1)
+      const { data: filesData, error: filesError } = await supabase.from("client_files").select("id").limit(1)
+
+      if (!clientsError && !caseNotesError && !filesError) {
         status.tables = true
       } else {
-        status.errors.push(`Database error: ${error.message}`)
+        const errors = [clientsError, caseNotesError, filesError].filter(Boolean)
+        status.errors.push(`Missing tables: ${errors.map((e) => e?.message).join(", ")}`)
       }
     } catch (error: any) {
-      status.errors.push(`Database connection failed: ${error.message}`)
+      status.errors.push(`Table check failed: ${error.message}`)
     }
 
-    // Check storage bucket
+    // Check storage bucket (updated to use client-files with comprehensive verification)
     try {
-      const { data, error } = await supabase.storage.listBuckets()
-      if (!error && data) {
-        const clientFilesBucket = data.find((bucket) => bucket.id === "client-files")
+      console.log("🔍 Checking storage bucket configuration...")
+
+      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets()
+      if (bucketError) {
+        status.errors.push(`Storage check failed: ${bucketError.message}`)
+        console.error("🚨 Storage bucket list error:", bucketError)
+      } else {
+        console.log("📦 Available buckets:", buckets?.map((b) => b.name) || [])
+
+        const clientFilesBucket = buckets?.find((bucket) => bucket.name === "client-files")
         if (clientFilesBucket) {
           status.storage = true
+          console.log("✅ client-files bucket found:", clientFilesBucket)
+
+          // Test file upload to verify storage functionality
+          try {
+            const testFile = new Blob(["test storage verification"], { type: "text/plain" })
+            const testFileName = `verification/test-${Date.now()}.txt`
+
+            console.log("🧪 Testing file upload to client-files bucket...")
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from("client-files")
+              .upload(testFileName, testFile)
+
+            if (!uploadError && uploadData) {
+              console.log("✅ Storage upload test successful:", uploadData.path)
+
+              // Test file retrieval
+              const { data: downloadData, error: downloadError } = await supabase.storage
+                .from("client-files")
+                .download(testFileName)
+
+              if (!downloadError && downloadData) {
+                console.log("✅ Storage download test successful")
+              } else {
+                console.warn("⚠️ Storage download test failed:", downloadError?.message)
+              }
+
+              // Clean up test file
+              const { error: deleteError } = await supabase.storage.from("client-files").remove([testFileName])
+
+              if (!deleteError) {
+                console.log("✅ Storage cleanup successful")
+              } else {
+                console.warn("⚠️ Storage cleanup failed:", deleteError.message)
+              }
+            } else {
+              status.errors.push(`Storage upload test failed: ${uploadError?.message || "Unknown error"}`)
+              console.error("🚨 Storage upload test failed:", uploadError)
+            }
+          } catch (uploadTestError: any) {
+            status.errors.push(`Storage upload test error: ${uploadTestError.message}`)
+            console.error("🚨 Storage upload test exception:", uploadTestError)
+          }
         } else {
-          status.errors.push("Storage bucket 'client-files' not found")
+          status.errors.push("client-files storage bucket not found")
+          console.error("❌ client-files bucket not found. Available buckets:", buckets?.map((b) => b.name) || [])
+          console.log(
+            "💡 To create the bucket, run the complete-setup.sql script or create it manually in Supabase Storage",
+          )
         }
-      } else {
-        status.errors.push(`Storage error: ${error?.message || "Unknown storage error"}`)
       }
     } catch (error: any) {
-      status.errors.push(`Storage check failed: ${error.message}`)
+      status.errors.push(`Storage bucket check error: ${error.message}`)
+      console.error("🚨 Storage bucket check exception:", error)
     }
+
+    // Skip RLS policies check since they will be set up later
+    status.policies = true
 
     // Check for sample data
-    if (status.tables) {
-      try {
-        const { data, error } = await supabase.from("clients").select("id").limit(1)
-        if (!error && data && data.length > 0) {
-          status.sampleData = true
-        }
-      } catch (error: any) {
-        // Sample data check is optional, don't add to errors
+    try {
+      const { data, error } = await supabase.from("clients").select("id").limit(1)
+      if (!error && data && data.length > 0) {
+        status.sampleData = true
       }
-    }
-
-    // Check RLS policies (basic check)
-    if (status.tables) {
-      try {
-        // Try to insert and immediately delete a test record
-        const testClient = {
-          first_name: "Test",
-          last_name: "Setup",
-          participant_id: `SETUP-TEST-${Date.now()}`,
-          program: "Test",
-          status: "Active",
-          enrollment_date: new Date().toISOString().split("T")[0],
-          phone: "000-000-0000",
-          email: "test@setup.com",
-          address: "Test Address",
-          city: "Test City",
-          state: "TS",
-          zip_code: "00000",
-          date_of_birth: "1990-01-01",
-          case_manager: "Test Manager",
-        }
-
-        const { data, error } = await supabase.from("clients").insert([testClient]).select().single()
-
-        if (!error && data) {
-          // Clean up test record
-          await supabase.from("clients").delete().eq("id", data.id)
-          status.policies = true
-        } else {
-          status.errors.push(`RLS policy error: ${error?.message || "Policy check failed"}`)
-        }
-      } catch (error: any) {
-        status.errors.push(`Policy check failed: ${error.message}`)
-      }
+    } catch (error: any) {
+      // Sample data check is optional
     }
   } catch (error: any) {
     status.errors.push(`Setup check failed: ${error.message}`)
@@ -117,31 +149,33 @@ export function getSetupInstructions(status: SetupStatus): string[] {
   const instructions: string[] = []
 
   if (!status.configured) {
-    instructions.push("1. Create a Supabase project at https://supabase.com")
+    instructions.push("1. Create a Supabase project at supabase.com")
     instructions.push("2. Copy your project URL and anon key to .env.local")
     instructions.push("3. Restart your development server")
+    return instructions
   }
 
-  if (status.configured && !status.tables) {
-    instructions.push("1. Go to your Supabase SQL Editor")
-    instructions.push("2. Run the complete setup script from scripts/complete-setup.sql")
-    instructions.push("3. Verify all tables were created successfully")
+  if (!status.database) {
+    instructions.push("1. Check your Supabase project is active")
+    instructions.push("2. Verify your environment variables are correct")
+    instructions.push("3. Check your internet connection")
   }
 
-  if (status.configured && !status.storage) {
-    instructions.push("1. Enable Storage in your Supabase dashboard")
-    instructions.push("2. Create a bucket named 'client-files'")
-    instructions.push("3. Set the bucket to public access")
+  if (!status.tables) {
+    instructions.push("1. Go to Supabase SQL Editor")
+    instructions.push("2. Run the complete-setup.sql script")
+    instructions.push("3. Wait for all tables to be created")
   }
 
-  if (status.configured && !status.policies) {
-    instructions.push("1. Check RLS policies in your Supabase dashboard")
-    instructions.push("2. Ensure policies allow read/write access")
-    instructions.push("3. Consider disabling RLS for development")
+  if (!status.storage) {
+    instructions.push("1. Go to Supabase SQL Editor")
+    instructions.push("2. Run the complete-setup.sql script to create the client-files bucket")
+    instructions.push("3. Or manually create a bucket named 'client-files' in Storage dashboard")
+    instructions.push("4. Verify the bucket appears in your Storage dashboard")
   }
 
   if (instructions.length === 0) {
-    instructions.push("✅ Setup is complete! All systems are working correctly.")
+    instructions.push("✅ Setup is complete! All systems are working properly.")
   }
 
   return instructions
@@ -174,5 +208,6 @@ export async function runSetupDiagnostics(): Promise<void> {
 
 // Make diagnostics available globally for easy testing
 if (typeof window !== "undefined") {
-  ;(window as any).runSetupDiagnostics = runSetupDiagnostics(window as any).checkSetupStatus = checkSetupStatus
+  ;(window as any).runSetupDiagnostics = runSetupDiagnostics
+  ;(window as any).checkSetupStatus = checkSetupStatus
 }

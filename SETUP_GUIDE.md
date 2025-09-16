@@ -1,131 +1,141 @@
-# Complete Setup Guide for Time Tracker App
+# EDSI Client Management System - Setup Guide
 
-## 🚀 Quick Start
+This guide will help you set up the EDSI Client Management System with Supabase as the backend database and storage solution.
 
-### Step 1: Environment Setup
+## Prerequisites
 
-1. **Create `.env.local` file** in your project root:
+- Node.js 18+ installed
+- A Supabase account (free tier is sufficient)
+- Basic knowledge of SQL and environment variables
+
+## Step 1: Create a Supabase Project
+
+1. Go to [supabase.com](https://supabase.com) and sign up/sign in
+2. Click "New Project"
+3. Choose your organization
+4. Enter a project name (e.g., "edsi-client-management")
+5. Enter a secure database password
+6. Select a region close to your users
+7. Click "Create new project"
+
+Wait for the project to be created (this may take a few minutes).
+
+## Step 2: Configure Environment Variables
+
+1. In your Supabase dashboard, go to **Settings > API**
+2. Copy the **Project URL** and **anon/public key**
+3. In your project root, copy `.env.local.example` to `.env.local`
+4. Fill in your actual values:
+
+\`\`\`env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+\`\`\`
+
+## Step 3: Set Up the Database
+
+1. In your Supabase dashboard, go to **SQL Editor**
+2. Click "New Query"
+3. Copy the entire contents of `scripts/complete-setup.sql`
+4. Paste it into the SQL editor
+5. Click "Run" to execute the script
+
+This will create:
+- All necessary tables (clients, case_notes, client_files)
+- Indexes for optimal performance
+- Storage bucket named `client_files`
+- Basic RLS policies
+- Sample data for testing
+
+## Step 4: Configure Storage
+
+The setup script automatically creates the storage bucket, but you can verify:
+
+1. Go to **Storage** in your Supabase dashboard
+2. You should see a bucket named `client_files`
+3. The bucket should be set to public access
+
+## Step 5: Start the Application
+
+1. Restart your development server:
 \`\`\`bash
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# Optional: Database Direct Connection (for advanced users)
-DATABASE_URL=your_direct_database_url
+npm run dev
 \`\`\`
 
-2. **Get Supabase Credentials**:
-   - Go to [supabase.com](https://supabase.com)
-   - Create a new project
-   - Go to Settings → API
-   - Copy the Project URL and anon/public key
+2. Open your browser to `http://localhost:3000`
+3. Check the setup status indicator in the bottom-right corner
+4. All indicators should show green checkmarks
 
-### Step 2: Database Setup
+## Step 6: Test the System
 
-1. **Run the SQL scripts** in your Supabase SQL Editor in this order:
+1. Try creating a new client
+2. Upload a file to test storage functionality
+3. Add case notes
+4. Test the search and filter features
 
-\`\`\`sql
--- 1. Create main tables
--- Copy and paste from scripts/supabase-schema.sql
+## Troubleshooting
 
--- 2. Add soft delete functionality  
--- Copy and paste from scripts/add-soft-delete-schema.sql
+### Setup Status Indicator Shows Issues
 
--- 3. Create file storage table
--- Copy and paste from scripts/create-client-files-table.sql
+The small indicator in the bottom-right corner will show any setup problems:
+- **Red/Yellow**: Click to expand and see specific issues
+- **Green**: Everything is working correctly
 
--- 4. Setup storage bucket
--- Copy and paste from scripts/setup-storage-bucket.sql
+### Common Issues
+
+1. **Environment Variables Not Set**
+   - Make sure `.env.local` exists and has correct values
+   - Restart your development server after changes
+
+2. **Database Connection Failed**
+   - Check your Supabase project is active
+   - Verify the URL and key are correct
+   - Check your internet connection
+
+3. **Storage Bucket Not Found**
+   - Run the complete setup script again
+   - Manually create `client_files` bucket in Supabase Storage
+
+4. **Tables Missing**
+   - Run the complete setup script in SQL Editor
+   - Check for any error messages in the SQL execution
+
+### Getting Help
+
+1. Check the browser console for detailed error messages
+2. Use the setup diagnostics: Open browser console and run `runSetupDiagnostics()`
+3. Check the Supabase dashboard for any error logs
+
+## Security Notes
+
+- RLS (Row Level Security) is enabled but set to allow all operations initially
+- In production, you should configure proper RLS policies
+- Never commit your `.env.local` file to version control
+- Consider using the service role key only for admin operations
+
+## Next Steps
+
+Once setup is complete, you can:
+- Customize the client form fields
+- Add more case note categories
+- Configure advanced search filters
+- Set up automated backups
+- Implement user authentication
+- Configure proper RLS policies for production
+
+## File Structure
+
+\`\`\`
+├── scripts/
+│   ├── complete-setup.sql          # Main setup script
+│   ├── create-client-files-table.sql
+│   └── setup-storage-bucket.sql
+├── lib/
+│   ├── supabase.ts                 # Database client and API
+│   └── setup-checker.ts            # Setup validation
+├── components/
+│   └── setup-status-indicator.tsx  # Setup status UI
+└── .env.local.example              # Environment template
 \`\`\`
 
-### Step 3: Storage Configuration
-
-1. **Enable Storage** in your Supabase dashboard
-2. **Create bucket** named `client-files`
-3. **Set bucket to public** for easier file access
-4. **Configure CORS** if needed for your domain
-
-### Step 4: Test the Setup
-
-1. **Run the diagnostic functions**:
-\`\`\`javascript
-// In browser console
-await testSupabaseSync()
-\`\`\`
-
-2. **Check connection status** in the app header
-3. **Try creating a test client**
-4. **Test file upload functionality**
-
-## 🔍 Current Status
-
-The app currently works in **demo mode** with the following features:
-- ✅ Full client management (create, edit, delete, restore)
-- ✅ Case notes functionality
-- ✅ File upload with fallback to blob storage
-- ✅ All UI components working
-- ✅ Data persistence in memory
-- ⚠️ No database persistence (until Supabase is configured)
-- ⚠️ Files stored as blob URLs (temporary)
-
-## 🛠️ Integration Checklist
-
-### Database Integration
-- [ ] Create Supabase project
-- [ ] Set environment variables
-- [ ] Run SQL schema scripts
-- [ ] Test database connection
-- [ ] Verify CRUD operations
-
-### Storage Integration  
-- [ ] Create storage bucket
-- [ ] Configure storage policies
-- [ ] Test file upload to storage
-- [ ] Verify file persistence
-
-### Authentication (Optional)
-- [ ] Enable Supabase Auth
-- [ ] Configure auth providers
-- [ ] Add login/logout functionality
-- [ ] Implement user roles
-
-### Production Deployment
-- [ ] Configure environment variables in deployment
-- [ ] Set up domain CORS policies
-- [ ] Configure RLS policies for security
-- [ ] Test all functionality in production
-
-## 🚨 Troubleshooting
-
-### Common Issues:
-
-1. **"Supabase not configured" message**
-   - Check `.env.local` file exists
-   - Verify environment variable names
-   - Restart development server
-
-2. **File upload errors**
-   - Check storage bucket exists
-   - Verify storage policies
-   - Check file size limits (10MB max)
-
-3. **Database connection issues**
-   - Verify Supabase project is active
-   - Check API keys are correct
-   - Run diagnostic functions
-
-4. **RLS Policy errors**
-   - Disable RLS temporarily for testing
-   - Check policy syntax in SQL scripts
-   - Verify user permissions
-
-## 📞 Support
-
-If you encounter issues:
-1. Check browser console for errors
-2. Run diagnostic functions
-3. Verify environment variables
-4. Check Supabase dashboard for errors
-5. Review this setup guide
-
-The app is designed to work in demo mode even without full Supabase setup, so you can test all functionality immediately.
+The system is designed to work in demo mode even without Supabase, but full functionality requires proper database setup.

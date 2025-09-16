@@ -1,167 +1,205 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CheckCircle, XCircle, AlertCircle, RefreshCw, ExternalLink } from "lucide-react"
+import { CheckCircle, AlertCircle, Database, HardDrive, Settings, ChevronDown } from "lucide-react"
 import { checkSetupStatus, getSetupInstructions, type SetupStatus } from "@/lib/setup-checker"
+import { verifyClientFilesBucket } from "@/lib/supabase"
 
 export function SetupStatusIndicator() {
   const [status, setStatus] = useState<SetupStatus | null>(null)
-  const [isChecking, setIsChecking] = useState(false)
-  const [showDetails, setShowDetails] = useState(false)
-
-  useEffect(() => {
-    checkStatus()
-  }, [])
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [bucketInfo, setBucketInfo] = useState<any>(null)
 
   const checkStatus = async () => {
-    setIsChecking(true)
+    setIsLoading(true)
     try {
-      const newStatus = await checkSetupStatus()
-      setStatus(newStatus)
+      const setupStatus = await checkSetupStatus()
+      setStatus(setupStatus)
+
+      // Also check bucket info specifically
+      const bucketVerification = await verifyClientFilesBucket()
+      setBucketInfo(bucketVerification)
+
+      // Auto-minimize if everything is working
+      if (setupStatus.configured && setupStatus.database && setupStatus.storage && setupStatus.tables) {
+        setIsExpanded(false)
+      } else {
+        setIsExpanded(true)
+      }
     } catch (error) {
-      console.error("Error checking setup status:", error)
+      console.error("Setup check failed:", error)
     } finally {
-      setIsChecking(false)
+      setIsLoading(false)
     }
   }
 
-  const getStatusIcon = (isOk: boolean) => {
-    if (isOk) return <CheckCircle className="w-4 h-4 text-green-500" />
-    return <XCircle className="w-4 h-4 text-red-500" />
-  }
+  useEffect(() => {
+    checkStatus()
+    // Check status every 30 seconds
+    const interval = setInterval(checkStatus, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
-  const getOverallStatus = () => {
-    if (!status) return "checking"
-    if (status.configured && status.database && status.storage && status.tables) return "good"
-    if (status.configured) return "partial"
-    return "needs-setup"
-  }
-
-  const overallStatus = getOverallStatus()
-
-  if (!showDetails && overallStatus === "good") {
+  if (isLoading) {
     return (
-      <div className="fixed bottom-4 right-4 z-50">
-        <div className="bg-green-100 border border-green-300 rounded-lg p-3 flex items-center gap-2 shadow-lg">
-          <CheckCircle className="w-5 h-5 text-green-600" />
-          <span className="text-sm text-green-800 font-medium">Setup Complete</span>
-          <Button
-            onClick={() => setShowDetails(true)}
-            variant="ghost"
-            size="sm"
-            className="text-green-600 hover:text-green-700 p-1"
-          >
-            <ExternalLink className="w-4 h-4" />
-          </Button>
-        </div>
+      <div className="fixed bottom-4 right-4 z-[1]">
+        <Card className="w-16 h-12 shadow-lg border-2">
+          <CardContent className="p-2 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
-  return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-md">
-      <Card className="shadow-lg border-2">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              {overallStatus === "good" && <CheckCircle className="w-5 h-5 text-green-500" />}
-              {overallStatus === "partial" && <AlertCircle className="w-5 h-5 text-yellow-500" />}
-              {overallStatus === "needs-setup" && <XCircle className="w-5 h-5 text-red-500" />}
-              {overallStatus === "checking" && <RefreshCw className="w-5 h-5 text-blue-500 animate-spin" />}
-              Setup Status
-            </CardTitle>
-            <div className="flex gap-2">
-              <Button onClick={checkStatus} variant="ghost" size="sm" disabled={isChecking} className="p-2">
-                <RefreshCw className={`w-4 h-4 ${isChecking ? "animate-spin" : ""}`} />
-              </Button>
-              <Button onClick={() => setShowDetails(false)} variant="ghost" size="sm" className="p-2">
-                ×
-              </Button>
+  if (!status) return null
+
+  const isSetupComplete = status.configured && status.database && status.storage && status.tables
+  const instructions = getSetupInstructions(status)
+
+  // Minimized view when setup is complete
+  if (isSetupComplete && !isExpanded) {
+    return (
+      <div className="fixed bottom-4 right-4 z-[1]">
+        <Card
+          className="w-16 h-12 shadow-lg border-2 border-green-200 bg-green-50 cursor-pointer hover:bg-green-100 transition-colors"
+          onClick={() => setIsExpanded(true)}
+        >
+          <CardContent className="p-2 flex items-center justify-center">
+            <div className="flex flex-col items-center">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <span className="text-xs text-green-700 font-medium">OK</span>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {status && (
-            <>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Environment Variables</span>
-                  {getStatusIcon(status.configured)}
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Database Connection</span>
-                  {getStatusIcon(status.database)}
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Storage Bucket</span>
-                  {getStatusIcon(status.storage)}
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Database Tables</span>
-                  {getStatusIcon(status.tables)}
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Security Policies</span>
-                  {getStatusIcon(status.policies)}
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Sample Data</span>
-                  {getStatusIcon(status.sampleData)}
-                </div>
-              </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
-              {status.errors.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded p-3">
-                  <h4 className="text-sm font-medium text-red-800 mb-2">Issues Found:</h4>
-                  <ul className="text-xs text-red-700 space-y-1">
-                    {status.errors.map((error, index) => (
-                      <li key={index}>• {error}</li>
-                    ))}
-                  </ul>
-                </div>
+  // Minimized view when setup is needed
+  if (!isSetupComplete && !isExpanded) {
+    return (
+      <div className="fixed bottom-4 right-4 z-[1]">
+        <Card
+          className="w-20 h-12 shadow-lg border-2 border-orange-200 bg-orange-50 cursor-pointer hover:bg-orange-100 transition-colors"
+          onClick={() => setIsExpanded(true)}
+        >
+          <CardContent className="p-2 flex items-center justify-center">
+            <div className="flex flex-col items-center">
+              <Settings className="h-4 w-4 text-orange-600" />
+              <span className="text-xs text-orange-700 font-medium">Setup</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Expanded view
+  return (
+    <div className="fixed bottom-4 right-4 z-[1] w-96">
+      <Card className="shadow-lg border-2">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              {isSetupComplete ? (
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-orange-600" />
               )}
+              <h3 className="font-semibold text-sm">{isSetupComplete ? "System Status" : "Setup Required"}</h3>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setIsExpanded(false)} className="h-6 w-6 p-0">
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                <h4 className="text-sm font-medium text-blue-800 mb-2">Next Steps:</h4>
-                <ul className="text-xs text-blue-700 space-y-1">
-                  {getSetupInstructions(status).map((instruction, index) => (
-                    <li key={index}>{instruction}</li>
-                  ))}
-                </ul>
-              </div>
+          <div className="space-y-2 mb-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1">
+                <Settings className="h-3 w-3" />
+                Configuration
+              </span>
+              <Badge variant={status.configured ? "default" : "destructive"} className="text-xs px-1 py-0">
+                {status.configured ? "OK" : "Missing"}
+              </Badge>
+            </div>
 
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => window.open("https://supabase.com", "_blank")}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Supabase
-                </Button>
-                <Button
-                  onClick={() => {
-                    const instructions = getSetupInstructions(status)
-                    console.log("📋 Setup Instructions:")
-                    instructions.forEach((instruction) => console.log(instruction))
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                >
-                  Show in Console
-                </Button>
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1">
+                <Database className="h-3 w-3" />
+                Database
+              </span>
+              <Badge variant={status.database ? "default" : "destructive"} className="text-xs px-1 py-0">
+                {status.database ? "Connected" : "Error"}
+              </Badge>
+            </div>
+
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1">
+                <HardDrive className="h-3 w-3" />
+                Storage (client-files)
+              </span>
+              <Badge variant={status.storage ? "default" : "destructive"} className="text-xs px-1 py-0">
+                {status.storage ? "Ready" : "Missing"}
+              </Badge>
+            </div>
+
+            {bucketInfo && (
+              <div className="text-xs text-gray-600 ml-4">
+                {bucketInfo.exists ? (
+                  <span className="text-green-600">✓ client-files bucket found and accessible</span>
+                ) : (
+                  <span className="text-red-600">✗ client-files bucket missing</span>
+                )}
+                {bucketInfo.fileCount !== undefined && (
+                  <span className="text-gray-500 ml-2">({bucketInfo.fileCount} files)</span>
+                )}
               </div>
-            </>
+            )}
+          </div>
+
+          {!isSetupComplete && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-gray-700">Next steps:</p>
+              {instructions.slice(0, 3).map((instruction, index) => (
+                <p key={index} className="text-xs text-gray-600">
+                  {instruction}
+                </p>
+              ))}
+            </div>
           )}
 
-          {!status && isChecking && (
-            <div className="text-center py-4">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
-              <p className="text-sm text-gray-600">Checking setup status...</p>
+          <div className="flex gap-2 mt-3">
+            <Button variant="outline" size="sm" onClick={checkStatus} className="text-xs h-7 bg-transparent">
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const verification = await verifyClientFilesBucket()
+                setBucketInfo(verification)
+                console.log("Bucket verification:", verification)
+              }}
+              className="text-xs h-7"
+            >
+              Check Bucket
+            </Button>
+          </div>
+
+          {status.errors.length > 0 && (
+            <div className="mt-3 p-2 bg-red-50 rounded text-xs">
+              <p className="font-medium text-red-800 mb-1">Errors:</p>
+              {status.errors.slice(0, 2).map((error, index) => (
+                <p key={index} className="text-red-700">
+                  • {error}
+                </p>
+              ))}
             </div>
           )}
         </CardContent>
