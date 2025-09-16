@@ -1,8 +1,8 @@
-// Enhanced bucket debugging script for client_files bucket
+// Enhanced bucket debugging script for client-files bucket
 // Run this in the browser console to get detailed bucket information
 
 async function debugClientFilesBucket() {
-  console.log("🔍 Starting comprehensive bucket debugging for client_files...")
+  console.log("🔍 Starting comprehensive bucket debugging for client-files...")
 
   try {
     // Check if Supabase is available
@@ -18,7 +18,7 @@ async function debugClientFilesBucket() {
 
     console.log("📊 BUCKET VERIFICATION RESULTS:")
     console.log("================================")
-    console.log("Bucket Name: client_files (with underscore)")
+    console.log("Bucket Name: client-files (with hyphen)")
     console.log("Exists:", result.exists ? "✅ YES" : "❌ NO")
     console.log("Accessible:", result.accessible ? "✅ YES" : "❌ NO")
     console.log("File Count:", result.fileCount || "Unknown")
@@ -47,7 +47,7 @@ async function debugClientFilesBucket() {
 
     // Additional debugging
     if (result.exists) {
-      console.log("\n✅ SUCCESS: client_files bucket is properly configured!")
+      console.log("\n✅ SUCCESS: client-files bucket is properly configured!")
 
       // Test file operations if accessible
       if (result.accessible && typeof window.clientFilesApi !== "undefined") {
@@ -85,9 +85,9 @@ async function debugClientFilesBucket() {
         }
       }
     } else {
-      console.log("\n❌ ISSUE: client_files bucket not found")
+      console.log("\n❌ ISSUE: client-files bucket not found")
       console.log("💡 Please create the bucket manually or run the setup script")
-      console.log("💡 Make sure the bucket name is exactly 'client_files' (with underscore)")
+      console.log("💡 Make sure the bucket name is exactly 'client-files' (with hyphen)")
     }
 
     return result
@@ -122,8 +122,8 @@ async function listAllBuckets() {
         console.log(`   Updated: ${bucket.updated_at}`)
         console.log("")
 
-        // Highlight if this is the client_files bucket
-        if (bucket.name === "client_files") {
+        // Highlight if this is the client-files bucket
+        if (bucket.name === "client-files") {
           console.log("   🎯 THIS IS THE TARGET BUCKET!")
         }
       })
@@ -138,7 +138,7 @@ async function listAllBuckets() {
 }
 
 // Run the debugging
-console.log("🚀 Starting bucket debugging for client_files...")
+console.log("🚀 Starting bucket debugging for client-files...")
 debugClientFilesBucket()
 
 // Make functions available

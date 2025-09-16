@@ -1,123 +1,187 @@
 -- Complete setup script for the Time Tracker application
 -- This script creates all necessary tables, storage buckets, and policies
+-- Run this in the Supabase SQL Editor
 
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create clients table
 CREATE TABLE IF NOT EXISTS clients (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    participant_id VARCHAR(50) UNIQUE NOT NULL,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    date_of_birth DATE,
-    phone VARCHAR(20),
-    email VARCHAR(255),
-    address TEXT,
-    city VARCHAR(100),
-    state VARCHAR(50),
-    zip_code VARCHAR(20),
-    emergency_contact_name VARCHAR(200),
-    emergency_contact_phone VARCHAR(20),
-    program VARCHAR(100),
-    status VARCHAR(50) DEFAULT 'Active',
-    enrollment_date DATE DEFAULT CURRENT_DATE,
-    case_manager VARCHAR(200),
-    notes TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE NULL,
-    is_deleted BOOLEAN DEFAULT FALSE
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  participant_id TEXT UNIQUE NOT NULL,
+  program TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Active',
+  enrollment_date DATE NOT NULL,
+  phone TEXT,
+  cell_phone TEXT,
+  email TEXT,
+  address TEXT,
+  city TEXT,
+  state TEXT,
+  zip_code TEXT,
+  date_of_birth DATE,
+  emergency_contact TEXT,
+  emergency_phone TEXT,
+  case_manager TEXT NOT NULL,
+  responsible_ec TEXT,
+  required_hours INTEGER,
+  cao_number TEXT,
+  education_level TEXT,
+  graduation_year INTEGER,
+  school_name TEXT,
+  field_of_study TEXT,
+  education_notes TEXT,
+  currently_enrolled TEXT,
+  gpa DECIMAL(3,2),
+  certifications TEXT,
+  licenses TEXT,
+  industry_certifications TEXT,
+  certification_status TEXT,
+  certification_notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  last_contact TIMESTAMP WITH TIME ZONE,
+  last_modified TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  modified_by TEXT,
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by TEXT
 );
 
 -- Create case_notes table
 CREATE TABLE IF NOT EXISTS case_notes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
-    note_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    note_type VARCHAR(100),
-    content TEXT NOT NULL,
-    created_by VARCHAR(200),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE NULL,
-    is_deleted BOOLEAN DEFAULT FALSE
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  note TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  author TEXT NOT NULL,
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by TEXT
 );
 
 -- Create client_files table
 CREATE TABLE IF NOT EXISTS client_files (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
-    file_name VARCHAR(255) NOT NULL,
-    file_path VARCHAR(500) NOT NULL,
-    file_size INTEGER,
-    file_type VARCHAR(100),
-    uploaded_by VARCHAR(200),
-    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE NULL,
-    is_deleted BOOLEAN DEFAULT FALSE
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  file_name TEXT NOT NULL,
+  file_size BIGINT NOT NULL,
+  file_type TEXT NOT NULL,
+  file_category TEXT NOT NULL CHECK (file_category IN ('certification', 'education', 'general')),
+  storage_path TEXT NOT NULL,
+  public_url TEXT,
+  upload_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  uploaded_by TEXT NOT NULL,
+  description TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by TEXT
 );
-
--- Create storage bucket for client files (using client_files with underscore)
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('client_files', 'client_files', true)
-ON CONFLICT (id) DO NOTHING;
-
--- Set up storage policies for client_files bucket
-CREATE POLICY IF NOT EXISTS "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'client_files');
-CREATE POLICY IF NOT EXISTS "Public Upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'client_files');
-CREATE POLICY IF NOT EXISTS "Public Update" ON storage.objects FOR UPDATE USING (bucket_id = 'client_files');
-CREATE POLICY IF NOT EXISTS "Public Delete" ON storage.objects FOR DELETE USING (bucket_id = 'client_files');
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_clients_participant_id ON clients(participant_id);
 CREATE INDEX IF NOT EXISTS idx_clients_status ON clients(status);
-CREATE INDEX IF NOT EXISTS idx_clients_deleted ON clients(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_clients_program ON clients(program);
+CREATE INDEX IF NOT EXISTS idx_clients_deleted_at ON clients(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_case_notes_client_id ON case_notes(client_id);
-CREATE INDEX IF NOT EXISTS idx_case_notes_date ON case_notes(note_date);
-CREATE INDEX IF NOT EXISTS idx_case_notes_deleted ON case_notes(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_case_notes_created_at ON case_notes(created_at);
+CREATE INDEX IF NOT EXISTS idx_case_notes_deleted_at ON case_notes(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_client_files_client_id ON client_files(client_id);
-CREATE INDEX IF NOT EXISTS idx_client_files_deleted ON client_files(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_client_files_category ON client_files(file_category);
+CREATE INDEX IF NOT EXISTS idx_client_files_active ON client_files(is_active);
+CREATE INDEX IF NOT EXISTS idx_client_files_deleted_at ON client_files(deleted_at);
 
--- Insert sample data (optional)
+-- Create the storage bucket for client files
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'client-files',
+  'client-files',
+  true,
+  52428800, -- 50MB limit
+  ARRAY[
+    'image/*',
+    'application/pdf',
+    'text/*',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ]
+) ON CONFLICT (id) DO NOTHING;
+
+-- Enable RLS on all tables
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE case_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_files ENABLE ROW LEVEL SECURITY;
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies for clients table
+CREATE POLICY "Allow all operations on clients" ON clients
+FOR ALL USING (true) WITH CHECK (true);
+
+-- Create RLS policies for case_notes table
+CREATE POLICY "Allow all operations on case_notes" ON case_notes
+FOR ALL USING (true) WITH CHECK (true);
+
+-- Create RLS policies for client_files table
+CREATE POLICY "Allow all operations on client_files" ON client_files
+FOR ALL USING (true) WITH CHECK (true);
+
+-- Create RLS policies for storage bucket
+CREATE POLICY "Allow authenticated uploads to client-files" ON storage.objects
+FOR INSERT WITH CHECK (
+  bucket_id = 'client-files' AND
+  auth.role() = 'authenticated'
+);
+
+CREATE POLICY "Allow authenticated access to client-files" ON storage.objects
+FOR SELECT USING (
+  bucket_id = 'client-files' AND
+  auth.role() = 'authenticated'
+);
+
+CREATE POLICY "Allow authenticated updates to client-files" ON storage.objects
+FOR UPDATE USING (
+  bucket_id = 'client-files' AND
+  auth.role() = 'authenticated'
+);
+
+CREATE POLICY "Allow authenticated deletes from client-files" ON storage.objects
+FOR DELETE USING (
+  bucket_id = 'client-files' AND
+  auth.role() = 'authenticated'
+);
+
+-- Insert sample data for testing
 INSERT INTO clients (
-    participant_id, first_name, last_name, date_of_birth, phone, email, 
-    address, city, state, zip_code, program, case_manager
+  first_name, last_name, participant_id, program, status, enrollment_date,
+  phone, email, address, city, state, zip_code, date_of_birth,
+  case_manager, created_at
 ) VALUES 
 (
-    'PID-001', 'John', 'Doe', '1990-05-15', '555-0123', 'john.doe@email.com',
-    '123 Main St', 'Anytown', 'CA', '12345', 'Job Training', 'Sarah Johnson'
+  'Sarah', 'Johnson', '2965145', 'EARN', 'Active', '2023-02-20',
+  '484-555-0201', 'sarah.johnson@email.com', '456 Oak Ave', 'Philadelphia', 'PA', '19102', '1990-07-15',
+  'Brown, Lisa', NOW()
 ),
 (
-    'PID-002', 'Jane', 'Smith', '1985-08-22', '555-0456', 'jane.smith@email.com',
-    '456 Oak Ave', 'Somewhere', 'CA', '67890', 'Education Support', 'Mike Wilson'
-)
-ON CONFLICT (participant_id) DO NOTHING;
+  'Michael', 'Davis', '2965146', 'Job Readiness', 'Active', '2023-03-15',
+  '215-555-0102', 'michael.davis@email.com', '789 Pine St', 'Philadelphia', 'PA', '19103', '1985-12-03',
+  'Smith, John', NOW()
+),
+(
+  'Emily', 'Rodriguez', '2965147', 'YOUTH', 'Pending', '2023-04-01',
+  '267-555-0301', 'emily.rodriguez@email.com', '321 Maple Dr', 'Philadelphia', 'PA', '19104', '2001-09-22',
+  'Johnson, Mary', NOW()
+) ON CONFLICT (participant_id) DO NOTHING;
 
--- Create a function to update the updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
+-- Verify the setup
+SELECT 'Tables created:' as status;
+SELECT table_name FROM information_schema.tables 
+WHERE table_schema = 'public' AND table_name IN ('clients', 'case_notes', 'client_files');
 
--- Create triggers to automatically update the updated_at column
-DROP TRIGGER IF EXISTS update_clients_updated_at ON clients;
-CREATE TRIGGER update_clients_updated_at
-    BEFORE UPDATE ON clients
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+SELECT 'Storage bucket created:' as status;
+SELECT id, name, public, file_size_limit FROM storage.buckets WHERE name = 'client-files';
 
-DROP TRIGGER IF EXISTS update_case_notes_updated_at ON case_notes;
-CREATE TRIGGER update_case_notes_updated_at
-    BEFORE UPDATE ON case_notes
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+SELECT 'Sample clients inserted:' as status;
+SELECT COUNT(*) as client_count FROM clients WHERE deleted_at IS NULL;
 
--- Success message
-DO $$
-BEGIN
-    RAISE NOTICE 'Setup completed successfully! All tables, storage bucket (client_files), and policies have been created.';
-END $$;
+SELECT '✅ Setup completed successfully!' as final_status;

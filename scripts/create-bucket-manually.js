@@ -2,7 +2,7 @@
 // Run this in the browser console if SQL script doesn't work
 
 async function createClientFilesBucket() {
-  console.log("🔧 Attempting to create client_files bucket manually...")
+  console.log("🔧 Attempting to create client-files bucket manually...")
 
   try {
     // Check if Supabase is available
@@ -22,15 +22,15 @@ async function createClientFilesBucket() {
       return false
     }
 
-    const existingBucket = existingBuckets?.find((b) => b.name === "client_files")
+    const existingBucket = existingBuckets?.find((b) => b.name === "client-files")
     if (existingBucket) {
-      console.log("✅ client_files bucket already exists!")
+      console.log("✅ client-files bucket already exists!")
       return true
     }
 
     // Try to create the bucket
-    console.log("🔨 Creating client_files bucket...")
-    const { data: createData, error: createError } = await window.supabase.storage.createBucket("client_files", {
+    console.log("🔨 Creating client-files bucket...")
+    const { data: createData, error: createError } = await window.supabase.storage.createBucket("client-files", {
       public: true,
       fileSizeLimit: 52428800, // 50MB
       allowedMimeTypes: [
@@ -48,19 +48,19 @@ async function createClientFilesBucket() {
       console.log("   1. Go to your Supabase Dashboard")
       console.log("   2. Navigate to Storage section")
       console.log("   3. Click 'New bucket'")
-      console.log("   4. Name it 'client_files' (with underscore)")
+      console.log("   4. Name it 'client-files' (with hyphen)")
       console.log("   5. Set it to public")
       console.log("   6. Set file size limit to 50MB")
       return false
     }
 
-    console.log("✅ client_files bucket created successfully!")
+    console.log("✅ client-files bucket created successfully!")
     console.log("📦 Bucket data:", createData)
 
     // Test the bucket
     console.log("🧪 Testing bucket access...")
     const { data: testData, error: testError } = await window.supabase.storage
-      .from("client_files")
+      .from("client-files")
       .list("", { limit: 1 })
 
     if (testError) {

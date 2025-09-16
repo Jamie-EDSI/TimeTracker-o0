@@ -289,7 +289,7 @@ const mockCaseNotes: CaseNote[] = [
   },
 ]
 
-// Mock client files for demo - updated storage path to use client_files
+// Mock client files for demo - updated storage path to use client-files bucket
 const mockClientFiles: ClientFile[] = [
   {
     id: "file-1",
@@ -298,7 +298,7 @@ const mockClientFiles: ClientFile[] = [
     file_size: 245760,
     file_type: "application/pdf",
     file_category: "certification",
-    storage_path: "client_files/1/CPR_Certificate.pdf",
+    storage_path: "client-files/1/CPR_Certificate.pdf",
     public_url: "/placeholder.svg?height=400&width=600&text=CPR+Certificate",
     upload_date: "2023-02-20T11:00:00Z",
     uploaded_by: "Brown, Lisa",
@@ -314,7 +314,7 @@ const mockClientFiles: ClientFile[] = [
     file_size: 156432,
     file_type: "image/jpeg",
     file_category: "certification",
-    storage_path: "client_files/1/OSHA_10_Certificate.jpg",
+    storage_path: "client-files/1/OSHA_10_Certificate.jpg",
     public_url: "/placeholder.svg?height=400&width=600&text=OSHA+10+Certificate",
     upload_date: "2023-02-20T11:05:00Z",
     uploaded_by: "Brown, Lisa",
@@ -399,6 +399,10 @@ export const getConfigError = () => configError
 
 // Test Supabase connection
 export async function testSupabaseConnection() {
+  if (!supabase || configError) {
+    return { success: false, error: configError || "Supabase not configured" }
+  }
+
   try {
     const { data, error } = await supabase.from("clients").select("count", { count: "exact", head: true })
     if (error) {
@@ -413,14 +417,15 @@ export async function testSupabaseConnection() {
   }
 }
 
-// Dedicated function to verify client_files bucket
+// Dedicated function to verify client-files bucket
 export const verifyClientFilesBucket = async () => {
-  console.log("🔍 Verifying client_files storage bucket...")
+  console.log("🔍 Verifying client-files storage bucket...")
 
   if (!supabase || configError) {
     console.log("⚠️ Supabase not configured - cannot verify storage bucket")
     return {
       exists: false,
+      accessible: false,
       error: "Supabase not configured",
       buckets: [],
       instructions: [
@@ -442,6 +447,7 @@ export const verifyClientFilesBucket = async () => {
       console.error("❌ Supabase connection test failed:", testError)
       return {
         exists: false,
+        accessible: false,
         error: `Supabase connection failed: ${testError.message}`,
         buckets: [],
         instructions: [
@@ -479,16 +485,16 @@ export const verifyClientFilesBucket = async () => {
       console.error("🚨 Exception listing buckets:", listException)
     }
 
-    // Approach 2: Try direct access to client_files bucket
-    console.log("🧪 Testing direct access to client_files bucket...")
+    // Approach 2: Try direct access to client-files bucket
+    console.log("🧪 Testing direct access to client-files bucket...")
     try {
       const { data: directData, error: directError } = await supabase.storage
-        .from("client_files")
+        .from("client-files")
         .list("", { limit: 1 })
 
       if (!directError) {
         directAccessWorks = true
-        console.log("✅ Direct access to client_files bucket successful!")
+        console.log("✅ Direct access to client-files bucket successful!")
         console.log("📁 Found files/folders:", directData?.length || 0)
       } else {
         console.warn("⚠️ Direct access failed:", directError.message)
@@ -511,17 +517,17 @@ export const verifyClientFilesBucket = async () => {
       return {
         exists: true,
         accessible: true,
-        bucket: { name: "client_files", accessible: true },
+        bucket: { name: "client-files", accessible: true },
         buckets: buckets.map((b) => b.name),
         fileCount: 0, // We don't have exact count but it's accessible
-        instructions: ["✅ client_files bucket is properly configured and accessible!"],
+        instructions: ["✅ client-files bucket is properly configured and accessible!"],
       }
     } else if (buckets.length > 0) {
-      // We can list buckets, check if client_files is among them
-      const clientFilesBucket = buckets.find((bucket) => bucket.name === "client_files")
+      // We can list buckets, check if client-files is among them
+      const clientFilesBucket = buckets.find((bucket) => bucket.name === "client-files")
 
       if (clientFilesBucket) {
-        console.log("✅ client_files bucket found in bucket list!")
+        console.log("✅ client-files bucket found in bucket list!")
 
         return {
           exists: true,
@@ -529,10 +535,10 @@ export const verifyClientFilesBucket = async () => {
           bucket: clientFilesBucket,
           buckets: buckets.map((b) => b.name),
           fileCount: 0,
-          instructions: ["✅ client_files bucket is properly configured!"],
+          instructions: ["✅ client-files bucket is properly configured!"],
         }
       } else {
-        console.error("❌ client_files bucket not found in available buckets")
+        console.error("❌ client-files bucket not found in available buckets")
 
         // Check for similar bucket names
         const similarBuckets = buckets.filter(
@@ -541,12 +547,13 @@ export const verifyClientFilesBucket = async () => {
 
         return {
           exists: false,
+          accessible: false,
           buckets: buckets.map((b) => b.name),
           similarBuckets: similarBuckets.map((b) => b.name),
           instructions: [
             "1. Go to Supabase Dashboard > Storage",
             "2. Click 'New bucket'",
-            "3. Name it exactly 'client_files' (with underscore, no spaces)",
+            "3. Name it exactly 'client-files' (with hyphen, no spaces)",
             "4. Set it to public or configure appropriate policies",
             "5. Or run the complete-setup.sql script to create it automatically",
             ...(similarBuckets.length > 0
@@ -563,7 +570,7 @@ export const verifyClientFilesBucket = async () => {
       let instructions = [
         "1. Check if Storage is enabled in your Supabase project",
         "2. Verify your service role key has storage permissions",
-        "3. Create the client_files bucket manually in Supabase Dashboard",
+        "3. Create the client-files bucket manually in Supabase Dashboard",
         "4. Or run the complete-setup.sql script",
       ]
 
@@ -582,6 +589,7 @@ export const verifyClientFilesBucket = async () => {
 
       return {
         exists: false,
+        accessible: false,
         error: errorMessage,
         buckets: [],
         instructions,
@@ -591,6 +599,7 @@ export const verifyClientFilesBucket = async () => {
     console.error("🚨 Storage verification failed:", error)
     return {
       exists: false,
+      accessible: false,
       error: error.message,
       buckets: [],
       instructions: [
@@ -601,6 +610,51 @@ export const verifyClientFilesBucket = async () => {
         "5. Try again in a few moments",
       ],
     }
+  }
+}
+
+// Function to create client-files bucket
+export async function createClientFilesBucket() {
+  if (!supabase || configError) {
+    return { success: false, error: configError || "Supabase not configured" }
+  }
+
+  try {
+    console.log("🔧 Creating client-files bucket...")
+
+    // Create the bucket
+    const { data, error } = await supabase.storage.createBucket("client-files", {
+      public: false,
+      allowedMimeTypes: [
+        "image/*",
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/*",
+      ],
+      fileSizeLimit: 10485760, // 10MB
+    })
+
+    if (error) {
+      console.error("❌ Failed to create bucket:", error.message)
+      return { success: false, error: error.message }
+    }
+
+    console.log("✅ client-files bucket created successfully!")
+
+    // Verify the bucket was created and is accessible
+    const verification = await verifyClientFilesBucket()
+
+    if (verification.exists && verification.accessible) {
+      console.log("✅ Bucket verification successful!")
+      return { success: true, data }
+    } else {
+      console.warn("⚠️ Bucket created but verification failed:", verification.error)
+      return { success: true, data, warning: verification.error }
+    }
+  } catch (error: any) {
+    console.error("🚨 Bucket creation error:", error)
+    return { success: false, error: error.message }
   }
 }
 
@@ -988,7 +1042,7 @@ export const caseNotesApi = {
   },
 }
 
-// Client Files API for managing file uploads and associations (updated to use client_files bucket)
+// Client Files API for managing file uploads and associations (updated to use client-files bucket)
 export const clientFilesApi = {
   // Get all files for a specific client
   async getByClientId(clientId: string, category?: string): Promise<ClientFile[]> {
@@ -1042,7 +1096,7 @@ export const clientFilesApi = {
     })
   },
 
-  // Upload a file to storage and create database record (updated to use client_files bucket)
+  // Upload a file to storage and create database record (updated to use client-files bucket)
   async uploadFile(
     file: File,
     clientId: string,
@@ -1092,9 +1146,9 @@ export const clientFilesApi = {
 
         console.log(`📁 Uploading to path: ${fileName}`)
 
-        // Upload file to Supabase Storage (using client_files bucket)
+        // Upload file to Supabase Storage (using client-files bucket)
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("client_files")
+          .from("client-files")
           .upload(fileName, file, {
             cacheControl: "3600",
             upsert: false,
@@ -1130,7 +1184,7 @@ export const clientFilesApi = {
         }
 
         // Get public URL for the uploaded file
-        const { data: urlData } = supabase.storage.from("client_files").getPublicUrl(fileName)
+        const { data: urlData } = supabase.storage.from("client-files").getPublicUrl(fileName)
 
         // Create database record
         const fileRecord = {
@@ -1158,7 +1212,7 @@ export const clientFilesApi = {
 
           // Clean up the uploaded file if database insert fails
           try {
-            await supabase.storage.from("client_files").remove([fileName])
+            await supabase.storage.from("client-files").remove([fileName])
           } catch (cleanupError) {
             console.warn("⚠️ Failed to cleanup uploaded file after database error:", cleanupError)
           }
@@ -1280,9 +1334,9 @@ export const clientFilesApi = {
           throw new Error(`Database error: ${updateError.message}`)
         }
 
-        // Remove from storage if it's not a demo file (using client_files bucket)
+        // Remove from storage if it's not a demo file (using client-files bucket)
         if (fileData.storage_path && !fileData.storage_path.startsWith("demo-files/")) {
-          const { error: storageError } = await supabase.storage.from("client_files").remove([fileData.storage_path])
+          const { error: storageError } = await supabase.storage.from("client-files").remove([fileData.storage_path])
 
           if (storageError) {
             console.warn("⚠️ Warning: File removed from database but storage cleanup failed:", storageError)
@@ -1377,7 +1431,7 @@ export const clientFilesApi = {
     })
   },
 
-  // Get file download URL (for private files) - updated to use client_files bucket
+  // Get file download URL (for private files) - updated to use client-files bucket
   async getDownloadUrl(fileId: string): Promise<string> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -1406,9 +1460,9 @@ export const clientFilesApi = {
           return fileData.public_url
         }
 
-        // For private files, create a signed URL (using client_files bucket)
+        // For private files, create a signed URL (using client-files bucket)
         const { data: urlData, error: urlError } = await supabase.storage
-          .from("client_files")
+          .from("client-files")
           .createSignedUrl(fileData.storage_path, 3600) // 1 hour expiry
 
         if (urlError) {
@@ -1522,6 +1576,7 @@ export const testSupabaseSync = async () => {
 if (typeof window !== "undefined") {
   ;(window as any).verifyClientFilesBucket = verifyClientFilesBucket
   ;(window as any).testSupabaseConnection = testSupabaseConnection
+  ;(window as any).createClientFilesBucket = createClientFilesBucket
   ;(window as any).clientsApi = clientsApi
   ;(window as any).caseNotesApi = caseNotesApi
   ;(window as any).clientFilesApi = clientFilesApi
@@ -1530,6 +1585,7 @@ if (typeof window !== "undefined") {
   console.log("🔧 Supabase verification functions loaded:")
   console.log("  - window.verifyClientFilesBucket()")
   console.log("  - window.testSupabaseConnection()")
+  console.log("  - window.createClientFilesBucket()")
   console.log("  - window.clientsApi")
   console.log("  - window.caseNotesApi")
   console.log("  - window.clientFilesApi")
