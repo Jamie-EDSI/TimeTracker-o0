@@ -544,37 +544,6 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="px-6 py-3">
-          <div className="grid grid-cols-12 items-center">
-            {/* Left - Logo */}
-            <div className="col-span-3 flex justify-start">
-              <img src="/images/edsi-new-logo.jpg" alt="EDSI Logo" className="h-10 w-auto" />
-            </div>
-
-            {/* Center - TimeTracker Title (aligned with Active Today position) */}
-            <div className="col-span-6 flex justify-center">
-              <div className="relative">
-                {/* This div mimics the stats cards layout to align with Active Today */}
-                <div className="grid grid-cols-3 gap-4 w-full max-w-md">
-                  <div></div> {/* Empty space for Total Clients alignment */}
-                  <div className="flex justify-center">
-                    <h1 className="text-2xl font-bold text-blue-800 tracking-wide whitespace-nowrap">TimeTracker</h1>
-                  </div>
-                  <div></div> {/* Empty space for Pending Actions alignment */}
-                </div>
-              </div>
-            </div>
-
-            {/* Right - Data Staff Desktop */}
-            <div className="col-span-3 flex justify-end">
-              <span className="text-sm font-medium text-gray-700">Data Staff Desktop</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Success Message */}
       {showSuccessMessage && (
         <div className="bg-green-50 border-l-4 border-green-400 p-4 mx-6 mt-4">
@@ -645,25 +614,6 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Navigation Bar - Dashboard text removed */}
-      <div className="bg-white border-b border-gray-200 px-6 py-2">
-        <div className="grid grid-cols-12 items-center">
-          {/* Left - Home Navigation */}
-          <div className="col-span-3 flex justify-start">
-            <div className="flex items-center gap-2 text-blue-600">
-              <Home className="w-4 h-4" />
-              <span className="text-sm">Show the Desktop</span>
-            </div>
-          </div>
-
-          {/* Center - Empty space (Dashboard text removed) */}
-          <div className="col-span-6 flex justify-center">{/* Dashboard title removed as requested */}</div>
-
-          {/* Right - Empty space for balance */}
-          <div className="col-span-3"></div>
-        </div>
-      </div>
-
       {/* Loading Overlay */}
       {isLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -677,6 +627,14 @@ export function Dashboard() {
       )}
 
       <div className="p-6">
+        {/* Show the Desktop Navigation - Top Left of Main Content */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 text-blue-600">
+            <Home className="w-4 h-4" />
+            <span className="text-sm">Show the Desktop</span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-12 gap-6">
           {/* Left Sidebar - Reports */}
           <div className="col-span-3">
@@ -949,7 +907,7 @@ export function Dashboard() {
                   <div className="flex items-center justify-center mb-3">
                     <BarChart3 className="w-8 h-8 text-blue-500" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Client Management System</h3>
+                  <h3 className="text-lg font-semibold text-indigo-50 mb-2">TimeTracker - Client Management System</h3>
                   <p className="text-sm text-gray-600 mb-4">
                     Comprehensive client management with integrated reporting and Supabase database storage. All client
                     data is automatically synchronized across all features.
