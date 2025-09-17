@@ -144,17 +144,22 @@ export function FilterPanel({
                 {filter.type === "select" && (
                   <Select
                     value={safeActiveFilters[filter.key] || ""}
-                    onValueChange={(value) => handleFilterChange(filter.key, value)}
+                    onValueChange={(value) => handleFilterChange(filter.key, value === "clear" ? "" : value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder={filter.placeholder} />
                     </SelectTrigger>
                     <SelectContent>
-                      {(filter.options || []).map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="clear">
+                        <span className="text-gray-500 italic">Clear selection</span>
+                      </SelectItem>
+                      {(filter.options || [])
+                        .filter((option) => option !== "")
+                        .map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 )}
