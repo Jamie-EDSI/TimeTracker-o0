@@ -222,8 +222,16 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
           {/* Filter Panel */}
           {showFilters && (
             <FilterPanel
-              filters={filters}
+              activeFilters={filters}
               onFiltersChange={setFilters}
+              onClearFilters={() => {
+                setFilters({
+                  program: "",
+                  caseManager: "",
+                  enrollmentDateFrom: "",
+                  enrollmentDateTo: "",
+                })
+              }}
               programs={uniquePrograms}
               caseManagers={uniqueCaseManagers}
             />

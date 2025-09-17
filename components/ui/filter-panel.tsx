@@ -17,23 +17,88 @@ interface FilterOption {
 }
 
 interface FilterPanelProps {
-  filters: FilterOption[]
-  onFiltersChange: (filters: Record<string, any>) => void
-  activeFilters: Record<string, any>
-  onClearFilters: () => void
+  filters?: FilterOption[]
+  onFiltersChange?: (filters: Record<string, any>) => void
+  activeFilters?: Record<string, any>
+  onClearFilters?: () => void
+  programs?: string[]
+  caseManagers?: string[]
+  statuses?: string[]
 }
 
-export function FilterPanel({ filters, onFiltersChange, activeFilters, onClearFilters }: FilterPanelProps) {
+export function FilterPanel({
+  filters = [],
+  onFiltersChange = () => {},
+  activeFilters = {},
+  onClearFilters = () => {},
+  programs = [],
+  caseManagers = [],
+  statuses = [],
+}: FilterPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   const handleFilterChange = (key: string, value: any) => {
-    onFiltersChange({
-      ...activeFilters,
+    const updatedFilters = {
+      ...(activeFilters || {}),
       [key]: value,
+    }
+    onFiltersChange(updatedFilters)
+  }
+
+  // Safely get active filter count
+  const safeActiveFilters = activeFilters || {}
+  const activeFilterCount = Object.values(safeActiveFilters).filter(
+    (value) => value !== null && value !== undefined && value !== "",
+  ).length
+
+  // Create dynamic filter options based on props
+  const dynamicFilters = []
+
+  if (Array.isArray(programs) && programs.length > 0) {
+    dynamicFilters.push({
+      key: "program",
+      label: "Program",
+      type: "select" as const,
+      options: programs,
+      placeholder: "Select program...",
     })
   }
 
-  const activeFilterCount = Object.values(activeFilters).filter(Boolean).length
+  if (Array.isArray(caseManagers) && caseManagers.length > 0) {
+    dynamicFilters.push({
+      key: "caseManager",
+      label: "Case Manager",
+      type: "select" as const,
+      options: caseManagers,
+      placeholder: "Select case manager...",
+    })
+  }
+
+  if (Array.isArray(statuses) && statuses.length > 0) {
+    dynamicFilters.push({
+      key: "status",
+      label: "Status",
+      type: "select" as const,
+      options: statuses,
+      placeholder: "Select status...",
+    })
+  }
+
+  // Add enrollment date filter
+  dynamicFilters.push({
+    key: "enrollmentDate",
+    label: "Enrollment Date",
+    type: "dateRange" as const,
+    placeholder: "Select date range...",
+  })
+
+  // Use provided filters or dynamic filters
+  const filterOptions = Array.isArray(filters) && filters.length > 0 ? filters : dynamicFilters
+
+  // Don't render if no filters available
+  if (!Array.isArray(filterOptions) || filterOptions.length === 0) {
+    return null
+  }
 
   return (
     <Card className="mb-6">
@@ -63,7 +128,7 @@ export function FilterPanel({ filters, onFiltersChange, activeFilters, onClearFi
       {isExpanded && (
         <CardContent className="pt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filters.map((filter) => (
+            {filterOptions.map((filter) => (
               <div key={filter.key} className="space-y-2">
                 <Label htmlFor={filter.key}>{filter.label}</Label>
 
@@ -71,21 +136,21 @@ export function FilterPanel({ filters, onFiltersChange, activeFilters, onClearFi
                   <Input
                     id={filter.key}
                     placeholder={filter.placeholder}
-                    value={activeFilters[filter.key] || ""}
+                    value={safeActiveFilters[filter.key] || ""}
                     onChange={(e) => handleFilterChange(filter.key, e.target.value)}
                   />
                 )}
 
                 {filter.type === "select" && (
                   <Select
-                    value={activeFilters[filter.key] || ""}
+                    value={safeActiveFilters[filter.key] || ""}
                     onValueChange={(value) => handleFilterChange(filter.key, value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder={filter.placeholder} />
                     </SelectTrigger>
                     <SelectContent>
-                      {filter.options?.map((option) => (
+                      {(filter.options || []).map((option) => (
                         <SelectItem key={option} value={option}>
                           {option}
                         </SelectItem>
@@ -103,8 +168,8 @@ export function FilterPanel({ filters, onFiltersChange, activeFilters, onClearFi
                       <Input
                         id={`${filter.key}_from`}
                         type="date"
-                        value={activeFilters[`${filter.key}_from`] || ""}
-                        onChange={(e) => handleFilterChange(`${filter.key}_from`, e.target.value)}
+                        value={safeActiveFilters[`${filter.key}From`] || safeActiveFilters[`${filter.key}_from`] || ""}
+                        onChange={(e) => handleFilterChange(`${filter.key}From`, e.target.value)}
                       />
                     </div>
                     <div>
@@ -114,8 +179,8 @@ export function FilterPanel({ filters, onFiltersChange, activeFilters, onClearFi
                       <Input
                         id={`${filter.key}_to`}
                         type="date"
-                        value={activeFilters[`${filter.key}_to`] || ""}
-                        onChange={(e) => handleFilterChange(`${filter.key}_to`, e.target.value)}
+                        value={safeActiveFilters[`${filter.key}To`] || safeActiveFilters[`${filter.key}_to`] || ""}
+                        onChange={(e) => handleFilterChange(`${filter.key}To`, e.target.value)}
                       />
                     </div>
                   </div>

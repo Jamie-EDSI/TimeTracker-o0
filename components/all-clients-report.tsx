@@ -224,8 +224,17 @@ export function AllClientsReport({ onBack, clients, onViewClient }: AllClientsRe
           {/* Filter Panel */}
           {showFilters && (
             <FilterPanel
-              filters={filters}
+              activeFilters={filters}
               onFiltersChange={setFilters}
+              onClearFilters={() => {
+                setFilters({
+                  program: "",
+                  caseManager: "",
+                  status: "",
+                  enrollmentDateFrom: "",
+                  enrollmentDateTo: "",
+                })
+              }}
               programs={uniquePrograms}
               caseManagers={uniqueCaseManagers}
               statuses={uniqueStatuses}
