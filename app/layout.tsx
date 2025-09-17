@@ -27,7 +27,7 @@ export default function RootLayout({
                 <div className="flex items-center space-x-4">
                   <img src="/images/edsi-new-logo.jpg" alt="EDSI Logo" className="h-10 w-auto" />
                   <div className="hidden sm:block">
-                    <h1 className="text-xl font-semibold text-gray-900">Client Management System</h1>
+                    <h1 className="text-xl font-semibold text-blue-600">TimeTracker</h1>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">

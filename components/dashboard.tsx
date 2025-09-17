@@ -907,7 +907,7 @@ export function Dashboard() {
                   <div className="flex items-center justify-center mb-3">
                     <BarChart3 className="w-8 h-8 text-blue-500" />
                   </div>
-                  <h3 className="text-lg font-semibold text-indigo-50 mb-2">TimeTracker - Client Management System</h3>
+                  <h3 className="text-lg font-semibold text-blue-600 mb-2">TimeTracker</h3>
                   <p className="text-sm text-gray-600 mb-4">
                     Comprehensive client management with integrated reporting and Supabase database storage. All client
                     data is automatically synchronized across all features.
