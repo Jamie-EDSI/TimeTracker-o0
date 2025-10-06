@@ -1,8 +1,7 @@
 {
-  "name": "timetracker-youth-services",
+  "name": "timetracker-app",
   "version": "0.1.0",
   "private": true,
-  "description": "Client management system for Youth Services Program",
   "scripts": {
     "build": "next build",
     "dev": "next dev",

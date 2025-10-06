@@ -2,13 +2,12 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { SetupStatusIndicator } from "@/components/setup-status-indicator"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Youth Services Client Management System",
-  description: "Comprehensive client management system for Youth Services Program",
+  title: "TimeTracker - Client Management",
+  description: "Comprehensive client management system with integrated reporting",
     generator: 'v0.app'
 }
 
@@ -21,19 +20,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <div className="min-h-screen bg-gray-50">
-          <header className="bg-white shadow-sm border-b">
+          {/* Header */}
+          <header className="bg-white shadow-sm border-b border-gray-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center h-16">
                 <div className="flex items-center space-x-4">
-                  <img
-                    src="/images/youth-services-logo.png"
-                    alt="Youth Services Logo"
-                    className="h-10 w-auto"
-                    onError={(e) => {
-                      // Fallback to original logo if new one doesn't exist yet
-                      e.currentTarget.src = "/images/edsi-new-logo.jpg"
-                    }}
-                  />
+                  <img src="/images/edsi-new-logo.jpg" alt="EDSI Logo" className="h-10 w-auto" />
                   <div className="hidden sm:block">
                     <h1 className="text-xl font-semibold text-blue-600">TimeTracker</h1>
                   </div>
@@ -44,9 +36,10 @@ export default function RootLayout({
               </div>
             </div>
           </header>
-          <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">{children}</main>
+
+          {/* Main Content */}
+          <main className="flex-1">{children}</main>
         </div>
-        <SetupStatusIndicator />
       </body>
     </html>
   )

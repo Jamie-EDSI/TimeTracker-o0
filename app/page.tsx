@@ -1,5 +1,7 @@
-import { ClientManagement } from "@/components/client-management"
+"use client"
+
+import { Dashboard } from "@/components/dashboard"
 
 export default function Home() {
-  return <ClientManagement />
+  return <Dashboard />
 }

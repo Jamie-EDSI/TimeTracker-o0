@@ -65,13 +65,49 @@ interface AllClientsReportProps {
 export function AllClientsReport({ onBack, clients, onViewClient }: AllClientsReportProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [showFilters, setShowFilters] = useState(false)
-  const [filters, setFilters] = useState({
+  const [activeFilters, setActiveFilters] = useState({
     program: "",
     caseManager: "",
     status: "",
     enrollmentDateFrom: "",
     enrollmentDateTo: "",
   })
+
+  // Get unique values for filter options
+  const uniquePrograms = [...new Set(clients.map((client) => client.program))].sort()
+  const uniqueCaseManagers = [...new Set(clients.map((client) => client.caseManager))].sort()
+  const uniqueStatuses = [...new Set(clients.map((client) => client.status))].sort()
+
+  // Create filter configuration
+  const filterOptions = [
+    {
+      key: "program",
+      label: "Program",
+      type: "select" as const,
+      options: uniquePrograms,
+      placeholder: "Select program...",
+    },
+    {
+      key: "caseManager",
+      label: "Case Manager",
+      type: "select" as const,
+      options: uniqueCaseManagers,
+      placeholder: "Select case manager...",
+    },
+    {
+      key: "status",
+      label: "Status",
+      type: "select" as const,
+      options: uniqueStatuses,
+      placeholder: "Select status...",
+    },
+    {
+      key: "enrollmentDate",
+      label: "Enrollment Date",
+      type: "dateRange" as const,
+      placeholder: "Select date range...",
+    },
+  ]
 
   // Apply search and filters
   const filteredClients = clients.filter((client) => {
@@ -90,29 +126,44 @@ export function AllClientsReport({ onBack, clients, onViewClient }: AllClientsRe
     }
 
     // Program filter
-    if (filters.program && client.program !== filters.program) return false
+    if (activeFilters.program && client.program !== activeFilters.program) return false
 
     // Case Manager filter
-    if (filters.caseManager && client.caseManager !== filters.caseManager) return false
+    if (activeFilters.caseManager && client.caseManager !== activeFilters.caseManager) return false
 
     // Status filter
-    if (filters.status && client.status !== filters.status) return false
+    if (activeFilters.status && client.status !== activeFilters.status) return false
 
     // Enrollment date filters
-    if (filters.enrollmentDateFrom) {
+    if (activeFilters.enrollmentDateFrom) {
       const enrollmentDate = new Date(client.enrollmentDate)
-      const fromDate = new Date(filters.enrollmentDateFrom)
+      const fromDate = new Date(activeFilters.enrollmentDateFrom)
       if (enrollmentDate < fromDate) return false
     }
 
-    if (filters.enrollmentDateTo) {
+    if (activeFilters.enrollmentDateTo) {
       const enrollmentDate = new Date(client.enrollmentDate)
-      const toDate = new Date(filters.enrollmentDateTo)
+      const toDate = new Date(activeFilters.enrollmentDateTo)
       if (enrollmentDate > toDate) return false
     }
 
     return true
   })
+
+  const handleFiltersChange = (newFilters: Record<string, any>) => {
+    setActiveFilters((prev) => ({ ...prev, ...newFilters }))
+  }
+
+  const handleClearFilters = () => {
+    setActiveFilters({
+      program: "",
+      caseManager: "",
+      status: "",
+      enrollmentDateFrom: "",
+      enrollmentDateTo: "",
+    })
+    setSearchTerm("")
+  }
 
   const handleExport = () => {
     const exportData = filteredClients.map((client) => ({
@@ -165,10 +216,8 @@ export function AllClientsReport({ onBack, clients, onViewClient }: AllClientsRe
     }
   }
 
-  // Get unique values for filter options
-  const uniquePrograms = [...new Set(clients.map((client) => client.program))].sort()
-  const uniqueCaseManagers = [...new Set(clients.map((client) => client.caseManager))].sort()
-  const uniqueStatuses = [...new Set(clients.map((client) => client.status))].sort()
+  // Count active filters for display
+  const activeFilterCount = Object.values(activeFilters).filter((value) => value && value !== "").length
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -191,9 +240,17 @@ export function AllClientsReport({ onBack, clients, onViewClient }: AllClientsRe
               <Badge variant="outline" className="text-blue-600">
                 {filteredClients.length} clients
               </Badge>
-              <Button onClick={() => setShowFilters(!showFilters)} variant="outline" size="sm">
+              <Button
+                onClick={() => setShowFilters(!showFilters)}
+                variant="outline"
+                size="sm"
+                className={`${showFilters ? "bg-blue-50 text-blue-700 border-blue-200" : ""}`}
+              >
                 <Filter className="w-4 h-4 mr-2" />
                 Filters
+                {activeFilterCount > 0 && (
+                  <Badge className="ml-2 bg-blue-100 text-blue-800 text-xs px-1.5 py-0.5">{activeFilterCount}</Badge>
+                )}
               </Button>
               <Button onClick={handleExport} className="bg-blue-600 hover:bg-blue-700 text-white" size="sm">
                 <Download className="w-4 h-4 mr-2" />
@@ -208,7 +265,14 @@ export function AllClientsReport({ onBack, clients, onViewClient }: AllClientsRe
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">All Clients ({filteredClients.length})</CardTitle>
+              <CardTitle className="text-lg">
+                All Clients ({filteredClients.length})
+                {activeFilterCount > 0 && (
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    • {activeFilterCount} filter{activeFilterCount !== 1 ? "s" : ""} applied
+                  </span>
+                )}
+              </CardTitle>
               <div className="relative w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
@@ -224,48 +288,22 @@ export function AllClientsReport({ onBack, clients, onViewClient }: AllClientsRe
           {/* Filter Panel */}
           {showFilters && (
             <FilterPanel
-              activeFilters={filters}
-              onFiltersChange={setFilters}
-              onClearFilters={() => {
-                setFilters({
-                  program: "",
-                  caseManager: "",
-                  status: "",
-                  enrollmentDateFrom: "",
-                  enrollmentDateTo: "",
-                })
-              }}
-              programs={uniquePrograms}
-              caseManagers={uniqueCaseManagers}
-              statuses={uniqueStatuses}
+              filters={filterOptions}
+              onFiltersChange={handleFiltersChange}
+              activeFilters={activeFilters}
+              onClearFilters={handleClearFilters}
             />
           )}
 
           <CardContent>
             {filteredClients.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500">
-                  {searchTerm || Object.values(filters).some((f) => f)
-                    ? "No clients match your search criteria."
-                    : "No clients found."}
+                <p className="text-gray-500 mb-4">
+                  {searchTerm || activeFilterCount > 0 ? "No clients match your search criteria." : "No clients found."}
                 </p>
-                {(searchTerm || Object.values(filters).some((f) => f)) && (
-                  <Button
-                    onClick={() => {
-                      setSearchTerm("")
-                      setFilters({
-                        program: "",
-                        caseManager: "",
-                        status: "",
-                        enrollmentDateFrom: "",
-                        enrollmentDateTo: "",
-                      })
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                  >
-                    Clear filters
+                {(searchTerm || activeFilterCount > 0) && (
+                  <Button onClick={handleClearFilters} variant="outline" size="sm">
+                    Clear all filters
                   </Button>
                 )}
               </div>
@@ -274,7 +312,7 @@ export function AllClientsReport({ onBack, clients, onViewClient }: AllClientsRe
                 {filteredClients.map((client) => (
                   <div
                     key={client.id}
-                    className={`flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 ${
+                    className={`flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors ${
                       client.isNew ? "ring-2 ring-green-200 bg-green-50" : ""
                     }`}
                   >
