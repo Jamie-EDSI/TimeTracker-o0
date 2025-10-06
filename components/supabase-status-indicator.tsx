@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronUp, Database, AlertCircle, CheckCircle } from "lucide-react"
+import { ChevronDown, Database, AlertCircle, CheckCircle } from "lucide-react"
 import { isSupabaseConfigured, getSupabaseStatus, getConfigError } from "@/lib/supabase"
 
 export function SupabaseStatusIndicator() {
@@ -45,8 +45,8 @@ export function SupabaseStatusIndicator() {
   }
 
   const getStatusText = () => {
-    if (configured) return "Connected"
-    if (status === "not_configured") return "Demo Mode"
+    if (configured) return "OK"
+    if (status === "not_configured") return "Demo"
     return "Error"
   }
 
@@ -66,36 +66,45 @@ export function SupabaseStatusIndicator() {
     }
   }
 
-  // Only show in development mode
-  if (process.env.NODE_ENV !== "development") {
-    return null
-  }
-
+  // Always show the compact version
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      <Card className="w-80 shadow-lg border-2">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${getStatusColor()}`} />
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Database className="h-4 w-4" />
-                Supabase Status
-              </CardTitle>
+      {!isExpanded ? (
+        // Compact version - always visible
+        <button
+          onClick={() => setIsExpanded(true)}
+          className="flex items-center gap-2 bg-white shadow-lg border-2 rounded-lg px-3 py-2 hover:shadow-xl transition-shadow"
+        >
+          <div className={`w-3 h-3 rounded-full ${getStatusColor()}`} />
+          {getStatusIcon()}
+          <span className="text-sm font-medium">{getStatusText()}</span>
+        </button>
+      ) : (
+        // Expanded version
+        <Card className="w-80 shadow-lg border-2">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${getStatusColor()}`} />
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  Supabase Status
+                </CardTitle>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setIsExpanded(false)} className="h-6 w-6 p-0">
+                <ChevronDown className="h-4 w-4" />
+              </Button>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setIsExpanded(!isExpanded)} className="h-6 w-6 p-0">
-              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </div>
-        </CardHeader>
+          </CardHeader>
 
-        <CardContent className="pt-0">
-          <div className="flex items-center gap-2 mb-2">
-            {getStatusIcon()}
-            <Badge variant={configured ? "default" : "secondary"}>{getStatusText()}</Badge>
-          </div>
+          <CardContent className="pt-0">
+            <div className="flex items-center gap-2 mb-2">
+              {getStatusIcon()}
+              <Badge variant={configured ? "default" : "secondary"} className={configured ? "bg-green-500" : ""}>
+                {configured ? "Connected" : status === "not_configured" ? "Demo Mode" : "Error"}
+              </Badge>
+            </div>
 
-          {isExpanded && (
             <div className="space-y-3 mt-4">
               <div className="text-xs space-y-1">
                 <div className="flex justify-between">
@@ -123,26 +132,28 @@ export function SupabaseStatusIndicator() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <div className="text-xs font-medium">Debug Tools:</div>
-                <div className="grid grid-cols-1 gap-1">
-                  <Button variant="outline" size="sm" onClick={() => runTest("basic")} className="text-xs h-7">
-                    Test Connection
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => runTest("sync")} className="text-xs h-7">
-                    Test CRUD Operations
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => runTest("setup")} className="text-xs h-7">
-                    Check Setup
-                  </Button>
+              {process.env.NODE_ENV === "development" && (
+                <div className="space-y-2">
+                  <div className="text-xs font-medium">Debug Tools:</div>
+                  <div className="grid grid-cols-1 gap-1">
+                    <Button variant="outline" size="sm" onClick={() => runTest("basic")} className="text-xs h-7">
+                      Test Connection
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => runTest("sync")} className="text-xs h-7">
+                      Test CRUD Operations
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => runTest("setup")} className="text-xs h-7">
+                      Check Setup
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="text-xs text-gray-500">Open browser console for detailed logs</div>
+              <div className="text-xs text-gray-500">Click outside to close</div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

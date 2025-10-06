@@ -26,6 +26,7 @@ import { CallLogReport } from "./call-log-report"
 import { JobsPlacementsReport } from "./jobs-placements-report"
 import { AllClientsReport } from "./all-clients-report"
 import { RecycleBin } from "./recycle-bin"
+import { SupabaseStatusIndicator } from "./supabase-status-indicator"
 import { clientsApi, caseNotesApi, type Client as SupabaseClient } from "@/lib/supabase"
 
 // Transform Supabase client to component client format
@@ -1027,6 +1028,9 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Supabase Status Indicator - Fixed position in lower right */}
+      <SupabaseStatusIndicator />
     </div>
   )
 }
