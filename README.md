@@ -1,4 +1,7 @@
-# Youth Services Client Management System
+# TimeTracker Client Management System
+
+Vercel Chat:  https://v0.app/chat/time-tracker-app-pa6E5tdUNMQ#uyajFvPmD0C58XkdmS965HlajiOcUkmV
+Vercel Project:  https://vercel.com/jamie-edsis-projects/v0-edsi-job-application-form
 
 A comprehensive client management application for Youth Services Program, built with Next.js 14, React, TypeScript, and Supabase.
 
@@ -296,13 +299,6 @@ This application is proprietary software developed for Youth Services Program. U
 **Built with**: Next.js, Supabase, Vercel  
 **UI Components**: shadcn/ui, Radix UI  
 
-## 📞 Contact
-
-For questions, support, or feedback:
-
-- **Email**: support@youthservices.org
-- **Website**: https://youth-services-tracker.org
-- **Documentation**: See docs folder
 
 ---
 
