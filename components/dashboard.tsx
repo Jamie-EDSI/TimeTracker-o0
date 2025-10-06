@@ -682,7 +682,7 @@ export function Dashboard() {
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-gray-600">Placements</span>
-                  <span className="font-medium text-blue-600">156</span>
+                  <span className="font-medium text-blue-600">{""}</span>
                 </div>
               </CardContent>
             </Card>
