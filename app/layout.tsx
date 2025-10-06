@@ -7,8 +7,8 @@ import { SetupStatusIndicator } from "@/components/setup-status-indicator"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "EDSI Client Management System",
-  description: "Comprehensive client management system for EDSI programs",
+  title: "Youth Services Client Management System",
+  description: "Comprehensive client management system for Youth Services Program",
     generator: 'v0.app'
 }
 
@@ -25,7 +25,15 @@ export default function RootLayout({
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center h-16">
                 <div className="flex items-center space-x-4">
-                  <img src="/images/edsi-new-logo.jpg" alt="EDSI Logo" className="h-10 w-auto" />
+                  <img
+                    src="/images/youth-services-logo.png"
+                    alt="Youth Services Logo"
+                    className="h-10 w-auto"
+                    onError={(e) => {
+                      // Fallback to original logo if new one doesn't exist yet
+                      e.currentTarget.src = "/images/edsi-new-logo.jpg"
+                    }}
+                  />
                   <div className="hidden sm:block">
                     <h1 className="text-xl font-semibold text-blue-600">TimeTracker</h1>
                   </div>
