@@ -25,7 +25,7 @@
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.6.0",
     "lucide-react": "^0.454.0",
-    "next": "14.2.16",
+    "next": "14.0.4",
     "postcss": "^8",
     "react": "^18",
     "react-dom": "^18",
@@ -37,8 +37,6 @@
   },
   "devDependencies": {
     "@types/node": "^22",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
     "postcss": "^8.5",

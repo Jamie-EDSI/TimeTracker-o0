@@ -1,156 +1,175 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Wifi, WifiOff } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { ChevronDown, Database, AlertCircle, CheckCircle } from "lucide-react"
-import { isSupabaseConfigured, getSupabaseStatus, getConfigError } from "@/lib/supabase"
+import {
+  isSupabaseConfigured,
+  getSupabaseStatus,
+  testSupabaseConnection,
+  verifyClientFilesBucket,
+} from "@/lib/supabase"
 
 export function SupabaseStatusIndicator() {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [status, setStatus] = useState<string>("checking")
-  const [configured, setConfigured] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState<"connected" | "not_configured" | "error">("not_configured")
+  const [connectionDetails, setConnectionDetails] = useState<any>(null)
+  const [storageStatus, setStorageStatus] = useState<any>(null)
+  const [isChecking, setIsChecking] = useState(false)
 
   useEffect(() => {
-    // Check status on mount
-    const checkStatus = () => {
-      const currentStatus = getSupabaseStatus()
-      const isConfigured = isSupabaseConfigured()
-      const configError = getConfigError()
-
-      setStatus(currentStatus)
-      setConfigured(isConfigured)
-      setError(configError)
-    }
-
-    checkStatus()
-
-    // Recheck every 30 seconds
-    const interval = setInterval(checkStatus, 30000)
-    return () => clearInterval(interval)
+    checkConnection()
   }, [])
 
+  const checkConnection = async () => {
+    setIsChecking(true)
+    const currentStatus = getSupabaseStatus()
+    setStatus(currentStatus)
+
+    if (currentStatus === "connected") {
+      const result = await testSupabaseConnection()
+      setConnectionDetails(result)
+
+      const storage = await verifyClientFilesBucket()
+      setStorageStatus(storage)
+    }
+    setIsChecking(false)
+  }
+
   const getStatusColor = () => {
-    if (configured) return "bg-green-500"
-    if (status === "not_configured") return "bg-yellow-500"
-    return "bg-red-500"
+    switch (status) {
+      case "connected":
+        return "text-green-600"
+      case "error":
+        return "text-red-600"
+      default:
+        return "text-yellow-600"
+    }
   }
 
   const getStatusIcon = () => {
-    if (configured) return <CheckCircle className="h-4 w-4" />
-    if (status === "not_configured") return <AlertCircle className="h-4 w-4" />
-    return <AlertCircle className="h-4 w-4" />
-  }
-
-  const getStatusText = () => {
-    if (configured) return "OK"
-    if (status === "not_configured") return "Demo"
-    return "Error"
-  }
-
-  const runTest = async (testName: string) => {
-    try {
-      if (testName === "basic" && (window as any).testSupabase) {
-        await (window as any).testSupabase()
-      } else if (testName === "sync" && (window as any).testSupabaseSync) {
-        await (window as any).testSupabaseSync()
-      } else if (testName === "setup" && (window as any).checkSupabaseSetup) {
-        await (window as any).checkSupabaseSetup()
-      } else {
-        console.log(`Test function ${testName} not available yet. Try refreshing the page.`)
-      }
-    } catch (error) {
-      console.error(`Test ${testName} failed:`, error)
+    switch (status) {
+      case "connected":
+        return <CheckCircle2 className="w-4 h-4 text-green-600" />
+      case "error":
+        return <XCircle className="w-4 h-4 text-red-600" />
+      default:
+        return <AlertCircle className="w-4 h-4 text-yellow-600" />
     }
   }
 
-  // Always show the compact version
+  const getStatusText = () => {
+    switch (status) {
+      case "connected":
+        return "OK"
+      case "error":
+        return "Error"
+      default:
+        return "Not Configured"
+    }
+  }
+
   return (
     <div className="fixed bottom-4 right-4 z-50">
       {!isExpanded ? (
-        // Compact version - always visible
-        <button
+        // Compact status button
+        <Button
           onClick={() => setIsExpanded(true)}
-          className="flex items-center gap-2 bg-white shadow-lg border-2 rounded-lg px-3 py-2 hover:shadow-xl transition-shadow"
+          variant="outline"
+          size="sm"
+          className="bg-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 px-3 py-2"
         >
-          <div className={`w-3 h-3 rounded-full ${getStatusColor()}`} />
           {getStatusIcon()}
-          <span className="text-sm font-medium">{getStatusText()}</span>
-        </button>
+          <span className={`text-xs font-medium ${getStatusColor()}`}>{getStatusText()}</span>
+          <ChevronUp className="w-3 h-3 text-gray-400" />
+        </Button>
       ) : (
-        // Expanded version
-        <Card className="w-80 shadow-lg border-2">
-          <CardHeader className="pb-2">
+        // Expanded status card
+        <Card className="w-96 shadow-xl">
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${getStatusColor()}`} />
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Database className="h-4 w-4" />
-                  Supabase Status
-                </CardTitle>
-              </div>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Database className="w-4 h-4" />
+                Database Connection
+              </CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setIsExpanded(false)} className="h-6 w-6 p-0">
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="w-4 h-4" />
               </Button>
             </div>
           </CardHeader>
-
-          <CardContent className="pt-0">
-            <div className="flex items-center gap-2 mb-2">
-              {getStatusIcon()}
-              <Badge variant={configured ? "default" : "secondary"} className={configured ? "bg-green-500" : ""}>
-                {configured ? "Connected" : status === "not_configured" ? "Demo Mode" : "Error"}
+          <CardContent className="space-y-3">
+            {/* Connection Status */}
+            <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <div className="flex items-center gap-2">
+                {status === "connected" ? (
+                  <Wifi className="w-4 h-4 text-green-600" />
+                ) : (
+                  <WifiOff className="w-4 h-4 text-red-600" />
+                )}
+                <span className="text-sm font-medium">Status</span>
+              </div>
+              <Badge
+                variant={status === "connected" ? "default" : "destructive"}
+                className={status === "connected" ? "bg-green-100 text-green-800 hover:bg-green-100" : ""}
+              >
+                {getStatusText()}
               </Badge>
             </div>
 
-            <div className="space-y-3 mt-4">
-              <div className="text-xs space-y-1">
+            {/* Configuration Status */}
+            <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <span className="text-sm">Configuration</span>
+              {isSupabaseConfigured() ? (
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              ) : (
+                <XCircle className="w-4 h-4 text-red-600" />
+              )}
+            </div>
+
+            {/* Storage Status */}
+            {storageStatus && (
+              <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                <span className="text-sm">Storage Bucket</span>
+                {storageStatus.exists ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-red-600" />
+                )}
+              </div>
+            )}
+
+            {/* Connection Details */}
+            {connectionDetails && (
+              <div className="text-xs text-gray-600 p-2 bg-gray-50 rounded">
                 <div className="flex justify-between">
-                  <span>URL:</span>
-                  <span className={process.env.NEXT_PUBLIC_SUPABASE_URL ? "text-green-600" : "text-red-600"}>
-                    {process.env.NEXT_PUBLIC_SUPABASE_URL ? "✅" : "❌"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>API Key:</span>
-                  <span className={process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "text-green-600" : "text-red-600"}>
-                    {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✅" : "❌"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Status:</span>
-                  <span className={configured ? "text-green-600" : "text-yellow-600"}>{status}</span>
+                  <span>Database:</span>
+                  <span className="font-medium">{connectionDetails.success ? "Connected" : "Disconnected"}</span>
                 </div>
               </div>
+            )}
 
-              {error && (
-                <div className="text-xs p-2 bg-yellow-50 border border-yellow-200 rounded">
-                  <div className="font-medium text-yellow-800">Configuration Issue:</div>
-                  <div className="text-yellow-700">{error}</div>
+            {/* Debug Tools - Only in development */}
+            {process.env.NODE_ENV === "development" && (
+              <div className="pt-2 border-t space-y-2">
+                <p className="text-xs font-medium text-gray-600">Debug Tools</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={checkConnection}
+                    disabled={isChecking}
+                    className="text-xs h-7 bg-transparent"
+                  >
+                    {isChecking ? "Checking..." : "Test Connection"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="text-xs h-7">
+                    Reload
+                  </Button>
                 </div>
-              )}
-
-              {process.env.NODE_ENV === "development" && (
-                <div className="space-y-2">
-                  <div className="text-xs font-medium">Debug Tools:</div>
-                  <div className="grid grid-cols-1 gap-1">
-                    <Button variant="outline" size="sm" onClick={() => runTest("basic")} className="text-xs h-7">
-                      Test Connection
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => runTest("sync")} className="text-xs h-7">
-                      Test CRUD Operations
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => runTest("setup")} className="text-xs h-7">
-                      Check Setup
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <div className="text-xs text-gray-500">Click outside to close</div>
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

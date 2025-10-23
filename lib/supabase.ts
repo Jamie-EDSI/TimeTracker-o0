@@ -289,7 +289,7 @@ const mockCaseNotes: CaseNote[] = [
   },
 ]
 
-// Mock client files for demo - updated storage path to use client-files bucket
+// Mock client files for demo
 const mockClientFiles: ClientFile[] = [
   {
     id: "file-1",
@@ -325,14 +325,13 @@ const mockClientFiles: ClientFile[] = [
   },
 ]
 
-// Helper function to simulate network delay for realistic demo
+// Helper function to simulate network delay
 const simulateDelay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms))
 
-// Helper function to clean data for Supabase (convert empty strings to null for optional fields)
+// Helper function to clean data for Supabase
 const cleanDataForSupabase = (data: any) => {
   const cleaned = { ...data }
 
-  // Convert empty strings to null for optional fields
   const optionalFields = [
     "cell_phone",
     "emergency_contact",
@@ -353,14 +352,12 @@ const cleanDataForSupabase = (data: any) => {
     "modified_by",
   ]
 
-  // Convert empty strings to null for optional fields
   optionalFields.forEach((field) => {
     if (cleaned[field] === "") {
       cleaned[field] = null
     }
   })
 
-  // Handle numeric fields - convert empty strings to null
   if (cleaned.required_hours === "" || cleaned.required_hours === undefined) {
     cleaned.required_hours = null
   } else if (typeof cleaned.required_hours === "string") {
@@ -382,13 +379,12 @@ const cleanDataForSupabase = (data: any) => {
     cleaned.gpa = isNaN(parsed) ? null : parsed
   }
 
-  // Always set last_modified to current timestamp for updates
   cleaned.last_modified = new Date().toISOString()
 
   return cleaned
 }
 
-// Utility functions with enhanced debugging
+// Utility functions
 export const isSupabaseConfigured = () => hasValidConfig && !configError
 export const getSupabaseStatus = () => {
   if (!hasValidConfig) return "not_configured"
@@ -417,7 +413,40 @@ export async function testSupabaseConnection() {
   }
 }
 
-// Dedicated function to verify client-files bucket
+// Check if soft delete columns exist
+let hasDeletedColumns: boolean | null = null
+
+async function checkDeletedColumns(): Promise<boolean> {
+  if (hasDeletedColumns !== null) {
+    return hasDeletedColumns
+  }
+
+  if (!supabase || configError) {
+    hasDeletedColumns = false
+    return false
+  }
+
+  try {
+    // Try to query with deleted_at column
+    const { error } = await supabase.from("clients").select("deleted_at").limit(1)
+
+    if (error) {
+      if (error.message.includes("does not exist") || error.message.includes("column")) {
+        console.warn("⚠️ Soft delete columns not found - queries will not filter deleted records")
+        hasDeletedColumns = false
+        return false
+      }
+    }
+
+    hasDeletedColumns = true
+    return true
+  } catch (error) {
+    console.warn("⚠️ Could not check for deleted_at column:", error)
+    hasDeletedColumns = false
+    return false
+  }
+}
+
 export const verifyClientFilesBucket = async () => {
   console.log("🔍 Verifying client-files storage bucket...")
 
@@ -437,7 +466,6 @@ export const verifyClientFilesBucket = async () => {
   }
 
   try {
-    // First, test basic Supabase connectivity
     console.log("🔗 Testing Supabase connection...")
     const { data: testData, error: testError } = await supabase
       .from("clients")
@@ -460,12 +488,10 @@ export const verifyClientFilesBucket = async () => {
 
     console.log("✅ Supabase connection successful")
 
-    // Try multiple approaches to check storage
     let buckets: any[] = []
     let listError: any = null
     let directAccessWorks = false
 
-    // Approach 1: Try to list all buckets
     console.log("📦 Attempting to list all storage buckets...")
     try {
       const { data: bucketsData, error: bucketsError } = await supabase.storage.listBuckets()
@@ -485,7 +511,6 @@ export const verifyClientFilesBucket = async () => {
       console.error("🚨 Exception listing buckets:", listException)
     }
 
-    // Approach 2: Try direct access to client-files bucket
     console.log("🧪 Testing direct access to client-files bucket...")
     try {
       const { data: directData, error: directError } = await supabase.storage
@@ -499,7 +524,6 @@ export const verifyClientFilesBucket = async () => {
       } else {
         console.warn("⚠️ Direct access failed:", directError.message)
 
-        // Check if it's a "bucket not found" error
         if (
           directError.message?.toLowerCase().includes("not found") ||
           directError.message?.toLowerCase().includes("does not exist")
@@ -511,19 +535,16 @@ export const verifyClientFilesBucket = async () => {
       console.error("🚨 Exception in direct access:", directException)
     }
 
-    // Determine results based on what worked
     if (directAccessWorks) {
-      // Direct access works, so bucket exists
       return {
         exists: true,
         accessible: true,
         bucket: { name: "client-files", accessible: true },
         buckets: buckets.map((b) => b.name),
-        fileCount: 0, // We don't have exact count but it's accessible
+        fileCount: 0,
         instructions: ["✅ client-files bucket is properly configured and accessible!"],
       }
     } else if (buckets.length > 0) {
-      // We can list buckets, check if client-files is among them
       const clientFilesBucket = buckets.find((bucket) => bucket.name === "client-files")
 
       if (clientFilesBucket) {
@@ -540,7 +561,6 @@ export const verifyClientFilesBucket = async () => {
       } else {
         console.error("❌ client-files bucket not found in available buckets")
 
-        // Check for similar bucket names
         const similarBuckets = buckets.filter(
           (b) => b.name.toLowerCase().includes("client") || b.name.toLowerCase().includes("file"),
         )
@@ -563,7 +583,6 @@ export const verifyClientFilesBucket = async () => {
         }
       }
     } else {
-      // No buckets found and direct access failed
       console.error("❌ No storage buckets found and direct access failed")
 
       let errorMessage = "Storage not accessible"
@@ -613,7 +632,6 @@ export const verifyClientFilesBucket = async () => {
   }
 }
 
-// Function to create client-files bucket
 export async function createClientFilesBucket() {
   if (!supabase || configError) {
     return { success: false, error: configError || "Supabase not configured" }
@@ -622,7 +640,6 @@ export async function createClientFilesBucket() {
   try {
     console.log("🔧 Creating client-files bucket...")
 
-    // Create the bucket
     const { data, error } = await supabase.storage.createBucket("client-files", {
       public: false,
       allowedMimeTypes: [
@@ -632,7 +649,7 @@ export async function createClientFilesBucket() {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "text/*",
       ],
-      fileSizeLimit: 10485760, // 10MB
+      fileSizeLimit: 10485760,
     })
 
     if (error) {
@@ -642,7 +659,6 @@ export async function createClientFilesBucket() {
 
     console.log("✅ client-files bucket created successfully!")
 
-    // Verify the bucket was created and is accessible
     const verification = await verifyClientFilesBucket()
 
     if (verification.exists && verification.accessible) {
@@ -658,9 +674,8 @@ export async function createClientFilesBucket() {
   }
 }
 
-// Enhanced client database operations with comprehensive debugging
+// Enhanced client database operations
 export const clientsApi = {
-  // Get all active clients (excluding deleted ones)
   async getAll(): Promise<Client[]> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -669,11 +684,16 @@ export const clientsApi = {
     }
 
     return SupabaseDebugger.logOperation("SELECT", "clients", null, async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
+      const hasDeleted = await checkDeletedColumns()
+
+      let query = supabase.from("clients").select("*").order("created_at", { ascending: false })
+
+      // Only filter by deleted_at if the column exists
+      if (hasDeleted) {
+        query = query.is("deleted_at", null)
+      }
+
+      const { data, error } = await query
 
       if (error) {
         console.error("🚨 Supabase SELECT error:", error)
@@ -687,7 +707,6 @@ export const clientsApi = {
     })
   },
 
-  // Get deleted clients for recycle bin
   async getDeleted(): Promise<Client[]> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -696,6 +715,14 @@ export const clientsApi = {
     }
 
     return SupabaseDebugger.logOperation("SELECT_DELETED", "clients", null, async () => {
+      const hasDeleted = await checkDeletedColumns()
+
+      // If deleted_at column doesn't exist, return empty array
+      if (!hasDeleted) {
+        console.warn("⚠️ Soft delete not available - returning empty array")
+        return []
+      }
+
       const { data, error } = await supabase
         .from("clients")
         .select("*")
@@ -714,7 +741,6 @@ export const clientsApi = {
     })
   },
 
-  // Get client by ID with debugging
   async getById(id: string): Promise<Client | null> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -723,7 +749,15 @@ export const clientsApi = {
     }
 
     return SupabaseDebugger.logOperation("SELECT_BY_ID", "clients", { id }, async () => {
-      const { data, error } = await supabase.from("clients").select("*").eq("id", id).is("deleted_at", null).single()
+      const hasDeleted = await checkDeletedColumns()
+
+      let query = supabase.from("clients").select("*").eq("id", id)
+
+      if (hasDeleted) {
+        query = query.is("deleted_at", null)
+      }
+
+      const { data, error } = await query.single()
 
       if (error) {
         console.error("🚨 Supabase SELECT_BY_ID error:", error)
@@ -735,9 +769,7 @@ export const clientsApi = {
     })
   },
 
-  // Create new client with comprehensive validation and debugging
   async create(client: Omit<Client, "id" | "created_at" | "last_modified">): Promise<Client> {
-    // Validate data before sending
     const validation = DataValidator.validateClient(client)
     if (!validation.isValid) {
       const errorMessage = `Validation failed: ${validation.errors.join(", ")}`
@@ -770,7 +802,6 @@ export const clientsApi = {
         console.error("🚨 Supabase INSERT error:", error)
         console.error("📤 Data that failed to insert:", clientData)
 
-        // Detailed error analysis
         if (error.code === "23505") {
           throw new Error("Duplicate participant ID. Please use a unique participant ID.")
         } else if (error.code === "23502") {
@@ -787,9 +818,7 @@ export const clientsApi = {
     })
   },
 
-  // Update client with comprehensive validation and debugging
   async update(id: string, updates: Partial<Client>): Promise<Client> {
-    // Validate updates
     const validation = DataValidator.validateClient({ ...updates, id })
     if (!validation.isValid) {
       const errorMessage = `Validation failed: ${validation.errors.join(", ")}`
@@ -836,7 +865,6 @@ export const clientsApi = {
     })
   },
 
-  // Soft delete client (move to recycle bin)
   async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -853,6 +881,14 @@ export const clientsApi = {
     }
 
     return SupabaseDebugger.logOperation("SOFT_DELETE", "clients", { id }, async () => {
+      const hasDeleted = await checkDeletedColumns()
+
+      if (!hasDeleted) {
+        console.warn("⚠️ Soft delete columns not available - performing hard delete instead")
+        await clientsApi.permanentDelete(id)
+        return
+      }
+
       const { error } = await supabase
         .from("clients")
         .update({
@@ -870,7 +906,6 @@ export const clientsApi = {
     })
   },
 
-  // Restore client from recycle bin
   async restore(id: string): Promise<Client> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -890,6 +925,12 @@ export const clientsApi = {
     }
 
     return SupabaseDebugger.logOperation("RESTORE", "clients", { id }, async () => {
+      const hasDeleted = await checkDeletedColumns()
+
+      if (!hasDeleted) {
+        throw new Error("Soft delete not available - cannot restore clients")
+      }
+
       const { data, error } = await supabase
         .from("clients")
         .update({
@@ -912,7 +953,6 @@ export const clientsApi = {
     })
   },
 
-  // Permanently delete client
   async permanentDelete(id: string): Promise<void> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -937,9 +977,8 @@ export const clientsApi = {
   },
 }
 
-// Enhanced case notes database operations
+// Case notes API with similar soft delete handling
 export const caseNotesApi = {
-  // Get case notes for a client with debugging (excluding deleted ones)
   async getByClientId(clientId: string): Promise<CaseNote[]> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -948,12 +987,19 @@ export const caseNotesApi = {
     }
 
     return SupabaseDebugger.logOperation("SELECT_BY_CLIENT", "case_notes", { clientId }, async () => {
-      const { data, error } = await supabase
+      const hasDeleted = await checkDeletedColumns()
+
+      let query = supabase
         .from("case_notes")
         .select("*")
         .eq("client_id", clientId)
-        .is("deleted_at", null)
         .order("created_at", { ascending: false })
+
+      if (hasDeleted) {
+        query = query.is("deleted_at", null)
+      }
+
+      const { data, error } = await query
 
       if (error) {
         console.error("🚨 Supabase SELECT_BY_CLIENT error:", error)
@@ -966,9 +1012,7 @@ export const caseNotesApi = {
     })
   },
 
-  // Create new case note with validation and debugging
   async create(caseNote: Omit<CaseNote, "id" | "created_at">): Promise<CaseNote> {
-    // Validate case note data
     const validation = DataValidator.validateCaseNote(caseNote)
     if (!validation.isValid) {
       const errorMessage = `Validation failed: ${validation.errors.join(", ")}`
@@ -1007,7 +1051,6 @@ export const caseNotesApi = {
     })
   },
 
-  // Soft delete case note
   async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -1024,6 +1067,13 @@ export const caseNotesApi = {
     }
 
     return SupabaseDebugger.logOperation("SOFT_DELETE", "case_notes", { id }, async () => {
+      const hasDeleted = await checkDeletedColumns()
+
+      if (!hasDeleted) {
+        console.warn("⚠️ Soft delete not available for case notes")
+        return
+      }
+
       const { error } = await supabase
         .from("case_notes")
         .update({
@@ -1042,9 +1092,8 @@ export const caseNotesApi = {
   },
 }
 
-// Client Files API for managing file uploads and associations (updated to use client-files bucket)
+// Client Files API
 export const clientFilesApi = {
-  // Get all files for a specific client
   async getByClientId(clientId: string, category?: string): Promise<ClientFile[]> {
     if (!supabase || configError) {
       console.log("📊 Using demo data for files - Supabase not configured properly")
@@ -1058,13 +1107,18 @@ export const clientFilesApi = {
 
     return SupabaseDebugger.logOperation("SELECT_FILES_BY_CLIENT", "client_files", { clientId, category }, async () => {
       try {
+        const hasDeleted = await checkDeletedColumns()
+
         let query = supabase
           .from("client_files")
           .select("*")
           .eq("client_id", clientId)
           .eq("is_active", true)
-          .is("deleted_at", null)
           .order("upload_date", { ascending: false })
+
+        if (hasDeleted) {
+          query = query.is("deleted_at", null)
+        }
 
         if (category) {
           query = query.eq("file_category", category)
@@ -1086,7 +1140,6 @@ export const clientFilesApi = {
         return data || []
       } catch (error) {
         console.error("🚨 Error loading files:", error)
-        // Fallback to demo data
         let files = mockClientFiles.filter((file) => file.client_id === clientId && file.is_active)
         if (category) {
           files = files.filter((file) => file.file_category === category)
@@ -1096,7 +1149,6 @@ export const clientFilesApi = {
     })
   },
 
-  // Upload a file to storage and create database record (updated to use client-files bucket)
   async uploadFile(
     file: File,
     clientId: string,
@@ -1106,15 +1158,12 @@ export const clientFilesApi = {
   ): Promise<ClientFile> {
     console.log(`📤 Attempting to upload file: ${file.name} (${file.size} bytes)`)
 
-    // Always use demo mode for file uploads to avoid storage issues
     if (!supabase || configError) {
       console.log("📊 Using demo mode for file upload - Supabase not configured properly")
-      await simulateDelay(1000) // Simulate upload time
+      await simulateDelay(1000)
 
-      // Create a blob URL for the file
       const blobUrl = URL.createObjectURL(file)
 
-      // Create a mock file record
       const mockFile: ClientFile = {
         id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         client_id: clientId,
@@ -1139,14 +1188,12 @@ export const clientFilesApi = {
 
     return SupabaseDebugger.logOperation("UPLOAD_FILE", "client_files", { fileName: file.name, clientId }, async () => {
       try {
-        // Generate unique file path
         const fileExt = file.name.split(".").pop()
         const timestamp = Date.now()
         const fileName = `${clientId}/${category}/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`
 
         console.log(`📁 Uploading to path: ${fileName}`)
 
-        // Upload file to Supabase Storage (using client-files bucket)
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from("client-files")
           .upload(fileName, file, {
@@ -1156,8 +1203,6 @@ export const clientFilesApi = {
 
         if (uploadError) {
           console.error("🚨 File upload error:", uploadError)
-
-          // Fallback to demo mode if storage fails
           console.log("🔄 Falling back to demo mode for file upload")
           const blobUrl = URL.createObjectURL(file)
 
@@ -1183,10 +1228,8 @@ export const clientFilesApi = {
           return mockFile
         }
 
-        // Get public URL for the uploaded file
         const { data: urlData } = supabase.storage.from("client-files").getPublicUrl(fileName)
 
-        // Create database record
         const fileRecord = {
           client_id: clientId,
           file_name: file.name,
@@ -1210,14 +1253,12 @@ export const clientFilesApi = {
         if (dbError) {
           console.error("🚨 Database insert error:", dbError)
 
-          // Clean up the uploaded file if database insert fails
           try {
             await supabase.storage.from("client-files").remove([fileName])
           } catch (cleanupError) {
             console.warn("⚠️ Failed to cleanup uploaded file after database error:", cleanupError)
           }
 
-          // Fallback to demo mode
           console.log("🔄 Falling back to demo mode after database error")
           const blobUrl = URL.createObjectURL(file)
 
@@ -1247,8 +1288,6 @@ export const clientFilesApi = {
         return dbData
       } catch (error) {
         console.error("🚨 File upload process failed:", error)
-
-        // Final fallback to demo mode
         console.log("🔄 Final fallback to demo mode")
         const blobUrl = URL.createObjectURL(file)
 
@@ -1276,7 +1315,6 @@ export const clientFilesApi = {
     })
   },
 
-  // Delete a file (soft delete in database and remove from storage)
   async deleteFile(fileId: string, deletedBy = "Current User"): Promise<void> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -1284,7 +1322,6 @@ export const clientFilesApi = {
 
       const fileIndex = mockClientFiles.findIndex((file) => file.id === fileId)
       if (fileIndex !== -1) {
-        // Revoke the blob URL if it exists
         if (mockClientFiles[fileIndex].public_url?.startsWith("blob:")) {
           URL.revokeObjectURL(mockClientFiles[fileIndex].public_url!)
         }
@@ -1297,7 +1334,6 @@ export const clientFilesApi = {
 
     return SupabaseDebugger.logOperation("DELETE_FILE", "client_files", { fileId }, async () => {
       try {
-        // First get the file record to get storage path
         const { data: fileData, error: selectError } = await supabase
           .from("client_files")
           .select("storage_path, public_url")
@@ -1306,7 +1342,6 @@ export const clientFilesApi = {
 
         if (selectError) {
           console.error("🚨 Error finding file record:", selectError)
-          // Try to find in mock data as fallback
           const fileIndex = mockClientFiles.findIndex((file) => file.id === fileId)
           if (fileIndex !== -1) {
             if (mockClientFiles[fileIndex].public_url?.startsWith("blob:")) {
@@ -1319,38 +1354,49 @@ export const clientFilesApi = {
           return
         }
 
-        // Soft delete in database
-        const { error: updateError } = await supabase
-          .from("client_files")
-          .update({
-            is_active: false,
-            deleted_at: new Date().toISOString(),
-            deleted_by: deletedBy,
-          })
-          .eq("id", fileId)
+        const hasDeleted = await checkDeletedColumns()
 
-        if (updateError) {
-          console.error("🚨 Error soft deleting file record:", updateError)
-          throw new Error(`Database error: ${updateError.message}`)
+        if (hasDeleted) {
+          const { error: updateError } = await supabase
+            .from("client_files")
+            .update({
+              is_active: false,
+              deleted_at: new Date().toISOString(),
+              deleted_by: deletedBy,
+            })
+            .eq("id", fileId)
+
+          if (updateError) {
+            console.error("🚨 Error soft deleting file record:", updateError)
+            throw new Error(`Database error: ${updateError.message}`)
+          }
+        } else {
+          const { error: updateError } = await supabase
+            .from("client_files")
+            .update({
+              is_active: false,
+            })
+            .eq("id", fileId)
+
+          if (updateError) {
+            console.error("🚨 Error marking file inactive:", updateError)
+            throw new Error(`Database error: ${updateError.message}`)
+          }
         }
 
-        // Remove from storage if it's not a demo file (using client-files bucket)
         if (fileData.storage_path && !fileData.storage_path.startsWith("demo-files/")) {
           const { error: storageError } = await supabase.storage.from("client-files").remove([fileData.storage_path])
 
           if (storageError) {
             console.warn("⚠️ Warning: File removed from database but storage cleanup failed:", storageError)
-            // Don't throw error here as the main operation (database soft delete) succeeded
           }
         } else if (fileData.public_url?.startsWith("blob:")) {
-          // Revoke blob URL for demo files
           URL.revokeObjectURL(fileData.public_url)
         }
 
         console.log("✅ File successfully deleted:", fileId)
       } catch (error) {
         console.error("🚨 Error in delete file operation:", error)
-        // Fallback to mock data deletion
         const fileIndex = mockClientFiles.findIndex((file) => file.id === fileId)
         if (fileIndex !== -1) {
           if (mockClientFiles[fileIndex].public_url?.startsWith("blob:")) {
@@ -1364,7 +1410,6 @@ export const clientFilesApi = {
     })
   },
 
-  // Update file metadata
   async updateFile(
     fileId: string,
     updates: Partial<Pick<ClientFile, "description" | "file_category">>,
@@ -1399,7 +1444,6 @@ export const clientFilesApi = {
 
         if (error) {
           console.error("🚨 Error updating file record:", error)
-          // Fallback to mock data
           const fileIndex = mockClientFiles.findIndex((file) => file.id === fileId)
           if (fileIndex !== -1) {
             mockClientFiles[fileIndex] = {
@@ -1416,7 +1460,6 @@ export const clientFilesApi = {
         return data
       } catch (error) {
         console.error("🚨 Error updating file:", error)
-        // Fallback to mock data
         const fileIndex = mockClientFiles.findIndex((file) => file.id === fileId)
         if (fileIndex !== -1) {
           mockClientFiles[fileIndex] = {
@@ -1431,7 +1474,6 @@ export const clientFilesApi = {
     })
   },
 
-  // Get file download URL (for private files) - updated to use client-files bucket
   async getDownloadUrl(fileId: string): Promise<string> {
     if (!supabase || configError) {
       console.log("📊 Using demo data - Supabase not configured properly")
@@ -1441,7 +1483,6 @@ export const clientFilesApi = {
 
     return SupabaseDebugger.logOperation("GET_DOWNLOAD_URL", "client_files", { fileId }, async () => {
       try {
-        // Get file record to get storage path
         const { data: fileData, error: selectError } = await supabase
           .from("client_files")
           .select("storage_path, public_url")
@@ -1450,31 +1491,26 @@ export const clientFilesApi = {
 
         if (selectError) {
           console.error("🚨 Error finding file record:", selectError)
-          // Fallback to mock data
           const file = mockClientFiles.find((f) => f.id === fileId)
           return file?.public_url || ""
         }
 
-        // For public files or demo files, return the public URL
         if (fileData.public_url) {
           return fileData.public_url
         }
 
-        // For private files, create a signed URL (using client-files bucket)
         const { data: urlData, error: urlError } = await supabase.storage
           .from("client-files")
-          .createSignedUrl(fileData.storage_path, 3600) // 1 hour expiry
+          .createSignedUrl(fileData.storage_path, 3600)
 
         if (urlError) {
           console.error("🚨 Error creating signed URL:", urlError)
-          // Return public URL as fallback
           return fileData.public_url || ""
         }
 
         return urlData.signedUrl
       } catch (error) {
         console.error("🚨 Error getting download URL:", error)
-        // Fallback to mock data
         const file = mockClientFiles.find((f) => f.id === fileId)
         return file?.public_url || ""
       }
@@ -1482,12 +1518,10 @@ export const clientFilesApi = {
   },
 }
 
-// Enhanced testing function
 export const testSupabaseSync = async () => {
   console.log("🧪 Testing Supabase Sync Operations...")
 
   try {
-    // Test network connectivity
     const networkTest = await NetworkMonitor.testConnection()
     console.log("🌐 Network Test:", networkTest)
 
@@ -1496,10 +1530,8 @@ export const testSupabaseSync = async () => {
       return false
     }
 
-    // Test CRUD operations
     console.log("🔄 Testing CRUD operations...")
 
-    // Create test client
     const testClient = {
       first_name: "Test",
       last_name: "User",
@@ -1520,13 +1552,11 @@ export const testSupabaseSync = async () => {
     const createdClient = await clientsApi.create(testClient)
     console.log("✅ Test client created:", createdClient.id)
 
-    // Update test client
     const updatedClient = await clientsApi.update(createdClient.id, {
       phone: "555-9999",
     })
     console.log("✅ Test client updated")
 
-    // Create test case note
     const testNote = await caseNotesApi.create({
       client_id: createdClient.id,
       note: "Test case note",
@@ -1534,7 +1564,6 @@ export const testSupabaseSync = async () => {
     })
     console.log("✅ Test case note created:", testNote.id)
 
-    // Test file operations
     const testFileContent = new Blob(["Test file content"], { type: "text/plain" })
     const testFile = new File([testFileContent], "test-file.txt", { type: "text/plain" })
 
@@ -1546,19 +1575,18 @@ export const testSupabaseSync = async () => {
     )
     console.log("✅ Test file uploaded:", uploadedFile.id)
 
-    // Test file retrieval
     const clientFiles = await clientFilesApi.getByClientId(createdClient.id)
     console.log("✅ Test file retrieval:", clientFiles.length)
 
-    // Test soft delete
-    await clientsApi.softDelete(createdClient.id, "Test User")
-    console.log("✅ Test client soft deleted")
+    const hasDeleted = await checkDeletedColumns()
+    if (hasDeleted) {
+      await clientsApi.softDelete(createdClient.id, "Test User")
+      console.log("✅ Test client soft deleted")
 
-    // Test restore
-    await clientsApi.restore(createdClient.id)
-    console.log("✅ Test client restored")
+      await clientsApi.restore(createdClient.id)
+      console.log("✅ Test client restored")
+    }
 
-    // Clean up test data
     await clientFilesApi.deleteFile(uploadedFile.id, "Test User")
     await caseNotesApi.softDelete(testNote.id, "Test User")
     await clientsApi.permanentDelete(createdClient.id)
