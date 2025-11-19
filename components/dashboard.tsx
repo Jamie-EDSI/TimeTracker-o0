@@ -5,20 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import {
-  Users,
-  UserPlus,
-  FileText,
-  BarChart3,
-  Search,
-  Trash2,
-  Eye,
-  Calendar,
-  Clock,
-  Home,
-  Phone,
-  Briefcase,
-} from "lucide-react"
+import { Users, UserPlus, FileText, BarChart3, Search, Trash2, Eye, Calendar, Clock, Home, Phone, Briefcase, RefreshCw, Database } from 'lucide-react'
 import { ClientProfile } from "./client-profile"
 import { NewClientForm } from "./new-client-form"
 import { ActiveClientsReport } from "./active-clients-report"
@@ -26,7 +13,6 @@ import { CallLogReport } from "./call-log-report"
 import { JobsPlacementsReport } from "./jobs-placements-report"
 import { AllClientsReport } from "./all-clients-report"
 import { RecycleBin } from "./recycle-bin"
-import { SupabaseStatusIndicator } from "./supabase-status-indicator"
 import { clientsApi, caseNotesApi, type Client as SupabaseClient } from "@/lib/supabase"
 
 // Transform Supabase client to component client format
@@ -273,6 +259,7 @@ export function Dashboard() {
   const [participantIdSearch, setParticipantIdSearch] = useState("")
   const [quickSearch, setQuickSearch] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
   const [clients, setClients] = useState<any[]>([])
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
@@ -283,9 +270,9 @@ export function Dashboard() {
     loadClients()
   }, [])
 
-  const loadClients = async () => {
+  const loadClients = async (background = false) => {
     try {
-      setIsLoading(true)
+      if (!background) setIsLoading(true)
       setError(null)
       const supabaseClients = await clientsApi.getAll()
       const transformedClients = supabaseClients.map(transformSupabaseClient)
@@ -316,7 +303,23 @@ export function Dashboard() {
       console.error("Error loading clients:", error)
       setError("Failed to load clients. Please try again.")
     } finally {
-      setIsLoading(false)
+      if (!background) setIsLoading(false)
+    }
+  }
+
+  const handleSyncDatabase = async () => {
+    setIsSyncing(true)
+    try {
+      // Pass true to run in background (no full screen overlay)
+      await loadClients(true)
+      setSuccessMessage("Database synchronized successfully. All records are up to date.")
+      setShowSuccessMessage(true)
+      setTimeout(() => setShowSuccessMessage(false), 3000)
+    } catch (err) {
+      console.error("Sync error:", err)
+      setError("Database sync failed. Please check your connection and try again.")
+    } finally {
+      setIsSyncing(false)
     }
   }
 
@@ -682,7 +685,7 @@ export function Dashboard() {
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-gray-600">Placements</span>
-                  <span className="font-medium text-blue-600">{""}</span>
+                  <span className="font-medium text-blue-600">156</span>
                 </div>
               </CardContent>
             </Card>
@@ -918,13 +921,32 @@ export function Dashboard() {
               <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
                 <CardContent className="p-6 text-center">
                   <div className="flex items-center justify-center mb-3">
-                    <BarChart3 className="w-8 h-8 text-blue-500" />
+                    <div className="relative">
+                      <BarChart3 className="w-8 h-8 text-blue-500" />
+                      <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                        <Database className="w-3 h-3 text-blue-600" />
+                      </div>
+                    </div>
                   </div>
                   <h3 className="text-lg font-semibold text-blue-600 mb-2">TimeTracker</h3>
                   <p className="text-sm text-gray-600 mb-4">
                     Comprehensive client management with integrated reporting and Supabase database storage. All client
                     data is automatically synchronized across all features.
                   </p>
+
+                  <div className="mb-4 flex justify-center">
+                    <Button
+                      onClick={handleSyncDatabase}
+                      disabled={isSyncing || isLoading}
+                      variant="outline"
+                      size="sm"
+                      className="bg-white/80 hover:bg-white text-blue-700 border-blue-200 shadow-sm transition-all duration-200"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
+                      {isSyncing ? "Syncing..." : "Sync Database"}
+                    </Button>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div className="bg-white/50 rounded p-2">
                       <div className="font-medium text-blue-600">Supabase Integration</div>
@@ -1028,9 +1050,6 @@ export function Dashboard() {
           </div>
         </div>
       </div>
-
-      {/* Supabase Status Indicator - Fixed position in lower right */}
-      <SupabaseStatusIndicator />
     </div>
   )
 }

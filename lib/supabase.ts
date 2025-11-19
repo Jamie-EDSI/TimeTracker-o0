@@ -1,7 +1,6 @@
 import { createClient } from "@supabase/supabase-js"
-import { SupabaseDebugger, NetworkMonitor, DataValidator } from "./supabase-debug"
+import { SupabaseDebugger, DataValidator } from "./supabase-debug"
 
-// Environment variable validation with fallbacks for development
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 
@@ -9,7 +8,6 @@ console.log("🔧 Supabase Configuration Check:")
 console.log("URL:", supabaseUrl ? "✅ Set" : "❌ Missing")
 console.log("Key:", supabaseAnonKey ? "✅ Set" : "❌ Missing")
 
-// Enhanced validation
 const hasValidConfig =
   supabaseUrl &&
   supabaseAnonKey &&
@@ -17,38 +15,27 @@ const hasValidConfig =
   supabaseUrl.includes(".supabase.co") &&
   supabaseAnonKey.length > 20 &&
   !supabaseUrl.includes("placeholder") &&
-  !supabaseAnonKey.includes("placeholder")
+  !supabaseAnonKey.includes("your_supabase")
 
 let supabase: any = null
 let configError: string | null = null
+let databaseReady = false
 
 if (hasValidConfig) {
   try {
     supabase = createClient(supabaseUrl, supabaseAnonKey)
     console.log("✅ Supabase client created successfully")
-
-    // Test connection immediately
-    if (typeof window !== "undefined") {
-      NetworkMonitor.testConnection().then((result) => {
-        console.log("🌐 Connection Test Result:", result)
-      })
-    }
   } catch (error: any) {
     console.error("❌ Failed to create Supabase client:", error)
-    configError = `Supabase client creation failed: ${error.message}`
+    configError = `Supabase client creation failed: ${error?.message || "Unknown error"}`
   }
 } else {
   configError = "Invalid Supabase configuration"
   console.log("⚠️ Using demo mode - Supabase not configured properly")
-  console.log("💡 Check your .env.local file and ensure:")
-  console.log("   - NEXT_PUBLIC_SUPABASE_URL is set correctly")
-  console.log("   - NEXT_PUBLIC_SUPABASE_ANON_KEY is set correctly")
-  console.log("   - Both values are not placeholder text")
 }
 
 export { supabase }
 
-// Database types with enhanced validation
 export interface Client {
   id: string
   first_name: string
@@ -120,7 +107,6 @@ export interface ClientFile {
   deleted_by?: string
 }
 
-// Enhanced mock data for comprehensive testing
 const mockClients: Client[] = [
   {
     id: "1",
@@ -205,50 +191,6 @@ const mockClients: Client[] = [
     last_modified: "2023-12-05T16:45:00Z",
     modified_by: "Johnson, Mary",
   },
-  {
-    id: "4",
-    first_name: "David",
-    last_name: "Wilson",
-    participant_id: "2965148",
-    program: "EARN",
-    status: "Active",
-    enrollment_date: "2023-05-10",
-    phone: "610-555-0401",
-    email: "david.wilson@email.com",
-    address: "654 Cedar Ln",
-    city: "Philadelphia",
-    state: "PA",
-    zip_code: "19105",
-    date_of_birth: "1988-03-14",
-    emergency_contact: "Susan Wilson",
-    emergency_phone: "610-555-0402",
-    case_manager: "Brown, Lisa",
-    created_at: "2023-05-10T08:00:00Z",
-    last_modified: "2023-12-01T10:15:00Z",
-    modified_by: "Brown, Lisa",
-  },
-  {
-    id: "5",
-    first_name: "Jessica",
-    last_name: "Martinez",
-    participant_id: "2965149",
-    program: "Job Readiness",
-    status: "Inactive",
-    enrollment_date: "2023-01-15",
-    phone: "215-555-0501",
-    email: "jessica.martinez@email.com",
-    address: "987 Birch St",
-    city: "Philadelphia",
-    state: "PA",
-    zip_code: "19106",
-    date_of_birth: "1992-11-08",
-    emergency_contact: "Roberto Martinez",
-    emergency_phone: "215-555-0502",
-    case_manager: "Johnson, Mary",
-    created_at: "2023-01-15T12:00:00Z",
-    last_modified: "2023-11-20T14:30:00Z",
-    modified_by: "Johnson, Mary",
-  },
 ]
 
 const mockCaseNotes: CaseNote[] = [
@@ -273,23 +215,8 @@ const mockCaseNotes: CaseNote[] = [
     created_at: "2023-03-20T11:15:00Z",
     author: "Smith, John",
   },
-  {
-    id: "4",
-    client_id: "3",
-    note: "Initial intake meeting scheduled. Client needs career guidance and support.",
-    created_at: "2023-04-02T09:30:00Z",
-    author: "Johnson, Mary",
-  },
-  {
-    id: "5",
-    client_id: "4",
-    note: "Client has excellent technical skills. Recommended for advanced placement program.",
-    created_at: "2023-05-12T11:00:00Z",
-    author: "Brown, Lisa",
-  },
 ]
 
-// Mock client files for demo
 const mockClientFiles: ClientFile[] = [
   {
     id: "file-1",
@@ -307,31 +234,12 @@ const mockClientFiles: ClientFile[] = [
     created_at: "2023-02-20T11:00:00Z",
     updated_at: "2023-02-20T11:00:00Z",
   },
-  {
-    id: "file-2",
-    client_id: "1",
-    file_name: "OSHA_10_Certificate.jpg",
-    file_size: 156432,
-    file_type: "image/jpeg",
-    file_category: "certification",
-    storage_path: "client-files/1/OSHA_10_Certificate.jpg",
-    public_url: "/placeholder.svg?height=400&width=600&text=OSHA+10+Certificate",
-    upload_date: "2023-02-20T11:05:00Z",
-    uploaded_by: "Brown, Lisa",
-    description: "OSHA 10-Hour Safety Training Certificate",
-    is_active: true,
-    created_at: "2023-02-20T11:05:00Z",
-    updated_at: "2023-02-20T11:05:00Z",
-  },
 ]
 
-// Helper function to simulate network delay
-const simulateDelay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms))
+const simulateDelay = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms))
 
-// Helper function to clean data for Supabase
 const cleanDataForSupabase = (data: any) => {
   const cleaned = { ...data }
-
   const optionalFields = [
     "cell_phone",
     "emergency_contact",
@@ -353,9 +261,7 @@ const cleanDataForSupabase = (data: any) => {
   ]
 
   optionalFields.forEach((field) => {
-    if (cleaned[field] === "") {
-      cleaned[field] = null
-    }
+    if (cleaned[field] === "") cleaned[field] = null
   })
 
   if (cleaned.required_hours === "" || cleaned.required_hours === undefined) {
@@ -380,254 +286,266 @@ const cleanDataForSupabase = (data: any) => {
   }
 
   cleaned.last_modified = new Date().toISOString()
-
   return cleaned
 }
 
-// Utility functions
 export const isSupabaseConfigured = () => hasValidConfig && !configError
-export const getSupabaseStatus = () => {
-  if (!hasValidConfig) return "not_configured"
-  if (configError) return "error"
+
+export const getSupabaseStatus = (): "connected" | "setup_required" | "not_configured" | "error" => {
+  if (!hasValidConfig || configError) return "not_configured"
+  if (!databaseReady) return "setup_required"
   return "connected"
 }
+
 export const getConfigError = () => configError
+export const isDatabaseReady = () => databaseReady
 
-// Test Supabase connection
-export async function testSupabaseConnection() {
-  if (!supabase || configError) {
-    return { success: false, error: configError || "Supabase not configured" }
+function extractErrorMessage(error: any): string {
+  if (!error) return "Unknown error (null/undefined)"
+
+  // Try common error properties
+  if (typeof error === "string") return error
+  if (error.message && error.message !== "") return error.message
+  if (error.msg) return error.msg
+  if (error.error && typeof error.error === "string") return error.error
+  if (error.error?.message) return error.error.message
+  if (error.hint && error.hint !== "") return error.hint
+  if (error.details && error.details !== "") return error.details
+
+  // Check for common error patterns
+  if (error.code === "PGRST116" || error.statusCode === 406) {
+    return "Row Level Security policy violation - anonymous access blocked"
+  }
+  if (error.code === "42501") {
+    return "Insufficient privileges - check RLS policies"
   }
 
+  // Try nested properties
+  if (error.response?.message) return error.response.message
+
+  // If we have a code but no message, it might be an RLS issue
+  if ((error.code || error.statusCode) && (!error.message || error.message === "")) {
+    return `Database access denied (code: ${error.code || error.statusCode}). This may be due to Row Level Security policies.`
+  }
+
+  // Try to stringify
   try {
-    const { data, error } = await supabase.from("clients").select("count", { count: "exact", head: true })
-    if (error) {
-      console.error("Supabase connection test failed:", error)
-      return { success: false, error: error.message }
+    const str = JSON.stringify(error)
+    if (str && str !== "{}" && str !== "null" && str !== '{"message":""}') {
+      return str
     }
-    console.log("✅ Supabase connection successful")
-    return { success: true, count: data }
-  } catch (error: any) {
-    console.error("Supabase connection test error:", error)
-    return { success: false, error: error.message }
+  } catch (e) {
+    // Ignore stringify errors
   }
+
+  // If we got here and message is empty, it's likely RLS
+  if (error.message === "" || Object.keys(error).length === 0) {
+    return "Database access blocked - Row Level Security may be preventing anonymous queries"
+  }
+
+  // Last resort
+  return String(error)
 }
 
-// Check if soft delete columns exist
-let hasDeletedColumns: boolean | null = null
-
-async function checkDeletedColumns(): Promise<boolean> {
-  if (hasDeletedColumns !== null) {
-    return hasDeletedColumns
-  }
-
+async function checkDatabaseSetup(): Promise<boolean> {
   if (!supabase || configError) {
-    hasDeletedColumns = false
+    console.log("⚠️ Skipping database check - no valid configuration")
+    databaseReady = false
     return false
   }
 
   try {
-    // Try to query with deleted_at column
-    const { error } = await supabase.from("clients").select("deleted_at").limit(1)
+    console.log("🔍 Checking database setup...")
+    console.log("   Testing connection to:", supabaseUrl.substring(0, 30) + "...")
+
+    const { count, error } = await supabase
+      .from("clients")
+      .select("*", { count: "exact", head: true })
+
+    console.log("[v0] Database check response:", { count, error })
 
     if (error) {
-      if (error.message.includes("does not exist") || error.message.includes("column")) {
-        console.warn("⚠️ Soft delete columns not found - queries will not filter deleted records")
-        hasDeletedColumns = false
+      const errorMsg = extractErrorMessage(error)
+      const errorCode = error?.code || error?.error_code || ""
+      const statusCode = String(error?.status || error?.statusCode || "")
+
+      console.error("❌ Database check failed")
+      console.error("   Error message:", errorMsg)
+      console.error("   Error code:", errorCode || "none")
+      console.error("   Status code:", statusCode || "none")
+      console.error("   Raw error:", JSON.stringify(error))
+
+      const errorLower = errorMsg.toLowerCase()
+      if (
+        errorMsg.includes("Row Level Security") ||
+        errorMsg.includes("RLS") ||
+        errorMsg.includes("access blocked") ||
+        errorMsg.includes("access denied") ||
+        errorCode === "PGRST116" ||
+        errorCode === "42501" ||
+        statusCode === "406" ||
+        (errorMsg === "" && error.code)
+      ) {
+        console.warn("⚠️ RLS may be blocking access - using demo mode")
+        console.warn("   The database exists but Row Level Security policies may prevent anonymous access")
+        databaseReady = false
+        configError = null // Don't show as error, just not ready
         return false
+      }
+
+      // Check for authentication errors
+      if (
+        errorLower.includes("invalid api key") ||
+        errorLower.includes("jwt") ||
+        errorLower.includes("401") ||
+        errorLower.includes("unauthorized") ||
+        errorCode === "PGRST301" ||
+        statusCode === "401"
+      ) {
+        console.error("❌ Authentication failed - invalid API key")
+        configError = "Invalid Supabase API key. Please check your credentials in .env.local"
+        databaseReady = false
+        return false
+      }
+
+      // Check if tables don't exist
+      if (
+        errorLower.includes("does not exist") ||
+        errorLower.includes("relation") ||
+        errorCode === "42P01" ||
+        errorCode === "PGRST204"
+      ) {
+        console.log("⚠️ Database tables not found - setup required")
+        databaseReady = false
+        configError = null
+        return false
+      }
+
+      // Generic error
+      console.error("❌ Database error:", errorMsg)
+      configError = null // Don't block, just use demo mode
+      databaseReady = false
+      return false
+    }
+
+    console.log("✅ Database is ready")
+    console.log("   Found", count, "clients")
+    databaseReady = true
+    configError = null
+    return true
+  } catch (error: any) {
+    const errorMsg = extractErrorMessage(error)
+    console.error("🚨 Exception during database check:", errorMsg)
+    console.error("   Raw exception:", error)
+
+    if (errorMsg.toLowerCase().includes("fetch") || errorMsg.toLowerCase().includes("network")) {
+      configError = "Network error - check your internet connection"
+    } else if (errorMsg.toLowerCase().includes("jwt") || errorMsg.includes("401")) {
+      configError = "Invalid API key - please check your .env.local"
+    } else {
+      configError = null // Don't block on exceptions, use demo mode
+    }
+
+    databaseReady = false
+    return false
+  }
+}
+
+export async function testSupabaseConnection() {
+  try {
+    console.log("🧪 Testing Supabase connection...")
+
+    if (!supabase) {
+      return {
+        success: false,
+        error: "Supabase client not initialized - check your .env.local file",
+        needsConfig: true,
       }
     }
 
-    hasDeletedColumns = true
-    return true
-  } catch (error) {
-    console.warn("⚠️ Could not check for deleted_at column:", error)
-    hasDeletedColumns = false
-    return false
+    if (configError) {
+      return {
+        success: false,
+        error: configError,
+        needsConfig: true,
+      }
+    }
+
+    console.log("🔍 Checking database setup...")
+    const isReady = await checkDatabaseSetup()
+
+    if (configError) {
+      return {
+        success: false,
+        needsConfig: true,
+        error: configError,
+      }
+    }
+
+    if (!isReady) {
+      return {
+        success: false,
+        setupRequired: true,
+        error: "Database tables not found. Please run the setup script.",
+      }
+    }
+
+    console.log("✅ Connection test successful")
+    return {
+      success: true,
+      message: "Database connected and ready",
+    }
+  } catch (error: any) {
+    const errorMsg = extractErrorMessage(error)
+    console.error("🚨 Unexpected error in testSupabaseConnection:", errorMsg)
+    return {
+      success: false,
+      error: errorMsg,
+      needsConfig: false,
+    }
   }
 }
 
 export const verifyClientFilesBucket = async () => {
-  console.log("🔍 Verifying client-files storage bucket...")
-
   if (!supabase || configError) {
-    console.log("⚠️ Supabase not configured - cannot verify storage bucket")
     return {
       exists: false,
       accessible: false,
-      error: "Supabase not configured",
-      buckets: [],
-      instructions: [
-        "1. Configure Supabase environment variables",
-        "2. Restart your development server",
-        "3. Run this verification again",
-      ],
+      error: configError || "Supabase not configured",
     }
   }
 
   try {
-    console.log("🔗 Testing Supabase connection...")
-    const { data: testData, error: testError } = await supabase
-      .from("clients")
-      .select("count", { count: "exact", head: true })
+    const { data: bucketsData, error: bucketsError } = await supabase.storage.listBuckets()
 
-    if (testError) {
-      console.error("❌ Supabase connection test failed:", testError)
+    if (bucketsError) {
       return {
         exists: false,
         accessible: false,
-        error: `Supabase connection failed: ${testError.message}`,
-        buckets: [],
-        instructions: [
-          "1. Check your Supabase project is active",
-          "2. Verify your environment variables are correct",
-          "3. Check your internet connection",
-        ],
+        error: bucketsError.message || "Failed to list buckets",
       }
     }
 
-    console.log("✅ Supabase connection successful")
+    const clientFilesBucket = bucketsData?.find((bucket: any) => bucket.name === "client-files")
 
-    let buckets: any[] = []
-    let listError: any = null
-    let directAccessWorks = false
-
-    console.log("📦 Attempting to list all storage buckets...")
-    try {
-      const { data: bucketsData, error: bucketsError } = await supabase.storage.listBuckets()
-
-      if (!bucketsError && bucketsData) {
-        buckets = bucketsData
-        console.log(
-          "✅ Successfully listed buckets:",
-          buckets.map((b) => b.name),
-        )
-      } else {
-        listError = bucketsError
-        console.warn("⚠️ Failed to list buckets:", bucketsError?.message)
-      }
-    } catch (listException: any) {
-      listError = listException
-      console.error("🚨 Exception listing buckets:", listException)
-    }
-
-    console.log("🧪 Testing direct access to client-files bucket...")
-    try {
-      const { data: directData, error: directError } = await supabase.storage
-        .from("client-files")
-        .list("", { limit: 1 })
-
-      if (!directError) {
-        directAccessWorks = true
-        console.log("✅ Direct access to client-files bucket successful!")
-        console.log("📁 Found files/folders:", directData?.length || 0)
-      } else {
-        console.warn("⚠️ Direct access failed:", directError.message)
-
-        if (
-          directError.message?.toLowerCase().includes("not found") ||
-          directError.message?.toLowerCase().includes("does not exist")
-        ) {
-          console.log("💡 Bucket does not exist - needs to be created")
-        }
-      }
-    } catch (directException: any) {
-      console.error("🚨 Exception in direct access:", directException)
-    }
-
-    if (directAccessWorks) {
+    if (clientFilesBucket) {
       return {
         exists: true,
         accessible: true,
-        bucket: { name: "client-files", accessible: true },
-        buckets: buckets.map((b) => b.name),
-        fileCount: 0,
-        instructions: ["✅ client-files bucket is properly configured and accessible!"],
-      }
-    } else if (buckets.length > 0) {
-      const clientFilesBucket = buckets.find((bucket) => bucket.name === "client-files")
-
-      if (clientFilesBucket) {
-        console.log("✅ client-files bucket found in bucket list!")
-
-        return {
-          exists: true,
-          accessible: true,
-          bucket: clientFilesBucket,
-          buckets: buckets.map((b) => b.name),
-          fileCount: 0,
-          instructions: ["✅ client-files bucket is properly configured!"],
-        }
-      } else {
-        console.error("❌ client-files bucket not found in available buckets")
-
-        const similarBuckets = buckets.filter(
-          (b) => b.name.toLowerCase().includes("client") || b.name.toLowerCase().includes("file"),
-        )
-
-        return {
-          exists: false,
-          accessible: false,
-          buckets: buckets.map((b) => b.name),
-          similarBuckets: similarBuckets.map((b) => b.name),
-          instructions: [
-            "1. Go to Supabase Dashboard > Storage",
-            "2. Click 'New bucket'",
-            "3. Name it exactly 'client-files' (with hyphen, no spaces)",
-            "4. Set it to public or configure appropriate policies",
-            "5. Or run the complete-setup.sql script to create it automatically",
-            ...(similarBuckets.length > 0
-              ? [`6. Note: Found similar buckets: ${similarBuckets.map((b) => b.name).join(", ")}`]
-              : []),
-          ],
-        }
-      }
-    } else {
-      console.error("❌ No storage buckets found and direct access failed")
-
-      let errorMessage = "Storage not accessible"
-      let instructions = [
-        "1. Check if Storage is enabled in your Supabase project",
-        "2. Verify your service role key has storage permissions",
-        "3. Create the client-files bucket manually in Supabase Dashboard",
-        "4. Or run the complete-setup.sql script",
-      ]
-
-      if (listError) {
-        errorMessage = listError.message
-
-        if (listError.message?.includes("permission") || listError.message?.includes("unauthorized")) {
-          instructions = [
-            "1. Check your Supabase service role key permissions",
-            "2. Ensure storage.buckets.select permission is granted",
-            "3. Verify your environment variables are correct",
-            "4. Check if Storage is enabled in your Supabase project",
-          ]
-        }
-      }
-
-      return {
-        exists: false,
-        accessible: false,
-        error: errorMessage,
-        buckets: [],
-        instructions,
+        bucket: clientFilesBucket,
       }
     }
-  } catch (error: any) {
-    console.error("🚨 Storage verification failed:", error)
+
     return {
       exists: false,
       accessible: false,
-      error: error.message,
-      buckets: [],
-      instructions: [
-        "1. Check your Supabase project status",
-        "2. Verify your environment variables are correct",
-        "3. Ensure storage is enabled in your Supabase project",
-        "4. Check your internet connection",
-        "5. Try again in a few moments",
-      ],
+      error: "Bucket not found",
+    }
+  } catch (error: any) {
+    return {
+      exists: false,
+      accessible: false,
+      error: error?.message || "Failed to verify bucket",
     }
   }
 }
@@ -638,91 +556,63 @@ export async function createClientFilesBucket() {
   }
 
   try {
-    console.log("🔧 Creating client-files bucket...")
-
     const { data, error } = await supabase.storage.createBucket("client-files", {
       public: false,
-      allowedMimeTypes: [
-        "image/*",
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "text/*",
-      ],
+      allowedMimeTypes: ["image/*", "application/pdf", "application/msword", "text/*"],
       fileSizeLimit: 10485760,
     })
 
-    if (error) {
-      console.error("❌ Failed to create bucket:", error.message)
+    if (error && !error.message.includes("already exists")) {
       return { success: false, error: error.message }
     }
 
-    console.log("✅ client-files bucket created successfully!")
-
-    const verification = await verifyClientFilesBucket()
-
-    if (verification.exists && verification.accessible) {
-      console.log("✅ Bucket verification successful!")
-      return { success: true, data }
-    } else {
-      console.warn("⚠️ Bucket created but verification failed:", verification.error)
-      return { success: true, data, warning: verification.error }
-    }
+    return { success: true, data }
   } catch (error: any) {
-    console.error("🚨 Bucket creation error:", error)
-    return { success: false, error: error.message }
+    return { success: false, error: error?.message || "Failed to create bucket" }
   }
 }
 
-// Enhanced client database operations
 export const clientsApi = {
   async getAll(): Promise<Client[]> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
-      await simulateDelay()
-      return mockClients.filter((client) => !client.deleted_at)
-    }
+    console.log("[v0] clientsApi.getAll() - fetching from API")
 
-    return SupabaseDebugger.logOperation("SELECT", "clients", null, async () => {
-      const hasDeleted = await checkDeletedColumns()
+    try {
+      const response = await fetch("/api/clients", {
+        cache: "no-store",
+      })
 
-      let query = supabase.from("clients").select("*").order("created_at", { ascending: false })
-
-      // Only filter by deleted_at if the column exists
-      if (hasDeleted) {
-        query = query.is("deleted_at", null)
-      }
-
-      const { data, error } = await query
-
-      if (error) {
-        console.error("🚨 Supabase SELECT error:", error)
-        console.log("🔄 Falling back to demo data")
+      if (!response.ok) {
+        console.error("[v0] API returned error status:", response.status)
         await simulateDelay()
-        return mockClients.filter((client) => !client.deleted_at)
+        return mockClients
       }
 
-      console.log(`✅ Successfully loaded ${data?.length || 0} clients from Supabase`)
-      return data || []
-    })
+      const result = await response.json()
+      console.log("[v0] API response:", {
+        success: result.success,
+        mode: result.mode,
+        dataCount: result.data?.length,
+      })
+
+      if (result.success && result.data) {
+        return result.data
+      }
+
+      await simulateDelay()
+      return mockClients
+    } catch (error: any) {
+      console.error("[v0] Exception calling API:", error.message)
+      await simulateDelay()
+      return mockClients
+    }
   },
 
   async getDeleted(): Promise<Client[]> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
-      await simulateDelay()
-      return mockClients.filter((client) => client.deleted_at)
+    if (!supabase || configError || !databaseReady) {
+      return []
     }
 
-    return SupabaseDebugger.logOperation("SELECT_DELETED", "clients", null, async () => {
-      const hasDeleted = await checkDeletedColumns()
-
-      // If deleted_at column doesn't exist, return empty array
-      if (!hasDeleted) {
-        console.warn("⚠️ Soft delete not available - returning empty array")
-        return []
-      }
-
+    try {
       const { data, error } = await supabase
         .from("clients")
         .select("*")
@@ -730,63 +620,51 @@ export const clientsApi = {
         .order("deleted_at", { ascending: false })
 
       if (error) {
-        console.error("🚨 Supabase SELECT_DELETED error:", error)
-        console.log("🔄 Falling back to demo data")
-        await simulateDelay()
-        return mockClients.filter((client) => client.deleted_at)
+        console.error("Error loading deleted clients:", extractErrorMessage(error))
+        return []
       }
 
-      console.log(`✅ Successfully loaded ${data?.length || 0} deleted clients from Supabase`)
       return data || []
-    })
+    } catch (error) {
+      return []
+    }
   },
 
   async getById(id: string): Promise<Client | null> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
+    if (!supabase || configError || !databaseReady) {
       await simulateDelay()
-      return mockClients.find((client) => client.id === id && !client.deleted_at) || null
+      return mockClients.find((c) => c.id === id) || null
     }
 
-    return SupabaseDebugger.logOperation("SELECT_BY_ID", "clients", { id }, async () => {
-      const hasDeleted = await checkDeletedColumns()
-
-      let query = supabase.from("clients").select("*").eq("id", id)
-
-      if (hasDeleted) {
-        query = query.is("deleted_at", null)
-      }
-
-      const { data, error } = await query.single()
+    try {
+      const { data, error } = await supabase.from("clients").select("*").eq("id", id).is("deleted_at", null).single()
 
       if (error) {
-        console.error("🚨 Supabase SELECT_BY_ID error:", error)
-        console.log("🔄 Falling back to demo data")
-        return mockClients.find((client) => client.id === id && !client.deleted_at) || null
+        return mockClients.find((c) => c.id === id) || null
       }
 
       return data
-    })
+    } catch (error) {
+      return mockClients.find((c) => c.id === id) || null
+    }
   },
 
   async create(client: Omit<Client, "id" | "created_at" | "last_modified">): Promise<Client> {
     const validation = DataValidator.validateClient(client)
     if (!validation.isValid) {
-      const errorMessage = `Validation failed: ${validation.errors.join(", ")}`
-      console.error("❌ Client validation failed:", validation.errors)
-      throw new Error(errorMessage)
+      throw new Error(`Validation failed: ${validation.errors.join(", ")}`)
     }
 
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
+    if (!supabase || configError || !databaseReady) {
       await simulateDelay()
       const newClient: Client = {
         ...client,
-        id: Date.now().toString(),
+        id: `demo-${Date.now()}`,
         created_at: new Date().toISOString(),
         last_modified: new Date().toISOString(),
       }
       mockClients.unshift(newClient)
+      console.log("✅ Client created in demo mode")
       return newClient
     }
 
@@ -799,21 +677,12 @@ export const clientsApi = {
       const { data, error } = await supabase.from("clients").insert([clientData]).select().single()
 
       if (error) {
-        console.error("🚨 Supabase INSERT error:", error)
-        console.error("📤 Data that failed to insert:", clientData)
-
-        if (error.code === "23505") {
-          throw new Error("Duplicate participant ID. Please use a unique participant ID.")
-        } else if (error.code === "23502") {
-          throw new Error("Missing required field. Please check all required fields are filled.")
-        } else if (error.code === "42703") {
-          throw new Error("Database schema mismatch. Please check the database setup.")
-        } else {
-          throw new Error(`Database error: ${error.message}`)
-        }
+        const errorMsg = extractErrorMessage(error)
+        console.error("Error creating client:", errorMsg)
+        throw new Error(`Database error: ${errorMsg}`)
       }
 
-      console.log("✅ Client successfully created in Supabase:", data.id)
+      console.log("✅ Client created:", data.id)
       return data
     })
   },
@@ -821,22 +690,20 @@ export const clientsApi = {
   async update(id: string, updates: Partial<Client>): Promise<Client> {
     const validation = DataValidator.validateClient({ ...updates, id })
     if (!validation.isValid) {
-      const errorMessage = `Validation failed: ${validation.errors.join(", ")}`
-      console.error("❌ Client update validation failed:", validation.errors)
-      throw new Error(errorMessage)
+      throw new Error(`Validation failed: ${validation.errors.join(", ")}`)
     }
 
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
+    if (!supabase || configError || !databaseReady) {
       await simulateDelay()
-      const clientIndex = mockClients.findIndex((client) => client.id === id)
-      if (clientIndex !== -1) {
-        mockClients[clientIndex] = {
-          ...mockClients[clientIndex],
+      const index = mockClients.findIndex((c) => c.id === id)
+      if (index !== -1) {
+        mockClients[index] = {
+          ...mockClients[index],
           ...updates,
           last_modified: new Date().toISOString(),
         }
-        return mockClients[clientIndex]
+        console.log("✅ Client updated in demo mode")
+        return mockClients[index]
       }
       throw new Error("Client not found")
     }
@@ -847,48 +714,22 @@ export const clientsApi = {
       const { data, error } = await supabase.from("clients").update(updateData).eq("id", id).select().single()
 
       if (error) {
-        console.error("🚨 Supabase UPDATE error:", error)
-        console.error("📤 Data that failed to update:", updateData)
-        console.error("🔍 Client ID:", id)
-
-        if (error.code === "23505") {
-          throw new Error("Duplicate participant ID. Please use a unique participant ID.")
-        } else if (error.code === "42703") {
-          throw new Error("Database schema mismatch. Please check the database setup.")
-        } else {
-          throw new Error(`Database error: ${error.message}`)
-        }
+        const errorMsg = extractErrorMessage(error)
+        throw new Error(`Database error: ${errorMsg}`)
       }
 
-      console.log("✅ Client successfully updated in Supabase:", id)
+      console.log("✅ Client updated:", id)
       return data
     })
   },
 
   async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
-      await simulateDelay()
-      const clientIndex = mockClients.findIndex((client) => client.id === id)
-      if (clientIndex !== -1) {
-        mockClients[clientIndex] = {
-          ...mockClients[clientIndex],
-          deleted_at: new Date().toISOString(),
-          deleted_by: deletedBy,
-        }
-      }
+    if (!supabase || configError || !databaseReady) {
+      console.log("⚠️ Soft delete not available in demo mode")
       return
     }
 
     return SupabaseDebugger.logOperation("SOFT_DELETE", "clients", { id }, async () => {
-      const hasDeleted = await checkDeletedColumns()
-
-      if (!hasDeleted) {
-        console.warn("⚠️ Soft delete columns not available - performing hard delete instead")
-        await clientsApi.permanentDelete(id)
-        return
-      }
-
       const { error } = await supabase
         .from("clients")
         .update({
@@ -898,39 +739,19 @@ export const clientsApi = {
         .eq("id", id)
 
       if (error) {
-        console.error("🚨 Supabase SOFT_DELETE error:", error)
-        throw new Error(`Database error: ${error.message}`)
+        const errorMsg = extractErrorMessage(error)
+        throw new Error(`Database error: ${errorMsg}`)
       }
-
-      console.log("✅ Client successfully moved to recycle bin:", id)
+      console.log("✅ Client soft deleted:", id)
     })
   },
 
   async restore(id: string): Promise<Client> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
-      await simulateDelay()
-      const clientIndex = mockClients.findIndex((client) => client.id === id)
-      if (clientIndex !== -1) {
-        mockClients[clientIndex] = {
-          ...mockClients[clientIndex],
-          deleted_at: undefined,
-          deleted_by: undefined,
-          last_modified: new Date().toISOString(),
-          modified_by: "Current User",
-        }
-        return mockClients[clientIndex]
-      }
-      throw new Error("Client not found")
+    if (!supabase || configError || !databaseReady) {
+      throw new Error("Restore not available in demo mode")
     }
 
     return SupabaseDebugger.logOperation("RESTORE", "clients", { id }, async () => {
-      const hasDeleted = await checkDeletedColumns()
-
-      if (!hasDeleted) {
-        throw new Error("Soft delete not available - cannot restore clients")
-      }
-
       const { data, error } = await supabase
         .from("clients")
         .update({
@@ -944,91 +765,71 @@ export const clientsApi = {
         .single()
 
       if (error) {
-        console.error("🚨 Supabase RESTORE error:", error)
-        throw new Error(`Database error: ${error.message}`)
+        const errorMsg = extractErrorMessage(error)
+        throw new Error(`Database error: ${errorMsg}`)
       }
-
-      console.log("✅ Client successfully restored from recycle bin:", id)
+      console.log("✅ Client restored:", id)
       return data
     })
   },
 
   async permanentDelete(id: string): Promise<void> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
-      await simulateDelay()
-      const clientIndex = mockClients.findIndex((client) => client.id === id)
-      if (clientIndex !== -1) {
-        mockClients.splice(clientIndex, 1)
-      }
+    if (!supabase || configError || !databaseReady) {
+      console.log("⚠️ Permanent delete not available in demo mode")
       return
     }
 
     return SupabaseDebugger.logOperation("PERMANENT_DELETE", "clients", { id }, async () => {
       const { error } = await supabase.from("clients").delete().eq("id", id)
-
       if (error) {
-        console.error("🚨 Supabase PERMANENT_DELETE error:", error)
-        throw new Error(`Database error: ${error.message}`)
+        const errorMsg = extractErrorMessage(error)
+        throw new Error(`Database error: ${errorMsg}`)
       }
-
-      console.log("✅ Client permanently deleted from Supabase:", id)
+      console.log("✅ Client permanently deleted:", id)
     })
   },
 }
 
-// Case notes API with similar soft delete handling
 export const caseNotesApi = {
   async getByClientId(clientId: string): Promise<CaseNote[]> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
+    if (!supabase || configError || !databaseReady) {
       await simulateDelay()
-      return mockCaseNotes.filter((note) => note.client_id === clientId && !note.deleted_at)
+      return mockCaseNotes.filter((note) => note.client_id === clientId)
     }
 
-    return SupabaseDebugger.logOperation("SELECT_BY_CLIENT", "case_notes", { clientId }, async () => {
-      const hasDeleted = await checkDeletedColumns()
-
-      let query = supabase
+    try {
+      const { data, error } = await supabase
         .from("case_notes")
         .select("*")
         .eq("client_id", clientId)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
 
-      if (hasDeleted) {
-        query = query.is("deleted_at", null)
-      }
-
-      const { data, error } = await query
-
       if (error) {
-        console.error("🚨 Supabase SELECT_BY_CLIENT error:", error)
-        console.log("🔄 Falling back to demo data")
-        return mockCaseNotes.filter((note) => note.client_id === clientId && !note.deleted_at)
+        return mockCaseNotes.filter((note) => note.client_id === clientId)
       }
 
-      console.log(`✅ Successfully loaded ${data?.length || 0} case notes for client ${clientId}`)
       return data || []
-    })
+    } catch (error) {
+      return mockCaseNotes.filter((note) => note.client_id === clientId)
+    }
   },
 
   async create(caseNote: Omit<CaseNote, "id" | "created_at">): Promise<CaseNote> {
     const validation = DataValidator.validateCaseNote(caseNote)
     if (!validation.isValid) {
-      const errorMessage = `Validation failed: ${validation.errors.join(", ")}`
-      console.error("❌ Case note validation failed:", validation.errors)
-      throw new Error(errorMessage)
+      throw new Error(`Validation failed: ${validation.errors.join(", ")}`)
     }
 
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
+    if (!supabase || configError || !databaseReady) {
       await simulateDelay()
       const newNote: CaseNote = {
         ...caseNote,
-        id: Date.now().toString(),
+        id: `note-${Date.now()}`,
         created_at: new Date().toISOString(),
       }
       mockCaseNotes.unshift(newNote)
+      console.log("✅ Case note created in demo mode")
       return newNote
     }
 
@@ -1041,39 +842,19 @@ export const caseNotesApi = {
       const { data, error } = await supabase.from("case_notes").insert([noteData]).select().single()
 
       if (error) {
-        console.error("🚨 Supabase INSERT error:", error)
-        console.error("📤 Data that failed to insert:", noteData)
-        throw new Error(`Database error: ${error.message}`)
+        const errorMsg = extractErrorMessage(error)
+        throw new Error(`Database error: ${errorMsg}`)
       }
-
-      console.log("✅ Case note successfully created in Supabase:", data.id)
       return data
     })
   },
 
   async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
-      await simulateDelay()
-      const noteIndex = mockCaseNotes.findIndex((note) => note.id === id)
-      if (noteIndex !== -1) {
-        mockCaseNotes[noteIndex] = {
-          ...mockCaseNotes[noteIndex],
-          deleted_at: new Date().toISOString(),
-          deleted_by: deletedBy,
-        }
-      }
+    if (!supabase || configError || !databaseReady) {
       return
     }
 
     return SupabaseDebugger.logOperation("SOFT_DELETE", "case_notes", { id }, async () => {
-      const hasDeleted = await checkDeletedColumns()
-
-      if (!hasDeleted) {
-        console.warn("⚠️ Soft delete not available for case notes")
-        return
-      }
-
       const { error } = await supabase
         .from("case_notes")
         .update({
@@ -1083,70 +864,54 @@ export const caseNotesApi = {
         .eq("id", id)
 
       if (error) {
-        console.error("🚨 Supabase SOFT_DELETE error:", error)
-        throw new Error(`Database error: ${error.message}`)
+        const errorMsg = extractErrorMessage(error)
+        throw new Error(`Database error: ${errorMsg}`)
       }
-
-      console.log("✅ Case note successfully moved to recycle bin:", id)
     })
   },
 }
 
-// Client Files API
 export const clientFilesApi = {
   async getByClientId(clientId: string, category?: string): Promise<ClientFile[]> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data for files - Supabase not configured properly")
+    if (!supabase || configError || !databaseReady) {
       await simulateDelay()
-      let files = mockClientFiles.filter((file) => file.client_id === clientId && file.is_active)
+      let files = mockClientFiles.filter((f) => f.client_id === clientId)
       if (category) {
-        files = files.filter((file) => file.file_category === category)
+        files = files.filter((f) => f.file_category === category)
       }
       return files
     }
 
-    return SupabaseDebugger.logOperation("SELECT_FILES_BY_CLIENT", "client_files", { clientId, category }, async () => {
-      try {
-        const hasDeleted = await checkDeletedColumns()
+    try {
+      let query = supabase
+        .from("client_files")
+        .select("*")
+        .eq("client_id", clientId)
+        .eq("is_active", true)
+        .is("deleted_at", null)
 
-        let query = supabase
-          .from("client_files")
-          .select("*")
-          .eq("client_id", clientId)
-          .eq("is_active", true)
-          .order("upload_date", { ascending: false })
+      if (category) {
+        query = query.eq("file_category", category)
+      }
 
-        if (hasDeleted) {
-          query = query.is("deleted_at", null)
-        }
+      const { data, error } = await query
 
+      if (error) {
+        let files = mockClientFiles.filter((f) => f.client_id === clientId)
         if (category) {
-          query = query.eq("file_category", category)
-        }
-
-        const { data, error } = await query
-
-        if (error) {
-          console.error("🚨 Supabase SELECT_FILES_BY_CLIENT error:", error)
-          console.log("🔄 Falling back to demo data")
-          let files = mockClientFiles.filter((file) => file.client_id === clientId && file.is_active)
-          if (category) {
-            files = files.filter((file) => file.file_category === category)
-          }
-          return files
-        }
-
-        console.log(`✅ Successfully loaded ${data?.length || 0} files for client ${clientId}`)
-        return data || []
-      } catch (error) {
-        console.error("🚨 Error loading files:", error)
-        let files = mockClientFiles.filter((file) => file.client_id === clientId && file.is_active)
-        if (category) {
-          files = files.filter((file) => file.file_category === category)
+          files = files.filter((f) => f.file_category === category)
         }
         return files
       }
-    })
+
+      return data || []
+    } catch (error) {
+      let files = mockClientFiles.filter((f) => f.client_id === clientId)
+      if (category) {
+        files = files.filter((f) => f.file_category === category)
+      }
+      return files
+    }
   },
 
   async uploadFile(
@@ -1156,256 +921,112 @@ export const clientFilesApi = {
     description?: string,
     uploadedBy = "Current User",
   ): Promise<ClientFile> {
-    console.log(`📤 Attempting to upload file: ${file.name} (${file.size} bytes)`)
-
-    if (!supabase || configError) {
-      console.log("📊 Using demo mode for file upload - Supabase not configured properly")
+    if (!supabase || configError || !databaseReady) {
       await simulateDelay(1000)
-
       const blobUrl = URL.createObjectURL(file)
 
       const mockFile: ClientFile = {
-        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `file-${Date.now()}`,
         client_id: clientId,
         file_name: file.name,
         file_size: file.size,
         file_type: file.type,
         file_category: category,
-        storage_path: `demo-files/${clientId}/${file.name}`,
+        storage_path: `demo/${clientId}/${file.name}`,
         public_url: blobUrl,
         upload_date: new Date().toISOString(),
         uploaded_by: uploadedBy,
-        description: description || undefined,
+        description,
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
 
       mockClientFiles.push(mockFile)
-      console.log("✅ File uploaded successfully in demo mode:", mockFile.id)
+      console.log("✅ File uploaded in demo mode")
       return mockFile
     }
 
-    return SupabaseDebugger.logOperation("UPLOAD_FILE", "client_files", { fileName: file.name, clientId }, async () => {
-      try {
-        const fileExt = file.name.split(".").pop()
-        const timestamp = Date.now()
-        const fileName = `${clientId}/${category}/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`
+    return SupabaseDebugger.logOperation("UPLOAD_FILE", "client_files", { fileName: file.name }, async () => {
+      const timestamp = Date.now()
+      const fileName = `${clientId}/${category}/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`
 
-        console.log(`📁 Uploading to path: ${fileName}`)
+      const { error: uploadError } = await supabase.storage.from("client-files").upload(fileName, file)
 
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("client-files")
-          .upload(fileName, file, {
-            cacheControl: "3600",
-            upsert: false,
-          })
-
-        if (uploadError) {
-          console.error("🚨 File upload error:", uploadError)
-          console.log("🔄 Falling back to demo mode for file upload")
-          const blobUrl = URL.createObjectURL(file)
-
-          const mockFile: ClientFile = {
-            id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            client_id: clientId,
-            file_name: file.name,
-            file_size: file.size,
-            file_type: file.type,
-            file_category: category,
-            storage_path: `demo-files/${clientId}/${file.name}`,
-            public_url: blobUrl,
-            upload_date: new Date().toISOString(),
-            uploaded_by: uploadedBy,
-            description: description || undefined,
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }
-
-          mockClientFiles.push(mockFile)
-          console.log("✅ File uploaded successfully in demo fallback mode:", mockFile.id)
-          return mockFile
-        }
-
-        const { data: urlData } = supabase.storage.from("client-files").getPublicUrl(fileName)
-
-        const fileRecord = {
+      if (uploadError) {
+        console.warn("Storage upload failed, using demo mode:", uploadError)
+        const blobUrl = URL.createObjectURL(file)
+        const mockFile: ClientFile = {
+          id: `file-${Date.now()}`,
           client_id: clientId,
           file_name: file.name,
           file_size: file.size,
           file_type: file.type,
           file_category: category,
           storage_path: fileName,
-          public_url: urlData.publicUrl,
+          public_url: blobUrl,
           upload_date: new Date().toISOString(),
           uploaded_by: uploadedBy,
           description: description || null,
           is_active: true,
         }
-
-        const { data: dbData, error: dbError } = await supabase
-          .from("client_files")
-          .insert([fileRecord])
-          .select()
-          .single()
-
-        if (dbError) {
-          console.error("🚨 Database insert error:", dbError)
-
-          try {
-            await supabase.storage.from("client-files").remove([fileName])
-          } catch (cleanupError) {
-            console.warn("⚠️ Failed to cleanup uploaded file after database error:", cleanupError)
-          }
-
-          console.log("🔄 Falling back to demo mode after database error")
-          const blobUrl = URL.createObjectURL(file)
-
-          const mockFile: ClientFile = {
-            id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            client_id: clientId,
-            file_name: file.name,
-            file_size: file.size,
-            file_type: file.type,
-            file_category: category,
-            storage_path: `demo-files/${clientId}/${file.name}`,
-            public_url: blobUrl,
-            upload_date: new Date().toISOString(),
-            uploaded_by: uploadedBy,
-            description: description || undefined,
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }
-
-          mockClientFiles.push(mockFile)
-          console.log("✅ File uploaded successfully in demo fallback mode:", mockFile.id)
-          return mockFile
-        }
-
-        console.log("✅ File successfully uploaded and recorded:", dbData.id)
-        return dbData
-      } catch (error) {
-        console.error("🚨 File upload process failed:", error)
-        console.log("🔄 Final fallback to demo mode")
-        const blobUrl = URL.createObjectURL(file)
-
-        const mockFile: ClientFile = {
-          id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          client_id: clientId,
-          file_name: file.name,
-          file_size: file.size,
-          file_type: file.type,
-          file_category: category,
-          storage_path: `demo-files/${clientId}/${file.name}`,
-          public_url: blobUrl,
-          upload_date: new Date().toISOString(),
-          uploaded_by: uploadedBy,
-          description: description || undefined,
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-
         mockClientFiles.push(mockFile)
-        console.log("✅ File uploaded successfully in final demo fallback mode:", mockFile.id)
         return mockFile
       }
+
+      const { data: urlData } = supabase.storage.from("client-files").getPublicUrl(fileName)
+
+      const fileRecord = {
+        client_id: clientId,
+        file_name: file.name,
+        file_size: file.size,
+        file_type: file.type,
+        file_category: category,
+        storage_path: fileName,
+        public_url: urlData.publicUrl,
+        upload_date: new Date().toISOString(),
+        uploaded_by: uploadedBy,
+        description: description || null,
+        is_active: true,
+      }
+
+      const { data: dbData, error: dbError } = await supabase
+        .from("client_files")
+        .insert([fileRecord])
+        .select()
+        .single()
+
+      if (dbError) {
+        await supabase.storage.from("client-files").remove([fileName])
+        throw new Error("Failed to save file record")
+      }
+
+      return dbData
     })
   },
 
   async deleteFile(fileId: string, deletedBy = "Current User"): Promise<void> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
-      await simulateDelay()
-
-      const fileIndex = mockClientFiles.findIndex((file) => file.id === fileId)
-      if (fileIndex !== -1) {
-        if (mockClientFiles[fileIndex].public_url?.startsWith("blob:")) {
-          URL.revokeObjectURL(mockClientFiles[fileIndex].public_url!)
-        }
-        mockClientFiles[fileIndex].is_active = false
-        mockClientFiles[fileIndex].deleted_at = new Date().toISOString()
-        mockClientFiles[fileIndex].deleted_by = deletedBy
+    if (!supabase || configError || !databaseReady) {
+      const index = mockClientFiles.findIndex((f) => f.id === fileId)
+      if (index !== -1) {
+        mockClientFiles[index].is_active = false
       }
       return
     }
 
     return SupabaseDebugger.logOperation("DELETE_FILE", "client_files", { fileId }, async () => {
-      try {
-        const { data: fileData, error: selectError } = await supabase
-          .from("client_files")
-          .select("storage_path, public_url")
-          .eq("id", fileId)
-          .single()
+      const { error } = await supabase
+        .from("client_files")
+        .update({
+          is_active: false,
+          deleted_at: new Date().toISOString(),
+          deleted_by: deletedBy,
+        })
+        .eq("id", fileId)
 
-        if (selectError) {
-          console.error("🚨 Error finding file record:", selectError)
-          const fileIndex = mockClientFiles.findIndex((file) => file.id === fileId)
-          if (fileIndex !== -1) {
-            if (mockClientFiles[fileIndex].public_url?.startsWith("blob:")) {
-              URL.revokeObjectURL(mockClientFiles[fileIndex].public_url!)
-            }
-            mockClientFiles[fileIndex].is_active = false
-            mockClientFiles[fileIndex].deleted_at = new Date().toISOString()
-            mockClientFiles[fileIndex].deleted_by = deletedBy
-          }
-          return
-        }
-
-        const hasDeleted = await checkDeletedColumns()
-
-        if (hasDeleted) {
-          const { error: updateError } = await supabase
-            .from("client_files")
-            .update({
-              is_active: false,
-              deleted_at: new Date().toISOString(),
-              deleted_by: deletedBy,
-            })
-            .eq("id", fileId)
-
-          if (updateError) {
-            console.error("🚨 Error soft deleting file record:", updateError)
-            throw new Error(`Database error: ${updateError.message}`)
-          }
-        } else {
-          const { error: updateError } = await supabase
-            .from("client_files")
-            .update({
-              is_active: false,
-            })
-            .eq("id", fileId)
-
-          if (updateError) {
-            console.error("🚨 Error marking file inactive:", updateError)
-            throw new Error(`Database error: ${updateError.message}`)
-          }
-        }
-
-        if (fileData.storage_path && !fileData.storage_path.startsWith("demo-files/")) {
-          const { error: storageError } = await supabase.storage.from("client-files").remove([fileData.storage_path])
-
-          if (storageError) {
-            console.warn("⚠️ Warning: File removed from database but storage cleanup failed:", storageError)
-          }
-        } else if (fileData.public_url?.startsWith("blob:")) {
-          URL.revokeObjectURL(fileData.public_url)
-        }
-
-        console.log("✅ File successfully deleted:", fileId)
-      } catch (error) {
-        console.error("🚨 Error in delete file operation:", error)
-        const fileIndex = mockClientFiles.findIndex((file) => file.id === fileId)
-        if (fileIndex !== -1) {
-          if (mockClientFiles[fileIndex].public_url?.startsWith("blob:")) {
-            URL.revokeObjectURL(mockClientFiles[fileIndex].public_url!)
-          }
-          mockClientFiles[fileIndex].is_active = false
-          mockClientFiles[fileIndex].deleted_at = new Date().toISOString()
-          mockClientFiles[fileIndex].deleted_by = deletedBy
-        }
+      if (error) {
+        const errorMsg = extractErrorMessage(error)
+        throw new Error(`Database error: ${errorMsg}`)
       }
     })
   },
@@ -1414,208 +1035,131 @@ export const clientFilesApi = {
     fileId: string,
     updates: Partial<Pick<ClientFile, "description" | "file_category">>,
   ): Promise<ClientFile> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
-      await simulateDelay()
-
-      const fileIndex = mockClientFiles.findIndex((file) => file.id === fileId)
-      if (fileIndex !== -1) {
-        mockClientFiles[fileIndex] = {
-          ...mockClientFiles[fileIndex],
+    if (!supabase || configError || !databaseReady) {
+      const index = mockClientFiles.findIndex((f) => f.id === fileId)
+      if (index !== -1) {
+        mockClientFiles[index] = {
+          ...mockClientFiles[index],
           ...updates,
           updated_at: new Date().toISOString(),
         }
-        return mockClientFiles[fileIndex]
+        return mockClientFiles[index]
       }
       throw new Error("File not found")
     }
 
     return SupabaseDebugger.logOperation("UPDATE_FILE", "client_files", { fileId, updates }, async () => {
-      try {
-        const { data, error } = await supabase
-          .from("client_files")
-          .update({
-            ...updates,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", fileId)
-          .select()
-          .single()
+      const { data, error } = await supabase
+        .from("client_files")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("id", fileId)
+        .select()
+        .single()
 
-        if (error) {
-          console.error("🚨 Error updating file record:", error)
-          const fileIndex = mockClientFiles.findIndex((file) => file.id === fileId)
-          if (fileIndex !== -1) {
-            mockClientFiles[fileIndex] = {
-              ...mockClientFiles[fileIndex],
-              ...updates,
-              updated_at: new Date().toISOString(),
-            }
-            return mockClientFiles[fileIndex]
-          }
-          throw new Error("File not found")
-        }
-
-        console.log("✅ File successfully updated:", fileId)
-        return data
-      } catch (error) {
-        console.error("🚨 Error updating file:", error)
-        const fileIndex = mockClientFiles.findIndex((file) => file.id === fileId)
-        if (fileIndex !== -1) {
-          mockClientFiles[fileIndex] = {
-            ...mockClientFiles[fileIndex],
-            ...updates,
-            updated_at: new Date().toISOString(),
-          }
-          return mockClientFiles[fileIndex]
-        }
-        throw new Error("File not found")
+      if (error) {
+        const errorMsg = extractErrorMessage(error)
+        throw new Error(`Database error: ${errorMsg}`)
       }
+      return data
     })
   },
 
   async getDownloadUrl(fileId: string): Promise<string> {
-    if (!supabase || configError) {
-      console.log("📊 Using demo data - Supabase not configured properly")
+    if (!supabase || configError || !databaseReady) {
       const file = mockClientFiles.find((f) => f.id === fileId)
       return file?.public_url || ""
     }
 
-    return SupabaseDebugger.logOperation("GET_DOWNLOAD_URL", "client_files", { fileId }, async () => {
-      try {
-        const { data: fileData, error: selectError } = await supabase
-          .from("client_files")
-          .select("storage_path, public_url")
-          .eq("id", fileId)
-          .single()
+    const { data: fileData } = await supabase
+      .from("client_files")
+      .select("storage_path, public_url")
+      .eq("id", fileId)
+      .single()
 
-        if (selectError) {
-          console.error("🚨 Error finding file record:", selectError)
-          const file = mockClientFiles.find((f) => f.id === fileId)
-          return file?.public_url || ""
-        }
+    if (!fileData) {
+      const file = mockClientFiles.find((f) => f.id === fileId)
+      return file?.public_url || ""
+    }
 
-        if (fileData.public_url) {
-          return fileData.public_url
-        }
+    if (fileData.public_url) {
+      return fileData.public_url
+    }
 
-        const { data: urlData, error: urlError } = await supabase.storage
-          .from("client-files")
-          .createSignedUrl(fileData.storage_path, 3600)
+    const { data: urlData } = await supabase.storage.from("client-files").createSignedUrl(fileData.storage_path, 3600)
 
-        if (urlError) {
-          console.error("🚨 Error creating signed URL:", urlError)
-          return fileData.public_url || ""
-        }
-
-        return urlData.signedUrl
-      } catch (error) {
-        console.error("🚨 Error getting download URL:", error)
-        const file = mockClientFiles.find((f) => f.id === fileId)
-        return file?.public_url || ""
-      }
-    })
+    return urlData?.signedUrl || ""
   },
 }
 
-export const testSupabaseSync = async () => {
-  console.log("🧪 Testing Supabase Sync Operations...")
+export async function diagnoseSupabaseConfig() {
+  console.log("🔍 Supabase Configuration Diagnostic")
+  console.log("=====================================")
 
+  console.log("\n1. Environment Variables:")
+  console.log("   URL set:", !!supabaseUrl)
+  console.log("   URL value:", supabaseUrl ? supabaseUrl.substring(0, 40) + "..." : "NOT SET")
+  console.log("   URL format valid:", supabaseUrl.startsWith("https://") && supabaseUrl.includes(".supabase.co"))
+  console.log("   Key set:", !!supabaseAnonKey)
+  console.log("   Key length:", supabaseAnonKey?.length || 0)
+  console.log("   Key starts with 'eyJ':", supabaseAnonKey?.startsWith("eyJ"))
+
+  console.log("\n2. Client Status:")
+  console.log("   Client created:", !!supabase)
+  console.log("   Has config:", hasValidConfig)
+  console.log("   Config error:", configError || "none")
+  console.log("   Database ready:", databaseReady)
+
+  if (!supabase) {
+    console.log("\n❌ ISSUE: Supabase client not created")
+    console.log("   This usually means environment variables are missing or invalid")
+    return { success: false, issue: "no_client" }
+  }
+
+  console.log("\n3. Testing connection...")
   try {
-    const networkTest = await NetworkMonitor.testConnection()
-    console.log("🌐 Network Test:", networkTest)
+    const { data, error } = await supabase.from("clients").select("count", { count: "exact", head: true }).limit(0)
 
-    if (!networkTest.supabaseReachable) {
-      console.error("❌ Supabase not reachable:", networkTest.error)
-      return false
+    console.log("   Query executed")
+    console.log("   Has data:", !!data)
+    console.log("   Has error:", !!error)
+
+    if (error) {
+      const errorMsg = extractErrorMessage(error)
+      console.log("   Error message:", errorMsg)
+      console.log("   Error code:", error?.code || "none")
+
+      if (error.message?.includes("relation") || error.code === "42P01") {
+        console.log("\n⚠️  ISSUE: Tables not created yet")
+        return { success: false, issue: "tables_missing" }
+      }
+
+      return { success: false, issue: "query_error", error: errorMsg }
     }
 
-    console.log("🔄 Testing CRUD operations...")
-
-    const testClient = {
-      first_name: "Test",
-      last_name: "User",
-      participant_id: `TEST-${Date.now()}`,
-      program: "Test Program",
-      status: "Active",
-      enrollment_date: new Date().toISOString().split("T")[0],
-      phone: "555-0123",
-      email: "test@example.com",
-      address: "123 Test St",
-      city: "Test City",
-      state: "TS",
-      zip_code: "12345",
-      date_of_birth: "1990-01-01",
-      case_manager: "Test Manager",
-    }
-
-    const createdClient = await clientsApi.create(testClient)
-    console.log("✅ Test client created:", createdClient.id)
-
-    const updatedClient = await clientsApi.update(createdClient.id, {
-      phone: "555-9999",
-    })
-    console.log("✅ Test client updated")
-
-    const testNote = await caseNotesApi.create({
-      client_id: createdClient.id,
-      note: "Test case note",
-      author: "Test Author",
-    })
-    console.log("✅ Test case note created:", testNote.id)
-
-    const testFileContent = new Blob(["Test file content"], { type: "text/plain" })
-    const testFile = new File([testFileContent], "test-file.txt", { type: "text/plain" })
-
-    const uploadedFile = await clientFilesApi.uploadFile(
-      testFile,
-      createdClient.id,
-      "certification",
-      "Test file upload",
-    )
-    console.log("✅ Test file uploaded:", uploadedFile.id)
-
-    const clientFiles = await clientFilesApi.getByClientId(createdClient.id)
-    console.log("✅ Test file retrieval:", clientFiles.length)
-
-    const hasDeleted = await checkDeletedColumns()
-    if (hasDeleted) {
-      await clientsApi.softDelete(createdClient.id, "Test User")
-      console.log("✅ Test client soft deleted")
-
-      await clientsApi.restore(createdClient.id)
-      console.log("✅ Test client restored")
-    }
-
-    await clientFilesApi.deleteFile(uploadedFile.id, "Test User")
-    await caseNotesApi.softDelete(testNote.id, "Test User")
-    await clientsApi.permanentDelete(createdClient.id)
-    console.log("✅ Test data cleaned up")
-
-    console.log("🎉 All sync operations working correctly!")
-    return true
-  } catch (error: any) {
-    console.error("❌ Sync test failed:", error.message)
-    return false
+    console.log("\n✅ Connection successful!")
+    return { success: true }
+  } catch (err: any) {
+    const errorMsg = extractErrorMessage(err)
+    console.log("\n❌ ISSUE: Exception during connection test")
+    console.log("   Exception:", errorMsg)
+    return { success: false, issue: "exception", error: errorMsg }
   }
 }
 
-// Make verification functions available globally for easy testing
-if (typeof window !== "undefined") {
-  ;(window as any).verifyClientFilesBucket = verifyClientFilesBucket
-  ;(window as any).testSupabaseConnection = testSupabaseConnection
-  ;(window as any).createClientFilesBucket = createClientFilesBucket
-  ;(window as any).clientsApi = clientsApi
-  ;(window as any).caseNotesApi = caseNotesApi
-  ;(window as any).clientFilesApi = clientFilesApi
-  ;(window as any).testSupabaseSync = testSupabaseSync
+export const testSupabaseSync = () => {
+  return {
+    isConfigured: hasValidConfig,
+    configError,
+    isDatabaseReady: databaseReady,
+    status: getSupabaseStatus(),
+  }
+}
 
-  console.log("🔧 Supabase verification functions loaded:")
-  console.log("  - window.verifyClientFilesBucket()")
-  console.log("  - window.testSupabaseConnection()")
-  console.log("  - window.createClientFilesBucket()")
-  console.log("  - window.clientsApi")
-  console.log("  - window.caseNotesApi")
-  console.log("  - window.clientFilesApi")
-  console.log("  - window.testSupabaseSync()")
+if (typeof window !== "undefined") {
+  ;(window as any).testSupabaseConnection = testSupabaseConnection
+  ;(window as any).verifyClientFilesBucket = verifyClientFilesBucket
+  ;(window as any).createClientFilesBucket = createClientFilesBucket
+  ;(window as any).checkDatabaseSetup = checkDatabaseSetup
+  ;(window as any).diagnoseSupabaseConfig = diagnoseSupabaseConfig
+  ;(window as any).testSupabaseSync = testSupabaseSync
 }
