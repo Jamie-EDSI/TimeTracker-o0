@@ -1039,7 +1039,12 @@ export function Dashboard() {
                           </p>
                           <p className="font-medium">
                             {client.isNew ? "New client created: " : "Client enrolled: "}
-                            {client.firstName} {client.lastName}
+                            <button
+                              onClick={() => handleViewClient(client)}
+                              className="text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 rounded"
+                            >
+                              {client.firstName} {client.lastName}
+                            </button>
                           </p>
                         </div>
                       </div>
