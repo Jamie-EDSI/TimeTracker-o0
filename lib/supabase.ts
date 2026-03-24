@@ -693,34 +693,32 @@ export const clientsApi = {
       throw new Error(`Validation failed: ${validation.errors.join(", ")}`)
     }
 
-    if (!supabase || configError || !databaseReady) {
-      await simulateDelay()
-      const index = mockClients.findIndex((c) => c.id === id)
-      if (index !== -1) {
-        mockClients[index] = {
-          ...mockClients[index],
-          ...updates,
-          last_modified: new Date().toISOString(),
-        }
-        console.log("✅ Client updated in demo mode")
-        return mockClients[index]
-      }
-      throw new Error("Client not found")
-    }
+    console.log("[v0] clientsApi.update() - updating via API")
 
-    const updateData = cleanDataForSupabase(updates)
+    try {
+      const updateData = cleanDataForSupabase(updates)
+      
+      const response = await fetch("/api/clients", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id, ...updateData }),
+      })
 
-    return SupabaseDebugger.logOperation("UPDATE", "clients", { id, updates: updateData }, async () => {
-      const { data, error } = await supabase.from("clients").update(updateData).eq("id", id).select().single()
+      const result = await response.json()
+      console.log("[v0] Update API response:", { success: result.success, hasData: !!result.data })
 
-      if (error) {
-        const errorMsg = extractErrorMessage(error)
-        throw new Error(`Database error: ${errorMsg}`)
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to update client")
       }
 
       console.log("✅ Client updated:", id)
-      return data
-    })
+      return result.data
+    } catch (error: any) {
+      console.error("[v0] Exception calling update API:", error.message)
+      throw error
+    }
   },
 
   async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
@@ -792,26 +790,22 @@ export const clientsApi = {
 
 export const caseNotesApi = {
   async getByClientId(clientId: string): Promise<CaseNote[]> {
-    if (!supabase || configError || !databaseReady) {
-      await simulateDelay()
-      return mockCaseNotes.filter((note) => note.client_id === clientId)
-    }
+    console.log("[v0] caseNotesApi.getByClientId() - fetching via API")
 
     try {
-      const { data, error } = await supabase
-        .from("case_notes")
-        .select("*")
-        .eq("client_id", clientId)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
+      const response = await fetch(`/api/case-notes?clientId=${encodeURIComponent(clientId)}`)
+      const result = await response.json()
 
-      if (error) {
-        return mockCaseNotes.filter((note) => note.client_id === clientId)
+      if (!response.ok || !result.success) {
+        console.log("[v0] Case notes API failed, returning empty array")
+        return []
       }
 
-      return data || []
-    } catch (error) {
-      return mockCaseNotes.filter((note) => note.client_id === clientId)
+      console.log("[v0] Case notes API response:", { count: result.data?.length || 0 })
+      return result.data || []
+    } catch (error: any) {
+      console.error("[v0] Exception fetching case notes:", error.message)
+      return []
     }
   },
 
@@ -821,53 +815,52 @@ export const caseNotesApi = {
       throw new Error(`Validation failed: ${validation.errors.join(", ")}`)
     }
 
-    if (!supabase || configError || !databaseReady) {
-      await simulateDelay()
-      const newNote: CaseNote = {
-        ...caseNote,
-        id: `note-${Date.now()}`,
-        created_at: new Date().toISOString(),
+    console.log("[v0] caseNotesApi.create() - creating via API")
+
+    try {
+      const response = await fetch("/api/case-notes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(caseNote),
+      })
+
+      const result = await response.json()
+      console.log("[v0] Create case note API response:", { success: result.success, hasData: !!result.data })
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to create case note")
       }
-      mockCaseNotes.unshift(newNote)
-      console.log("✅ Case note created in demo mode")
-      return newNote
+
+      console.log("✅ Case note created:", result.data.id)
+      return result.data
+    } catch (error: any) {
+      console.error("[v0] Exception calling create case note API:", error.message)
+      throw error
     }
-
-    const noteData = {
-      ...caseNote,
-      created_at: new Date().toISOString(),
-    }
-
-    return SupabaseDebugger.logOperation("INSERT", "case_notes", noteData, async () => {
-      const { data, error } = await supabase.from("case_notes").insert([noteData]).select().single()
-
-      if (error) {
-        const errorMsg = extractErrorMessage(error)
-        throw new Error(`Database error: ${errorMsg}`)
-      }
-      return data
-    })
   },
 
   async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
-    if (!supabase || configError || !databaseReady) {
-      return
-    }
+    console.log("[v0] caseNotesApi.softDelete() - deleting via API")
 
-    return SupabaseDebugger.logOperation("SOFT_DELETE", "case_notes", { id }, async () => {
-      const { error } = await supabase
-        .from("case_notes")
-        .update({
-          deleted_at: new Date().toISOString(),
-          deleted_by: deletedBy,
-        })
-        .eq("id", id)
+    try {
+      const response = await fetch(
+        `/api/case-notes?id=${encodeURIComponent(id)}&deletedBy=${encodeURIComponent(deletedBy)}`,
+        { method: "DELETE" }
+      )
 
-      if (error) {
-        const errorMsg = extractErrorMessage(error)
-        throw new Error(`Database error: ${errorMsg}`)
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to delete case note")
       }
-    })
+
+      console.log("✅ Case note soft deleted:", id)
+    } catch (error: any) {
+      console.error("[v0] Exception deleting case note:", error.message)
+      throw error
+    }
   },
 }
 
