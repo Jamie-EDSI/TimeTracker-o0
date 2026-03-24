@@ -164,6 +164,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
 
       // Validate the data before saving
       const validation = validateClientData(editedClient)
+      console.log("[v0] handleSave validation:", { isValid: validation.isValid, errors: validation.errors, program: editedClient.program })
       if (!validation.isValid) {
         setSaveError(`Validation errors: ${validation.errors.join(", ")}`)
         return
@@ -171,16 +172,18 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
 
       // Create a complete client object with all current data
       const clientToSave = {
-        ...editedClient, // Use all the edited data
-        id: currentClient.id, // Preserve the original ID
-        participantId: currentClient.participantId, // Preserve PID
+        ...editedClient,
+        id: currentClient.id,
+        participantId: currentClient.participantId,
         lastModified: new Date().toISOString(),
         modifiedBy: "Current User",
-        caseNotes: caseNotes, // Include current case notes
+        caseNotes: caseNotes,
       }
 
+      console.log("[v0] handleSave calling onSave with id:", clientToSave.id)
       // Call the parent save function and wait for it to complete
       await onSave(clientToSave)
+      console.log("[v0] handleSave onSave completed successfully")
 
       // Update local state with saved data only after successful save
       setCurrentClient(clientToSave)
@@ -189,8 +192,8 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       // Show success message
       setShowSaveSuccess(true)
       setTimeout(() => setShowSaveSuccess(false), 3000)
-    } catch (error) {
-      console.error("Error saving client:", error)
+    } catch (error: any) {
+      console.error("[v0] handleSave caught error:", error?.message, error)
       setSaveError("Failed to save client data. Please try again.")
     } finally {
       setIsSaving(false)

@@ -358,13 +358,16 @@ export function Dashboard() {
 
       // Validate the updated client data
       const validation = validateClientData(updatedClient)
+      console.log("[v0] handleSaveClient validation:", { isValid: validation.isValid, errors: validation.errors })
       if (!validation.isValid) {
         throw new Error(`Validation errors: ${validation.errors.join(", ")}`)
       }
 
       // Transform to Supabase format and update
       const supabaseClientData = transformToSupabaseClient(updatedClient)
+      console.log("[v0] handleSaveClient calling clientsApi.update, id:", updatedClient.id)
       const savedSupabaseClient = await clientsApi.update(updatedClient.id, supabaseClientData)
+      console.log("[v0] handleSaveClient clientsApi.update returned:", !!savedSupabaseClient)
       const savedClient = transformSupabaseClient(savedSupabaseClient)
 
       // Preserve case notes from the updated client
