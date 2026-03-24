@@ -221,6 +221,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
     if (caseNote.trim()) {
       try {
         setIsSaving(true)
+        setSaveError(null) // Clear any previous errors
 
         // Save case note to Supabase
         const newCaseNote = await caseNotesApi.create({
