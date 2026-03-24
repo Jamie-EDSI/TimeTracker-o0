@@ -29,7 +29,24 @@ export function formatDate(dateString: string | null | undefined): string {
       return new Date(year, month - 1, day).toLocaleDateString()
     }
     
-    // For full ISO timestamps, parse normally
+    // Check if it's an ISO timestamp that represents a date at midnight UTC
+    // e.g., "2026-03-24T00:00:00.000Z" or "2026-03-24T00:00:00Z" or "2026-03-24T00:00:00+00:00"
+    const isoDateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})T00:00:00/)
+    if (isoDateMatch) {
+      // This is a date stored as midnight UTC - parse as local date
+      const [, year, month, day] = isoDateMatch
+      return new Date(Number(year), Number(month) - 1, Number(day)).toLocaleDateString()
+    }
+    
+    // For any ISO string starting with YYYY-MM-DD, extract just the date part
+    // to avoid timezone conversion issues
+    const datePartMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (datePartMatch) {
+      const [, year, month, day] = datePartMatch
+      return new Date(Number(year), Number(month) - 1, Number(day)).toLocaleDateString()
+    }
+    
+    // Fallback: parse normally (for other date formats)
     return new Date(dateString).toLocaleDateString()
   } catch {
     return dateString
