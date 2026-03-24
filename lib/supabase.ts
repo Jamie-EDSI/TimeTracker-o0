@@ -693,34 +693,32 @@ export const clientsApi = {
       throw new Error(`Validation failed: ${validation.errors.join(", ")}`)
     }
 
-    if (!supabase || configError || !databaseReady) {
-      await simulateDelay()
-      const index = mockClients.findIndex((c) => c.id === id)
-      if (index !== -1) {
-        mockClients[index] = {
-          ...mockClients[index],
-          ...updates,
-          last_modified: new Date().toISOString(),
-        }
-        console.log("✅ Client updated in demo mode")
-        return mockClients[index]
-      }
-      throw new Error("Client not found")
-    }
+    console.log("[v0] clientsApi.update() - updating via API")
 
-    const updateData = cleanDataForSupabase(updates)
+    try {
+      const updateData = cleanDataForSupabase(updates)
+      
+      const response = await fetch("/api/clients", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id, ...updateData }),
+      })
 
-    return SupabaseDebugger.logOperation("UPDATE", "clients", { id, updates: updateData }, async () => {
-      const { data, error } = await supabase.from("clients").update(updateData).eq("id", id).select().single()
+      const result = await response.json()
+      console.log("[v0] Update API response:", { success: result.success, hasData: !!result.data })
 
-      if (error) {
-        const errorMsg = extractErrorMessage(error)
-        throw new Error(`Database error: ${errorMsg}`)
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to update client")
       }
 
       console.log("✅ Client updated:", id)
-      return data
-    })
+      return result.data
+    } catch (error: any) {
+      console.error("[v0] Exception calling update API:", error.message)
+      throw error
+    }
   },
 
   async softDelete(id: string, deletedBy = "Current User"): Promise<void> {

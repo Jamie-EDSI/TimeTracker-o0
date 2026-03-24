@@ -65,6 +65,65 @@ const mockClients = [
   },
 ]
 
+export async function PUT(request: Request) {
+  console.log("[v0] API /api/clients PUT called")
+
+  if (!hasServerAccess()) {
+    console.log("[v0] No service role key - cannot update")
+    return NextResponse.json({
+      success: false,
+      error: "Database not configured - cannot update clients",
+    }, { status: 503 })
+  }
+
+  try {
+    const body = await request.json()
+    const { id, ...updates } = body
+
+    if (!id) {
+      return NextResponse.json({
+        success: false,
+        error: "Client ID is required",
+      }, { status: 400 })
+    }
+
+    console.log("[v0] Updating client:", id)
+
+    // Add last_modified timestamp
+    const updateData = {
+      ...updates,
+      last_modified: new Date().toISOString(),
+    }
+
+    const { data, error } = await supabaseServer!
+      .from("clients")
+      .update(updateData)
+      .eq("id", id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("[v0] Database error during update:", error)
+      return NextResponse.json({
+        success: false,
+        error: error.message,
+      }, { status: 500 })
+    }
+
+    console.log("[v0] Successfully updated client:", id)
+    return NextResponse.json({
+      success: true,
+      data: data,
+    })
+  } catch (error: any) {
+    console.error("[v0] Exception in PUT /api/clients:", error)
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+    }, { status: 500 })
+  }
+}
+
 export async function GET() {
   console.log("[v0] API /api/clients called")
 
