@@ -276,30 +276,14 @@ export function Dashboard() {
       if (!background) setIsLoading(true)
       setError(null)
       const supabaseClients = await clientsApi.getAll()
-      const transformedClients = supabaseClients.map(transformSupabaseClient)
+      // Transform clients without fetching case notes for every client on load.
+      // Case notes are loaded on-demand when a specific client profile is opened.
+      const transformedClients = supabaseClients.map((c) => ({
+        ...transformSupabaseClient(c),
+        caseNotes: [],
+      }))
 
-      // Load case notes for each client
-      const clientsWithCaseNotes = await Promise.all(
-        transformedClients.map(async (client) => {
-          try {
-            const caseNotes = await caseNotesApi.getByClientId(client.id)
-            return {
-              ...client,
-              caseNotes: caseNotes.map((note) => ({
-                id: note.id,
-                note: note.note,
-                date: note.created_at,
-                author: note.author,
-              })),
-            }
-          } catch (error) {
-            console.error(`Error loading case notes for client ${client.id}:`, error)
-            return { ...client, caseNotes: [] }
-          }
-        }),
-      )
-
-      setClients(clientsWithCaseNotes)
+      setClients(transformedClients)
     } catch (error) {
       console.error("Error loading clients:", error)
       setError("Failed to load clients. Please try again.")
