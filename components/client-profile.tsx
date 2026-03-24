@@ -159,6 +159,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
 
   const handleSave = async () => {
     try {
+      console.log("[v0] handleSave START")
       setIsSaving(true)
       setSaveError(null)
 
@@ -166,7 +167,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       const validation = validateClientData(editedClient)
       console.log("[v0] handleSave validation:", { isValid: validation.isValid, errors: validation.errors, program: editedClient.program })
       if (!validation.isValid) {
-        setSaveError(`Validation errors: ${validation.errors.join(", ")}`)
+        setSaveError(`Please fix: ${validation.errors.join(", ")}`)
         return
       }
 
@@ -180,7 +181,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
         caseNotes: caseNotes,
       }
 
-      console.log("[v0] handleSave calling onSave with id:", clientToSave.id)
+      console.log("[v0] handleSave calling onSave with id:", clientToSave.id, "program:", clientToSave.program)
       // Call the parent save function and wait for it to complete
       await onSave(clientToSave)
       console.log("[v0] handleSave onSave completed successfully")
@@ -195,8 +196,8 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       console.log("[v0] handleSave success state set")
       setTimeout(() => setShowSaveSuccess(false), 3000)
     } catch (error: any) {
-      console.error("[v0] handleSave caught error:", error?.message, error)
-      setSaveError("Failed to save client data. Please try again.")
+      console.error("[v0] handleSave caught error:", error?.message || String(error), error)
+      setSaveError(error?.message || "Failed to save client data. Please try again.")
     } finally {
       setIsSaving(false)
     }
