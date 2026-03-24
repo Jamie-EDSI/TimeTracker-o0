@@ -95,6 +95,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   useEffect(() => {
     setCurrentClient(client)
     setEditedClient({ ...client })
+    setSaveError(null) // Clear any stale errors when client data refreshes
     if (client.caseNotes) {
       setCaseNotes(client.caseNotes)
     }
@@ -112,8 +113,9 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       const eduFiles = await clientFilesApi.getByClientId(client.id, "education")
       setEducationFiles(eduFiles)
     } catch (error) {
+      // Don't use setSaveError here — file loading failures shouldn't show
+      // the same "Failed to save client data" banner used for save operations
       console.error("Error loading client files:", error)
-      setSaveError("Failed to load client files")
     } finally {
       setIsLoadingFiles(false)
     }
