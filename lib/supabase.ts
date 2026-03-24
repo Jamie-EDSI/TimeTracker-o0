@@ -688,12 +688,14 @@ export const clientsApi = {
   },
 
   async update(id: string, updates: Partial<Client>): Promise<Client> {
-    const validation = DataValidator.validateClient({ ...updates, id })
-    if (!validation.isValid) {
-      throw new Error(`Validation failed: ${validation.errors.join(", ")}`)
+    // Only validate fields that are being updated — participant_id is immutable and not sent on update
+    const hasName = updates.first_name && updates.first_name.trim() !== ""
+    const hasLastName = updates.last_name && updates.last_name.trim() !== ""
+    if (!hasName || !hasLastName) {
+      console.error("[v0] Update validation failed — missing first_name or last_name:", { first_name: updates.first_name, last_name: updates.last_name })
+      throw new Error("Validation failed: First name and last name are required")
     }
-
-    console.log("[v0] clientsApi.update() - updating via API")
+    console.log("[v0] clientsApi.update() - validation passed, updating via API")
 
     try {
       const updateData = cleanDataForSupabase(updates)

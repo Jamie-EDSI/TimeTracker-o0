@@ -95,10 +95,12 @@ export async function PUT(request: Request) {
     // Remove any fields that shouldn't be sent to the database
     const { case_notes, caseNotes, ...cleanUpdates } = updates
     
-    // Handle date fields - convert empty strings to null
+    // Handle date fields - convert empty strings/undefined to null
+    // PostgreSQL date columns reject empty strings, they require null or a valid date
     const dateFields = ['date_of_birth', 'enrollment_date', 'last_contact']
     dateFields.forEach(field => {
-      if (cleanUpdates[field] === '' || cleanUpdates[field] === undefined) {
+      const val = cleanUpdates[field]
+      if (!val || (typeof val === 'string' && val.trim() === '')) {
         cleanUpdates[field] = null
       }
     })
