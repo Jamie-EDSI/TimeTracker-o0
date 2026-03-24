@@ -222,10 +222,49 @@ export function ActiveClientsReport({ onBack, clients, onViewClient }: ActiveCli
           {/* Filter Panel */}
           {showFilters && (
             <FilterPanel
-              filters={filters}
-              onFiltersChange={setFilters}
-              programs={uniquePrograms}
-              caseManagers={uniqueCaseManagers}
+              filters={[
+                {
+                  key: "program",
+                  label: "Program",
+                  type: "select",
+                  options: uniquePrograms,
+                  placeholder: "All Programs",
+                },
+                {
+                  key: "caseManager",
+                  label: "Case Manager",
+                  type: "select",
+                  options: uniqueCaseManagers,
+                  placeholder: "All Case Managers",
+                },
+                {
+                  key: "enrollmentDate",
+                  label: "Enrollment Date",
+                  type: "dateRange",
+                },
+              ]}
+              activeFilters={{
+                program: filters.program,
+                caseManager: filters.caseManager,
+                enrollmentDate_from: filters.enrollmentDateFrom,
+                enrollmentDate_to: filters.enrollmentDateTo,
+              }}
+              onFiltersChange={(newFilters) => {
+                setFilters({
+                  program: newFilters.program || "",
+                  caseManager: newFilters.caseManager || "",
+                  enrollmentDateFrom: newFilters.enrollmentDate_from || "",
+                  enrollmentDateTo: newFilters.enrollmentDate_to || "",
+                })
+              }}
+              onClearFilters={() => {
+                setFilters({
+                  program: "",
+                  caseManager: "",
+                  enrollmentDateFrom: "",
+                  enrollmentDateTo: "",
+                })
+              }}
             />
           )}
 

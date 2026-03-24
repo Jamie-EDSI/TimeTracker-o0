@@ -29,7 +29,7 @@ export function FilterPanel({
   activeFilters = {},
   onClearFilters = () => {},
 }: FilterPanelProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(true)
 
   const handleFilterChange = (key: string, value: any) => {
     onFiltersChange({
@@ -89,13 +89,16 @@ export function FilterPanel({
                 {filter.type === "select" && (
                   <Select
                     value={activeFilters[filter.key] || ""}
-                    onValueChange={(value) => handleFilterChange(filter.key, value)}
+                    onValueChange={(value) => handleFilterChange(filter.key, value === "__clear__" ? "" : value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder={filter.placeholder} />
                     </SelectTrigger>
                     <SelectContent>
-                      {filter.options?.map((option) => (
+                      <SelectItem value="__clear__">
+                        <span className="text-muted-foreground">{filter.placeholder || "All"}</span>
+                      </SelectItem>
+                      {filter.options?.filter((option) => option && option.trim() !== "").map((option) => (
                         <SelectItem key={option} value={option}>
                           {option}
                         </SelectItem>
