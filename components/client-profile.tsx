@@ -185,12 +185,14 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       await onSave(clientToSave)
       console.log("[v0] handleSave onSave completed successfully")
 
-      // Update local state with saved data only after successful save
+      // Clear error and update local state with saved data
+      setSaveError(null)
       setCurrentClient(clientToSave)
       setIsEditing(false)
 
       // Show success message
       setShowSaveSuccess(true)
+      console.log("[v0] handleSave success state set")
       setTimeout(() => setShowSaveSuccess(false), 3000)
     } catch (error: any) {
       console.error("[v0] handleSave caught error:", error?.message, error)
