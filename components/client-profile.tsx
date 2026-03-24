@@ -454,7 +454,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
         </div>
       )}
 
-      {saveError && (
+      {saveError && isEditing && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
           <div className="flex">
             <div className="flex-shrink-0">
