@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Edit, Save, X, User, Phone, GraduationCap, FileText, Trash2 } from "lucide-react"
 import { caseNotesApi, clientsApi, clientFilesApi, type ClientFile } from "@/lib/supabase"
+import { formatDate as formatDateUtil, formatDateTime as formatDateTimeUtil } from "@/lib/utils"
 import { FileUploadManager } from "./file-upload-manager"
 
 interface Client {
@@ -316,13 +317,9 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
     }
   }
 
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString()
-    } catch {
-      return dateString
-    }
-  }
+  // Use the centralized date formatting utilities from lib/utils
+  const formatDate = formatDateUtil
+  const formatDateTime = formatDateTimeUtil
 
   // Use currentClient for display when not editing, editedClient when editing
   const displayClient = isEditing ? editedClient : currentClient
@@ -1111,18 +1108,20 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
               <CardContent className="px-4 pb-4 pt-0">
                 <div className="space-y-4 max-h-[600px] overflow-y-auto">
                   <div className="space-y-3">
-                    {caseNotes.map((note) => (
-                      <div key={note.id} className="border-l-4 border-blue-500 pl-4 py-2 bg-gray-50 rounded-r">
-                        <div className="flex items-start justify-between mb-1">
-                          <span className="text-sm font-medium text-blue-600">{note.author}</span>
-                          <span className="text-sm text-gray-500">
-                            {new Date(note.date).toLocaleDateString()} at{" "}
-                            {new Date(note.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
+                    {caseNotes.map((note) => {
+                      const { date, time } = formatDateTime(note.date)
+                      return (
+                        <div key={note.id} className="border-l-4 border-blue-500 pl-4 py-2 bg-gray-50 rounded-r">
+                          <div className="flex items-start justify-between mb-1">
+                            <span className="text-sm font-medium text-blue-600">{note.author}</span>
+                            <span className="text-sm text-gray-500">
+                              {date} at {time}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700">{note.note}</p>
                         </div>
-                        <p className="text-sm text-gray-700">{note.note}</p>
-                      </div>
-                    ))}
+                      )
+                    })}
                     {caseNotes.length === 0 && (
                       <p className="text-sm text-gray-500 italic text-center py-4">No case notes yet</p>
                     )}
