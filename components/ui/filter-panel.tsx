@@ -29,7 +29,7 @@ export function FilterPanel({
   activeFilters = {},
   onClearFilters = () => {},
 }: FilterPanelProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(true)
 
   const handleFilterChange = (key: string, value: any) => {
     onFiltersChange({
