@@ -93,7 +93,26 @@ export async function PUT(request: Request) {
 
     // Add last_modified timestamp and clean up the data
     // Remove any fields that shouldn't be sent to the database
-    const { case_notes, ...cleanUpdates } = updates
+    const { case_notes, caseNotes, ...cleanUpdates } = updates
+    
+    // Handle date fields - convert empty strings to null
+    const dateFields = ['date_of_birth', 'enrollment_date', 'last_contact']
+    dateFields.forEach(field => {
+      if (cleanUpdates[field] === '' || cleanUpdates[field] === undefined) {
+        cleanUpdates[field] = null
+      }
+    })
+    
+    // Handle numeric fields - convert empty strings to null
+    const numericFields = ['required_hours', 'graduation_year', 'gpa']
+    numericFields.forEach(field => {
+      if (cleanUpdates[field] === '' || cleanUpdates[field] === undefined) {
+        cleanUpdates[field] = null
+      } else if (typeof cleanUpdates[field] === 'string') {
+        const parsed = parseFloat(cleanUpdates[field])
+        cleanUpdates[field] = isNaN(parsed) ? null : parsed
+      }
+    })
     
     const updateData = {
       ...cleanUpdates,
