@@ -243,7 +243,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
         setCaseNote("")
         setShowCaseNoteForm(false)
 
-        // Update the client with new case note
+        // Update the local client state with new case note (no need to save the whole client)
         const updatedClient = {
           ...currentClient,
           lastContact: new Date().toISOString(),
@@ -252,13 +252,20 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
           caseNotes: updatedCaseNotes,
         }
 
-        // Save the updated client
-        await onSave(updatedClient)
         setCurrentClient(updatedClient)
         setEditedClient(updatedClient)
 
+        // Show success - the case note was saved to the database
         setShowNoteSuccess(true)
         setTimeout(() => setShowNoteSuccess(false), 3000)
+
+        // Try to update the client's last_modified separately (non-blocking)
+        try {
+          await onSave(updatedClient)
+        } catch (clientUpdateError) {
+          // Case note was saved successfully, client update is secondary
+          console.log("[v0] Client timestamp update failed (case note was saved):", clientUpdateError)
+        }
       } catch (error) {
         console.error("Error saving case note:", error)
         setSaveError("Failed to save case note. Please try again.")
