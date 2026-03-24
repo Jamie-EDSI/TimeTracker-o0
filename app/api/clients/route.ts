@@ -88,12 +88,41 @@ export async function PUT(request: Request) {
     }
 
     console.log("[v0] Updating client:", id)
+    console.log("[v0] Update payload keys:", Object.keys(updates))
+    console.log("[v0] Full update payload:", JSON.stringify(updates, null, 2))
 
-    // Add last_modified timestamp
+    // Add last_modified timestamp and clean up the data
+    // Remove any fields that shouldn't be sent to the database
+    const { case_notes, caseNotes, ...cleanUpdates } = updates
+    
+    // Handle date fields - convert empty strings/undefined to null
+    // PostgreSQL date columns reject empty strings, they require null or a valid date
+    const dateFields = ['date_of_birth', 'enrollment_date', 'last_contact']
+    dateFields.forEach(field => {
+      const val = cleanUpdates[field]
+      if (!val || (typeof val === 'string' && val.trim() === '')) {
+        cleanUpdates[field] = null
+      }
+    })
+    
+    // Handle numeric fields - convert empty strings to null
+    const numericFields = ['required_hours', 'graduation_year', 'gpa']
+    numericFields.forEach(field => {
+      if (cleanUpdates[field] === '' || cleanUpdates[field] === undefined) {
+        cleanUpdates[field] = null
+      } else if (typeof cleanUpdates[field] === 'string') {
+        const parsed = parseFloat(cleanUpdates[field])
+        cleanUpdates[field] = isNaN(parsed) ? null : parsed
+      }
+    })
+    
     const updateData = {
-      ...updates,
+      ...cleanUpdates,
       last_modified: new Date().toISOString(),
+      modified_by: cleanUpdates.modified_by || "Current User",
     }
+    
+    console.log("[v0] Cleaned update data keys:", Object.keys(updateData))
 
     const { data, error } = await supabaseServer!
       .from("clients")
@@ -103,10 +132,15 @@ export async function PUT(request: Request) {
       .single()
 
     if (error) {
-      console.error("[v0] Database error during update:", error)
+      console.error("[v0] Database error during update:", JSON.stringify(error, null, 2))
+      console.error("[v0] Error code:", error.code)
+      console.error("[v0] Error hint:", error.hint)
+      console.error("[v0] Error details:", error.details)
       return NextResponse.json({
         success: false,
-        error: error.message,
+        error: `${error.message} (code: ${error.code})`,
+        details: error.details,
+        hint: error.hint,
       }, { status: 500 })
     }
 

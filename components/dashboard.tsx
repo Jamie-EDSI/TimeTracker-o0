@@ -71,14 +71,14 @@ const transformToSupabaseClient = (client: any): Omit<SupabaseClient, "id" | "cr
     participant_id: client.participantId || "",
     program: client.program || "",
     status: client.status || "Active",
-    enrollment_date: client.enrollmentDate || "",
+    enrollment_date: client.enrollmentDate && client.enrollmentDate.trim() !== "" ? client.enrollmentDate : null,
     phone: client.phone || "",
     email: client.email || "",
     address: client.address || "",
     city: client.city || "",
     state: client.state || "",
     zip_code: client.zipCode || "",
-    date_of_birth: client.dateOfBirth || "",
+    date_of_birth: client.dateOfBirth && client.dateOfBirth.trim() !== "" ? client.dateOfBirth : null,
     case_manager: client.caseManager || "",
     modified_by: client.modifiedBy || "Current User",
   }
@@ -276,30 +276,14 @@ export function Dashboard() {
       if (!background) setIsLoading(true)
       setError(null)
       const supabaseClients = await clientsApi.getAll()
-      const transformedClients = supabaseClients.map(transformSupabaseClient)
+      // Transform clients without fetching case notes for every client on load.
+      // Case notes are loaded on-demand when a specific client profile is opened.
+      const transformedClients = supabaseClients.map((c) => ({
+        ...transformSupabaseClient(c),
+        caseNotes: [],
+      }))
 
-      // Load case notes for each client
-      const clientsWithCaseNotes = await Promise.all(
-        transformedClients.map(async (client) => {
-          try {
-            const caseNotes = await caseNotesApi.getByClientId(client.id)
-            return {
-              ...client,
-              caseNotes: caseNotes.map((note) => ({
-                id: note.id,
-                note: note.note,
-                date: note.created_at,
-                author: note.author,
-              })),
-            }
-          } catch (error) {
-            console.error(`Error loading case notes for client ${client.id}:`, error)
-            return { ...client, caseNotes: [] }
-          }
-        }),
-      )
-
-      setClients(clientsWithCaseNotes)
+      setClients(transformedClients)
     } catch (error) {
       console.error("Error loading clients:", error)
       setError("Failed to load clients. Please try again.")
@@ -374,13 +358,16 @@ export function Dashboard() {
 
       // Validate the updated client data
       const validation = validateClientData(updatedClient)
+      console.log("[v0] handleSaveClient validation:", { isValid: validation.isValid, errors: validation.errors })
       if (!validation.isValid) {
         throw new Error(`Validation errors: ${validation.errors.join(", ")}`)
       }
 
       // Transform to Supabase format and update
       const supabaseClientData = transformToSupabaseClient(updatedClient)
+      console.log("[v0] handleSaveClient calling clientsApi.update, id:", updatedClient.id)
       const savedSupabaseClient = await clientsApi.update(updatedClient.id, supabaseClientData)
+      console.log("[v0] handleSaveClient clientsApi.update returned:", !!savedSupabaseClient)
       const savedClient = transformSupabaseClient(savedSupabaseClient)
 
       // Preserve case notes from the updated client

@@ -95,6 +95,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   useEffect(() => {
     setCurrentClient(client)
     setEditedClient({ ...client })
+    setSaveError(null) // Clear any stale errors when client data refreshes
     if (client.caseNotes) {
       setCaseNotes(client.caseNotes)
     }
@@ -112,8 +113,9 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       const eduFiles = await clientFilesApi.getByClientId(client.id, "education")
       setEducationFiles(eduFiles)
     } catch (error) {
+      // Don't use setSaveError here — file loading failures shouldn't show
+      // the same "Failed to save client data" banner used for save operations
       console.error("Error loading client files:", error)
-      setSaveError("Failed to load client files")
     } finally {
       setIsLoadingFiles(false)
     }
@@ -162,6 +164,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
 
       // Validate the data before saving
       const validation = validateClientData(editedClient)
+      console.log("[v0] handleSave validation:", { isValid: validation.isValid, errors: validation.errors, program: editedClient.program })
       if (!validation.isValid) {
         setSaveError(`Validation errors: ${validation.errors.join(", ")}`)
         return
@@ -169,16 +172,18 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
 
       // Create a complete client object with all current data
       const clientToSave = {
-        ...editedClient, // Use all the edited data
-        id: currentClient.id, // Preserve the original ID
-        participantId: currentClient.participantId, // Preserve PID
+        ...editedClient,
+        id: currentClient.id,
+        participantId: currentClient.participantId,
         lastModified: new Date().toISOString(),
         modifiedBy: "Current User",
-        caseNotes: caseNotes, // Include current case notes
+        caseNotes: caseNotes,
       }
 
+      console.log("[v0] handleSave calling onSave with id:", clientToSave.id)
       // Call the parent save function and wait for it to complete
       await onSave(clientToSave)
+      console.log("[v0] handleSave onSave completed successfully")
 
       // Update local state with saved data only after successful save
       setCurrentClient(clientToSave)
@@ -187,8 +192,8 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       // Show success message
       setShowSaveSuccess(true)
       setTimeout(() => setShowSaveSuccess(false), 3000)
-    } catch (error) {
-      console.error("Error saving client:", error)
+    } catch (error: any) {
+      console.error("[v0] handleSave caught error:", error?.message, error)
       setSaveError("Failed to save client data. Please try again.")
     } finally {
       setIsSaving(false)
@@ -221,6 +226,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
     if (caseNote.trim()) {
       try {
         setIsSaving(true)
+        setSaveError(null) // Clear any previous errors
 
         // Save case note to Supabase
         const newCaseNote = await caseNotesApi.create({
@@ -242,7 +248,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
         setCaseNote("")
         setShowCaseNoteForm(false)
 
-        // Update the client with new case note
+        // Update the local client state with new case note (no need to save the whole client)
         const updatedClient = {
           ...currentClient,
           lastContact: new Date().toISOString(),
@@ -251,13 +257,20 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
           caseNotes: updatedCaseNotes,
         }
 
-        // Save the updated client
-        await onSave(updatedClient)
         setCurrentClient(updatedClient)
         setEditedClient(updatedClient)
 
+        // Show success - the case note was saved to the database
         setShowNoteSuccess(true)
         setTimeout(() => setShowNoteSuccess(false), 3000)
+
+        // Try to update the client's last_modified separately (non-blocking)
+        try {
+          await onSave(updatedClient)
+        } catch (clientUpdateError) {
+          // Case note was saved successfully, client update is secondary
+          console.log("[v0] Client timestamp update failed (case note was saved):", clientUpdateError)
+        }
       } catch (error) {
         console.error("Error saving case note:", error)
         setSaveError("Failed to save case note. Please try again.")

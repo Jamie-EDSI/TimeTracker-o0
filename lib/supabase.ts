@@ -688,12 +688,14 @@ export const clientsApi = {
   },
 
   async update(id: string, updates: Partial<Client>): Promise<Client> {
-    const validation = DataValidator.validateClient({ ...updates, id })
-    if (!validation.isValid) {
-      throw new Error(`Validation failed: ${validation.errors.join(", ")}`)
+    // Only validate fields that are being updated — participant_id is immutable and not sent on update
+    const hasName = updates.first_name && updates.first_name.trim() !== ""
+    const hasLastName = updates.last_name && updates.last_name.trim() !== ""
+    if (!hasName || !hasLastName) {
+      console.error("[v0] Update validation failed — missing first_name or last_name:", { first_name: updates.first_name, last_name: updates.last_name })
+      throw new Error("Validation failed: First name and last name are required")
     }
-
-    console.log("[v0] clientsApi.update() - updating via API")
+    console.log("[v0] clientsApi.update() - validation passed, updating via API")
 
     try {
       const updateData = cleanDataForSupabase(updates)
@@ -706,6 +708,16 @@ export const clientsApi = {
         body: JSON.stringify({ id, ...updateData }),
       })
 
+      // Check for rate limiting or HTML error responses
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("[v0] Non-JSON response:", response.status, response.statusText)
+        if (response.status === 429) {
+          throw new Error("Too many requests. Please wait a moment and try again.")
+        }
+        throw new Error(`Server error (${response.status}): ${response.statusText}`)
+      }
+
       const result = await response.json()
       console.log("[v0] Update API response:", { success: result.success, hasData: !!result.data })
 
@@ -713,7 +725,7 @@ export const clientsApi = {
         throw new Error(result.error || "Failed to update client")
       }
 
-      console.log("✅ Client updated:", id)
+      console.log("[v0] Client updated:", id)
       return result.data
     } catch (error: any) {
       console.error("[v0] Exception calling update API:", error.message)
@@ -788,21 +800,46 @@ export const clientsApi = {
   },
 }
 
+// Helper to safely parse JSON response and handle rate limiting
+async function parseApiResponse(response: Response, errorContext: string): Promise<{ ok: boolean; data?: any; error?: string }> {
+  const contentType = response.headers.get("content-type")
+  
+  // Check for non-JSON responses (rate limiting, server errors)
+  if (!contentType || !contentType.includes("application/json")) {
+    console.error(`[v0] Non-JSON response for ${errorContext}:`, response.status, response.statusText)
+    if (response.status === 429) {
+      return { ok: false, error: "Too many requests. Please wait a moment and try again." }
+    }
+    return { ok: false, error: `Server error (${response.status}): ${response.statusText}` }
+  }
+
+  try {
+    const result = await response.json()
+    if (!response.ok || !result.success) {
+      return { ok: false, error: result.error || "Operation failed" }
+    }
+    return { ok: true, data: result.data }
+  } catch (parseError: any) {
+    console.error(`[v0] JSON parse error for ${errorContext}:`, parseError.message)
+    return { ok: false, error: "Invalid server response" }
+  }
+}
+
 export const caseNotesApi = {
   async getByClientId(clientId: string): Promise<CaseNote[]> {
     console.log("[v0] caseNotesApi.getByClientId() - fetching via API")
 
     try {
       const response = await fetch(`/api/case-notes?clientId=${encodeURIComponent(clientId)}`)
-      const result = await response.json()
+      const { ok, data, error } = await parseApiResponse(response, "getByClientId")
 
-      if (!response.ok || !result.success) {
-        console.log("[v0] Case notes API failed, returning empty array")
+      if (!ok) {
+        console.log("[v0] Case notes API failed:", error)
         return []
       }
 
-      console.log("[v0] Case notes API response:", { count: result.data?.length || 0 })
-      return result.data || []
+      console.log("[v0] Case notes API response:", { count: data?.length || 0 })
+      return data || []
     } catch (error: any) {
       console.error("[v0] Exception fetching case notes:", error.message)
       return []
@@ -826,15 +863,14 @@ export const caseNotesApi = {
         body: JSON.stringify(caseNote),
       })
 
-      const result = await response.json()
-      console.log("[v0] Create case note API response:", { success: result.success, hasData: !!result.data })
+      const { ok, data, error } = await parseApiResponse(response, "create case note")
 
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Failed to create case note")
+      if (!ok || !data) {
+        throw new Error(error || "Failed to create case note")
       }
 
-      console.log("✅ Case note created:", result.data.id)
-      return result.data
+      console.log("[v0] Case note created:", data.id)
+      return data
     } catch (error: any) {
       console.error("[v0] Exception calling create case note API:", error.message)
       throw error
@@ -850,13 +886,13 @@ export const caseNotesApi = {
         { method: "DELETE" }
       )
 
-      const result = await response.json()
+      const { ok, error } = await parseApiResponse(response, "softDelete")
 
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Failed to delete case note")
+      if (!ok) {
+        throw new Error(error || "Failed to delete case note")
       }
 
-      console.log("✅ Case note soft deleted:", id)
+      console.log("[v0] Case note soft deleted:", id)
     } catch (error: any) {
       console.error("[v0] Exception deleting case note:", error.message)
       throw error
