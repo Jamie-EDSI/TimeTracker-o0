@@ -14,6 +14,7 @@ import { JobsPlacementsReport } from "./jobs-placements-report"
 import { AllClientsReport } from "./all-clients-report"
 import { RecycleBin } from "./recycle-bin"
 import { clientsApi, caseNotesApi, type Client as SupabaseClient } from "@/lib/supabase"
+import { formatDate } from "@/lib/utils"
 
 // Transform Supabase client to component client format
 const transformSupabaseClient = (supabaseClient: SupabaseClient): any => ({
@@ -1035,7 +1036,7 @@ export function Dashboard() {
                         <Calendar className="w-4 h-4 text-gray-400 mt-0.5" />
                         <div>
                           <p className="text-gray-600">
-                            {client.createdAt ? new Date(client.createdAt).toLocaleDateString() : "Recently"}
+                            {client.createdAt ? formatDate(client.createdAt) : "Recently"}
                           </p>
                           <p className="font-medium">
                             {client.isNew ? "New client created: " : "Client enrolled: "}
