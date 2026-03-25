@@ -701,11 +701,11 @@ export const clientsApi = {
       const updateData = cleanDataForSupabase(updates)
       
       const response = await fetch("/api/clients", {
-        method: "PUT",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ id, ...updateData }),
+        body: JSON.stringify({ id, action: "update", ...updateData }),
       })
 
       // Check for rate limiting or HTML error responses
