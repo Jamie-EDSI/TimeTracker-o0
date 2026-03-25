@@ -609,24 +609,28 @@ export const clientsApi = {
   },
 
   async getDeleted(): Promise<Client[]> {
-    if (!supabase || configError || !databaseReady) {
-      return []
-    }
+    console.log("[v0] clientsApi.getDeleted() - fetching deleted clients from API")
 
     try {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .not("deleted_at", "is", null)
-        .order("deleted_at", { ascending: false })
+      const response = await fetch("/api/clients?deleted=true")
 
-      if (error) {
-        console.error("Error loading deleted clients:", extractErrorMessage(error))
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("[v0] Non-JSON response from getDeleted API")
         return []
       }
 
-      return data || []
-    } catch (error) {
+      const result = await response.json()
+      
+      if (!result.success) {
+        console.error("[v0] getDeleted API error:", result.message)
+        return []
+      }
+
+      console.log("[v0] Loaded deleted clients:", result.data.length)
+      return result.data || []
+    } catch (error: any) {
+      console.error("[v0] Exception in getDeleted:", error.message)
       return []
     }
   },
@@ -656,36 +660,45 @@ export const clientsApi = {
       throw new Error(`Validation failed: ${validation.errors.join(", ")}`)
     }
 
-    if (!supabase || configError || !databaseReady) {
-      await simulateDelay()
-      const newClient: Client = {
+    console.log("[v0] clientsApi.create() - calling API to create client")
+
+    try {
+      const clientData = cleanDataForSupabase({
         ...client,
-        id: `demo-${Date.now()}`,
         created_at: new Date().toISOString(),
-        last_modified: new Date().toISOString(),
+      })
+
+      const response = await fetch("/api/clients", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "insert", ...clientData }),
+      })
+
+      // Check for rate limiting or HTML error responses
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("[v0] Non-JSON response:", response.status, response.statusText)
+        if (response.status === 429) {
+          throw new Error("Too many requests. Please wait a moment and try again.")
+        }
+        throw new Error(`Server error (${response.status}): ${response.statusText}`)
       }
-      mockClients.unshift(newClient)
-      console.log("✅ Client created in demo mode")
-      return newClient
+
+      const result = await response.json()
+      console.log("[v0] Create API response:", { success: result.success, hasData: !!result.data })
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to create client")
+      }
+
+      console.log("[v0] Client created:", result.data.id)
+      return result.data
+    } catch (error: any) {
+      console.error("[v0] Exception in create:", error.message)
+      throw error
     }
-
-    const clientData = cleanDataForSupabase({
-      ...client,
-      created_at: new Date().toISOString(),
-    })
-
-    return SupabaseDebugger.logOperation("INSERT", "clients", clientData, async () => {
-      const { data, error } = await supabase.from("clients").insert([clientData]).select().single()
-
-      if (error) {
-        const errorMsg = extractErrorMessage(error)
-        console.error("Error creating client:", errorMsg)
-        throw new Error(`Database error: ${errorMsg}`)
-      }
-
-      console.log("✅ Client created:", data.id)
-      return data
-    })
   },
 
   async update(id: string, updates: Partial<Client>): Promise<Client> {
