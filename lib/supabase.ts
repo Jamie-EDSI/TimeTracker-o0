@@ -737,11 +737,6 @@ export const clientsApi = {
   async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
     console.log("[v0] DELETE: softDelete called with id:", id)
 
-    if (!supabase || configError || !databaseReady) {
-      console.log("[v0] DELETE: Demo mode, returning early")
-      return
-    }
-
     try {
       console.log("[v0] DELETE: Making DELETE API request")
       const response = await fetch(
@@ -792,19 +787,20 @@ export const clientsApi = {
   },
 
   async permanentDelete(id: string): Promise<void> {
-    if (!supabase || configError || !databaseReady) {
-      console.log("[v0] Permanent delete not available in demo mode")
-      return
-    }
+    try {
+      const response = await fetch(
+        `/api/clients?id=${encodeURIComponent(id)}&action=permanent`,
+        { method: "DELETE" }
+      )
 
-    const response = await fetch(
-      `/api/clients?id=${encodeURIComponent(id)}&action=permanent`,
-      { method: "DELETE" }
-    )
-
-    const { ok, error } = await parseApiResponse(response, "permanentDelete")
-    if (!ok || error) {
-      throw new Error(error || "Failed to permanently delete client")
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || `API error: ${response.status}`)
+      }
+      console.log("[v0] DELETE: Permanent delete successful")
+    } catch (error: any) {
+      console.error("[v0] DELETE: Error in permanentDelete:", error.message)
+      throw error
     }
   },
 }
