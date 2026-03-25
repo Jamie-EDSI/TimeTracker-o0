@@ -737,6 +737,11 @@ export const clientsApi = {
   async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
     console.log("[v0] DELETE: softDelete called with id:", id)
 
+    if (!supabase || configError || !databaseReady) {
+      console.log("[v0] DELETE: Demo mode, returning early")
+      return
+    }
+
     try {
       console.log("[v0] DELETE: Making DELETE API request")
       const response = await fetch(
@@ -747,16 +752,8 @@ export const clientsApi = {
       console.log("[v0] DELETE: API response status:", response.status, "ok:", response.ok)
       
       if (!response.ok) {
-        let errorMessage = `API error: ${response.status}`
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
-        } catch (e) {
-          // Response wasn't JSON, use status text
-          errorMessage = response.statusText || errorMessage
-          console.log("[v0] DELETE: Response body was not JSON, error:", errorMessage)
-        }
-        throw new Error(errorMessage)
+        const error = await response.json()
+        throw new Error(error.error || `API error: ${response.status}`)
       }
 
       const result = await response.json()
@@ -795,27 +792,19 @@ export const clientsApi = {
   },
 
   async permanentDelete(id: string): Promise<void> {
-    try {
-      const response = await fetch(
-        `/api/clients?id=${encodeURIComponent(id)}&action=permanent`,
-        { method: "DELETE" }
-      )
+    if (!supabase || configError || !databaseReady) {
+      console.log("[v0] Permanent delete not available in demo mode")
+      return
+    }
 
-      if (!response.ok) {
-        let errorMessage = `API error: ${response.status}`
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
-        } catch (e) {
-          // Response wasn't JSON, use status text
-          errorMessage = response.statusText || errorMessage
-        }
-        throw new Error(errorMessage)
-      }
-      console.log("[v0] DELETE: Permanent delete successful")
-    } catch (error: any) {
-      console.error("[v0] DELETE: Error in permanentDelete:", error.message)
-      throw error
+    const response = await fetch(
+      `/api/clients?id=${encodeURIComponent(id)}&action=permanent`,
+      { method: "DELETE" }
+    )
+
+    const { ok, error } = await parseApiResponse(response, "permanentDelete")
+    if (!ok || error) {
+      throw new Error(error || "Failed to permanently delete client")
     }
   },
 }
