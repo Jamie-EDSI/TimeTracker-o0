@@ -1,18 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
   typescript: {
     ignoreBuildErrors: true,
-  },
-  images: {
-    unoptimized: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
   },
-  swcMinify: true,
-  productionBrowserSourceMaps: false,
-  experimental: {
-    optimizePackageImports: ["@radix-ui/react-*"],
+  images: {
+    unoptimized: true,
   },
 }
 
