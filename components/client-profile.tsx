@@ -89,6 +89,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   // Load client files on component mount
   useEffect(() => {
     loadClientFiles()
+    console.log("[v0] DELETE: ClientProfile mounted - component ready")
   }, [client.id])
 
   // Update local state when client prop changes
@@ -315,6 +316,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   }
 
   const handleDeleteCancel = () => {
+    console.log("[v0] DELETE: handleDeleteCancel fired - modal cancelled")
     setShowDeleteConfirm(false)
   }
 
