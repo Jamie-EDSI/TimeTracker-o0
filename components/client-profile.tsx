@@ -164,9 +164,8 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
 
       // Validate the data before saving
       const validation = validateClientData(editedClient)
-      console.log("[v0] handleSave validation:", { isValid: validation.isValid, errors: validation.errors, program: editedClient.program })
       if (!validation.isValid) {
-        setSaveError(`Validation errors: ${validation.errors.join(", ")}`)
+        setSaveError(`Please fix: ${validation.errors.join(", ")}`)
         return
       }
 
@@ -180,12 +179,11 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
         caseNotes: caseNotes,
       }
 
-      console.log("[v0] handleSave calling onSave with id:", clientToSave.id)
       // Call the parent save function and wait for it to complete
       await onSave(clientToSave)
-      console.log("[v0] handleSave onSave completed successfully")
 
-      // Update local state with saved data only after successful save
+      // Clear error and update local state with saved data
+      setSaveError(null)
       setCurrentClient(clientToSave)
       setIsEditing(false)
 
@@ -193,8 +191,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       setShowSaveSuccess(true)
       setTimeout(() => setShowSaveSuccess(false), 3000)
     } catch (error: any) {
-      console.error("[v0] handleSave caught error:", error?.message, error)
-      setSaveError("Failed to save client data. Please try again.")
+      setSaveError(error?.message || "Failed to save client data. Please try again.")
     } finally {
       setIsSaving(false)
     }
@@ -452,7 +449,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
         </div>
       )}
 
-      {saveError && (
+      {saveError && isEditing && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
           <div className="flex">
             <div className="flex-shrink-0">
