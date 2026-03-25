@@ -277,8 +277,11 @@ export async function PUT(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   console.log("[v0] API /api/clients called")
+  
+  const url = new URL(request.url)
+  const deleted = url.searchParams.get("deleted")
 
   // If no server access, return mock data
   if (!hasServerAccess()) {
@@ -294,11 +297,19 @@ export async function GET() {
   try {
     console.log("[v0] Querying database with service role...")
     
-    const { data, error } = await supabaseServer!
-      .from("clients")
-      .select("*")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
+    let query = supabaseServer!.from("clients").select("*")
+    
+    // Filter based on deleted parameter
+    if (deleted === "true") {
+      query = query.not("deleted_at", "is", null)
+    } else {
+      query = query.is("deleted_at", null)
+    }
+    
+    const { data, error } = await query.order(
+      deleted === "true" ? "deleted_at" : "created_at",
+      { ascending: false }
+    )
 
     console.log("[v0] Query result:", {
       dataCount: data?.length,

@@ -609,24 +609,28 @@ export const clientsApi = {
   },
 
   async getDeleted(): Promise<Client[]> {
-    if (!supabase || configError || !databaseReady) {
-      return []
-    }
+    console.log("[v0] clientsApi.getDeleted() - fetching deleted clients from API")
 
     try {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .not("deleted_at", "is", null)
-        .order("deleted_at", { ascending: false })
+      const response = await fetch("/api/clients?deleted=true")
 
-      if (error) {
-        console.error("Error loading deleted clients:", extractErrorMessage(error))
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("[v0] Non-JSON response from getDeleted API")
         return []
       }
 
-      return data || []
-    } catch (error) {
+      const result = await response.json()
+      
+      if (!result.success) {
+        console.error("[v0] getDeleted API error:", result.message)
+        return []
+      }
+
+      console.log("[v0] Loaded deleted clients:", result.data.length)
+      return result.data || []
+    } catch (error: any) {
+      console.error("[v0] Exception in getDeleted:", error.message)
       return []
     }
   },
