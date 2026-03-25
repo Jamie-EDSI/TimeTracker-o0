@@ -734,20 +734,27 @@ export const clientsApi = {
   },
 
   async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
+    console.log("[v0] DELETE: softDelete() called - id:", id, "deletedBy:", deletedBy)
+
     if (!supabase || configError || !databaseReady) {
-      console.log("[v0] Soft delete not available in demo mode")
+      console.log("[v0] DELETE: Soft delete not available in demo mode")
       return
     }
 
+    console.log("[v0] DELETE: supabase config ready, making DELETE API call")
     const response = await fetch(
       `/api/clients?id=${encodeURIComponent(id)}&action=soft&deletedBy=${encodeURIComponent(deletedBy)}`,
       { method: "DELETE" }
     )
 
+    console.log("[v0] DELETE: API response status:", response.status)
     const { ok, error } = await parseApiResponse(response, "softDelete")
+    console.log("[v0] DELETE: parseApiResponse result - ok:", ok, "error:", error)
+    
     if (!ok || error) {
       throw new Error(error || "Failed to delete client")
     }
+    console.log("[v0] DELETE: softDelete completed successfully")
   },
 
   async restore(id: string): Promise<Client> {

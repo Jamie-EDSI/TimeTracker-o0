@@ -288,20 +288,24 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
 
   const handleDeleteConfirm = async () => {
     try {
+      console.log("[v0] DELETE: handleDeleteConfirm started - client id:", currentClient.id)
       setIsDeleting(true)
 
       // Soft delete the client (move to recycle bin)
+      console.log("[v0] DELETE: calling clientsApi.softDelete()")
       await clientsApi.softDelete(currentClient.id, "Current User")
+      console.log("[v0] DELETE: softDelete completed successfully")
 
       // Show success message and navigate back
       setShowDeleteConfirm(false)
 
       // Navigate back to dashboard after successful deletion
       setTimeout(() => {
+        console.log("[v0] DELETE: navigating back to dashboard")
         onBack()
       }, 1000)
     } catch (error: any) {
-      console.error("Error deleting client:", error?.message || String(error))
+      console.error("[v0] DELETE: Error deleting client:", error?.message || String(error), error)
       setSaveError("Failed to delete client. Please try again.")
       setShowDeleteConfirm(false)
     } finally {
