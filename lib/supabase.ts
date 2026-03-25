@@ -747,8 +747,16 @@ export const clientsApi = {
       console.log("[v0] DELETE: API response status:", response.status, "ok:", response.ok)
       
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || `API error: ${response.status}`)
+        let errorMessage = `API error: ${response.status}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch (e) {
+          // Response wasn't JSON, use status text
+          errorMessage = response.statusText || errorMessage
+          console.log("[v0] DELETE: Response body was not JSON, error:", errorMessage)
+        }
+        throw new Error(errorMessage)
       }
 
       const result = await response.json()
@@ -794,8 +802,15 @@ export const clientsApi = {
       )
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || `API error: ${response.status}`)
+        let errorMessage = `API error: ${response.status}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch (e) {
+          // Response wasn't JSON, use status text
+          errorMessage = response.statusText || errorMessage
+        }
+        throw new Error(errorMessage)
       }
       console.log("[v0] DELETE: Permanent delete successful")
     } catch (error: any) {

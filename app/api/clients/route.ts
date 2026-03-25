@@ -439,9 +439,10 @@ export async function DELETE(request: Request) {
     }
   } catch (error: any) {
     console.error("[v0] Exception in DELETE /api/clients:", error.message)
+    console.error("[v0] Full error:", error)
     return NextResponse.json({
       success: false,
-      error: error.message,
+      error: error.message || "Unknown server error",
     }, { status: 500 })
   }
 }
