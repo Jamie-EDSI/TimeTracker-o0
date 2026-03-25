@@ -24,6 +24,7 @@ let databaseReady = false
 if (hasValidConfig) {
   try {
     supabase = createClient(supabaseUrl, supabaseAnonKey)
+    databaseReady = true
     console.log("✅ Supabase client created successfully")
   } catch (error: any) {
     console.error("❌ Failed to create Supabase client:", error)
