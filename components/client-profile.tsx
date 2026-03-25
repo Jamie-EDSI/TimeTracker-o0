@@ -283,33 +283,42 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   }
 
   const handleDeleteClick = () => {
-    setShowDeleteConfirm(true)
+    console.log("[v0] DELETE: handleDeleteClick fired")
+    try {
+      setShowDeleteConfirm(true)
+    } catch (err) {
+      console.error("[v0] DELETE: Error in handleDeleteClick:", err)
+    }
   }
 
   const handleDeleteConfirm = async () => {
+    console.log("[v0] DELETE: handleDeleteConfirm started")
     try {
       setIsDeleting(true)
+      console.log("[v0] DELETE: About to call softDelete for id:", currentClient?.id)
 
-      // Soft delete the client (move to recycle bin)
+      if (!currentClient?.id) {
+        throw new Error("No client ID available")
+      }
+
       await clientsApi.softDelete(currentClient.id, "Current User")
+      console.log("[v0] DELETE: softDelete API call completed")
 
-      // Show success message and navigate back
       setShowDeleteConfirm(false)
-
-      // Navigate back to dashboard after successful deletion
       setTimeout(() => {
+        console.log("[v0] DELETE: Navigating back")
         onBack()
-      }, 1000)
-    } catch (error) {
-      console.error("Error deleting client:", error)
-      setSaveError("Failed to delete client. Please try again.")
-      setShowDeleteConfirm(false)
+      }, 500)
+    } catch (error: any) {
+      console.error("[v0] DELETE: Error:", error?.message || error)
+      setSaveError(`Delete failed: ${error?.message || "Unknown error"}`)
     } finally {
       setIsDeleting(false)
     }
   }
 
   const handleDeleteCancel = () => {
+    console.log("[v0] DELETE: handleDeleteCancel fired")
     setShowDeleteConfirm(false)
   }
 
@@ -380,7 +389,10 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
               </Button>
             )}
             <Button
-              onClick={handleDeleteClick}
+              onClick={(e) => {
+                console.log("[v0] DELETE: Button clicked! Event:", e)
+                handleDeleteClick()
+              }}
               variant="outline"
               size="sm"
               className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 bg-transparent"

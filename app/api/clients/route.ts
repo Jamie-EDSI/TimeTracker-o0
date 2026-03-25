@@ -289,3 +289,96 @@ export async function GET() {
     })
   }
 }
+
+export async function DELETE(request: Request) {
+  console.log("[v0] API /api/clients DELETE called")
+
+  if (!hasServerAccess()) {
+    console.log("[v0] No service role key - cannot delete")
+    return NextResponse.json({
+      success: false,
+      error: "Database not configured - cannot delete clients",
+    }, { status: 503 })
+  }
+
+  try {
+    const url = new URL(request.url)
+    const id = url.searchParams.get("id")
+    const action = url.searchParams.get("action") || "soft"
+    const deletedBy = url.searchParams.get("deletedBy") || "Current User"
+
+    if (!id) {
+      return NextResponse.json({
+        success: false,
+        error: "Client ID is required",
+      }, { status: 400 })
+    }
+
+    if (action === "soft") {
+      // Soft delete - mark as deleted with timestamp
+      await supabaseServer!
+        .from("case_notes")
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: deletedBy,
+        })
+        .eq("client_id", id)
+
+      const { data, error } = await supabaseServer!
+        .from("clients")
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: deletedBy,
+        })
+        .eq("id", id)
+        .select()
+        .single()
+
+      if (error) {
+        return NextResponse.json({
+          success: false,
+          error: error.message,
+        }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: data,
+        message: "Client moved to recycle bin",
+      })
+    } else if (action === "permanent") {
+      // Permanent delete
+      await supabaseServer!
+        .from("case_notes")
+        .delete()
+        .eq("client_id", id)
+
+      const { error } = await supabaseServer!
+        .from("clients")
+        .delete()
+        .eq("id", id)
+
+      if (error) {
+        return NextResponse.json({
+          success: false,
+          error: error.message,
+        }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Client permanently deleted",
+      })
+    } else {
+      return NextResponse.json({
+        success: false,
+        error: "Invalid action. Use 'soft' or 'permanent'.",
+      }, { status: 400 })
+    }
+  } catch (error: any) {
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+    }, { status: 500 })
+  }
+}
