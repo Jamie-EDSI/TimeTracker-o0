@@ -233,6 +233,54 @@ export async function PUT(request: Request) {
   }
 }
 
+export async function DELETE(request: Request) {
+  if (!hasServerAccess()) {
+    return NextResponse.json(
+      { success: false, error: "Database not configured - cannot delete clients" },
+      { status: 503 }
+    )
+  }
+
+  try {
+    const url = new URL(request.url)
+    const id = url.searchParams.get("id")
+    const deletedBy = url.searchParams.get("deletedBy") || "Current User"
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "Client ID is required" },
+        { status: 400 }
+      )
+    }
+
+    console.log("[v0] Soft deleting client:", id)
+
+    const { error } = await supabaseServer!
+      .from("clients")
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: deletedBy,
+        last_modified: new Date().toISOString(),
+      })
+      .eq("id", id)
+
+    if (error) {
+      console.error("[v0] Delete error:", error.message)
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    )
+  }
+}
+
 export async function GET() {
   console.log("[v0] API /api/clients called")
 
