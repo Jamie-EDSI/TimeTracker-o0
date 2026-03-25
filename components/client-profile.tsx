@@ -283,6 +283,7 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
   }
 
   const handleDeleteClick = () => {
+    console.log("[v0] DELETE: handleDeleteClick fired - showing confirmation modal")
     setShowDeleteConfirm(true)
   }
 
