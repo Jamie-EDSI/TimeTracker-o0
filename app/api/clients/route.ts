@@ -66,18 +66,13 @@ const mockClients = [
 ]
 
 export async function POST(request: Request) {
-  console.log("[v0] API /api/clients POST called")
-  
   try {
     const body = await request.json()
     const { action, id, ...updates } = body
-    
-    console.log("[v0] POST action:", action, "id:", id)
 
     // Handle update action
     if (action === "update" || id) {
       if (!hasServerAccess()) {
-        console.log("[v0] No service role key - cannot update")
         return NextResponse.json({
           success: false,
           error: "Database not configured - cannot update clients",
@@ -90,9 +85,6 @@ export async function POST(request: Request) {
           error: "Client ID is required",
         }, { status: 400 })
       }
-
-      console.log("[v0] Updating client:", id)
-      console.log("[v0] Update payload keys:", Object.keys(updates))
 
       // Remove any fields that shouldn't be sent to the database
       const { case_notes, caseNotes, ...cleanUpdates } = updates
@@ -131,14 +123,12 @@ export async function POST(request: Request) {
         .single()
 
       if (error) {
-        console.error("[v0] Database error during update:", error.message)
         return NextResponse.json({
           success: false,
           error: error.message,
         }, { status: 500 })
       }
 
-      console.log("[v0] Successfully updated client:", id)
       return NextResponse.json({
         success: true,
         data: data,
@@ -151,7 +141,6 @@ export async function POST(request: Request) {
       error: "Invalid request - action or id required",
     }, { status: 400 })
   } catch (error: any) {
-    console.error("[v0] Exception in POST /api/clients:", error.message)
     return NextResponse.json({
       success: false,
       error: error.message,

@@ -354,21 +354,17 @@ export function Dashboard() {
 
   const handleSaveClient = async (updatedClient: any) => {
     try {
-      console.log("[v0] handleSaveClient START - id:", updatedClient.id)
       setIsLoading(true)
 
       // Validate the updated client data
       const validation = validateClientData(updatedClient)
-      console.log("[v0] handleSaveClient validation:", { isValid: validation.isValid, errors: validation.errors })
       if (!validation.isValid) {
         throw new Error(`Please fix: ${validation.errors.join(", ")}`)
       }
 
       // Transform to Supabase format and update
       const supabaseClientData = transformToSupabaseClient(updatedClient)
-      console.log("[v0] handleSaveClient calling clientsApi.update")
       const savedSupabaseClient = await clientsApi.update(updatedClient.id, supabaseClientData)
-      console.log("[v0] handleSaveClient clientsApi.update returned successfully")
       const savedClient = transformSupabaseClient(savedSupabaseClient)
 
       // Preserve case notes from the updated client
@@ -389,7 +385,6 @@ export function Dashboard() {
 
       return savedClient
     } catch (error: any) {
-      console.error("[v0] handleSaveClient caught error:", error?.message, error)
       throw error
     } finally {
       setIsLoading(false)
