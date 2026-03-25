@@ -289,3 +289,111 @@ export async function GET() {
     })
   }
 }
+
+export async function DELETE(request: Request) {
+  console.log("[v0] API /api/clients DELETE called")
+
+  if (!hasServerAccess()) {
+    console.log("[v0] No service role key - cannot delete")
+    return NextResponse.json({
+      success: false,
+      error: "Database not configured - cannot delete clients",
+    }, { status: 503 })
+  }
+
+  try {
+    const url = new URL(request.url)
+    const id = url.searchParams.get("id")
+    const action = url.searchParams.get("action") || "soft" // "soft" or "permanent"
+    const deletedBy = url.searchParams.get("deletedBy") || "Current User"
+
+    console.log("[v0] DELETE action:", action, "id:", id, "deletedBy:", deletedBy)
+
+    if (!id) {
+      return NextResponse.json({
+        success: false,
+        error: "Client ID is required",
+      }, { status: 400 })
+    }
+
+    if (action === "soft") {
+      // Soft delete - mark as deleted with timestamp
+      console.log("[v0] Performing soft delete for client:", id)
+      
+      // Also soft-delete all associated case notes
+      console.log("[v0] Soft-deleting case notes for client:", id)
+      await supabaseServer!
+        .from("case_notes")
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: deletedBy,
+        })
+        .eq("client_id", id)
+
+      const { data, error } = await supabaseServer!
+        .from("clients")
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: deletedBy,
+        })
+        .eq("id", id)
+        .select()
+        .single()
+
+      if (error) {
+        console.error("[v0] Database error during soft delete:", error.message)
+        return NextResponse.json({
+          success: false,
+          error: error.message,
+        }, { status: 500 })
+      }
+
+      console.log("[v0] Successfully soft deleted client:", id, "and associated case notes")
+      return NextResponse.json({
+        success: true,
+        data: data,
+        message: "Client moved to recycle bin",
+      })
+    } else if (action === "permanent") {
+      // Permanent delete - remove record completely
+      console.log("[v0] Performing permanent delete for client:", id)
+      
+      // Permanently delete all associated case notes first
+      console.log("[v0] Permanently deleting case notes for client:", id)
+      await supabaseServer!
+        .from("case_notes")
+        .delete()
+        .eq("client_id", id)
+
+      const { error } = await supabaseServer!
+        .from("clients")
+        .delete()
+        .eq("id", id)
+
+      if (error) {
+        console.error("[v0] Database error during permanent delete:", error.message)
+        return NextResponse.json({
+          success: false,
+          error: error.message,
+        }, { status: 500 })
+      }
+
+      console.log("[v0] Successfully permanently deleted client:", id, "and associated case notes")
+      return NextResponse.json({
+        success: true,
+        message: "Client permanently deleted",
+      })
+    } else {
+      return NextResponse.json({
+        success: false,
+        error: "Invalid action. Use 'soft' or 'permanent'.",
+      }, { status: 400 })
+    }
+  } catch (error: any) {
+    console.error("[v0] Exception in DELETE /api/clients:", error.message)
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+    }, { status: 500 })
+  }
+}

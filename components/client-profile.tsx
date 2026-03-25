@@ -300,8 +300,8 @@ export function ClientProfile({ client, onBack, onSave }: ClientProfileProps) {
       setTimeout(() => {
         onBack()
       }, 1000)
-    } catch (error) {
-      console.error("Error deleting client:", error)
+    } catch (error: any) {
+      console.error("Error deleting client:", error?.message || String(error))
       setSaveError("Failed to delete client. Please try again.")
       setShowDeleteConfirm(false)
     } finally {

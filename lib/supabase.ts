@@ -735,25 +735,19 @@ export const clientsApi = {
 
   async softDelete(id: string, deletedBy = "Current User"): Promise<void> {
     if (!supabase || configError || !databaseReady) {
-      console.log("⚠️ Soft delete not available in demo mode")
+      console.log("[v0] Soft delete not available in demo mode")
       return
     }
 
-    return SupabaseDebugger.logOperation("SOFT_DELETE", "clients", { id }, async () => {
-      const { error } = await supabase
-        .from("clients")
-        .update({
-          deleted_at: new Date().toISOString(),
-          deleted_by: deletedBy,
-        })
-        .eq("id", id)
+    const response = await fetch(
+      `/api/clients?id=${encodeURIComponent(id)}&action=soft&deletedBy=${encodeURIComponent(deletedBy)}`,
+      { method: "DELETE" }
+    )
 
-      if (error) {
-        const errorMsg = extractErrorMessage(error)
-        throw new Error(`Database error: ${errorMsg}`)
-      }
-      console.log("✅ Client soft deleted:", id)
-    })
+    const { ok, error } = await parseApiResponse(response, "softDelete")
+    if (!ok || error) {
+      throw new Error(error || "Failed to delete client")
+    }
   },
 
   async restore(id: string): Promise<Client> {
@@ -785,18 +779,19 @@ export const clientsApi = {
 
   async permanentDelete(id: string): Promise<void> {
     if (!supabase || configError || !databaseReady) {
-      console.log("⚠️ Permanent delete not available in demo mode")
+      console.log("[v0] Permanent delete not available in demo mode")
       return
     }
 
-    return SupabaseDebugger.logOperation("PERMANENT_DELETE", "clients", { id }, async () => {
-      const { error } = await supabase.from("clients").delete().eq("id", id)
-      if (error) {
-        const errorMsg = extractErrorMessage(error)
-        throw new Error(`Database error: ${errorMsg}`)
-      }
-      console.log("✅ Client permanently deleted:", id)
-    })
+    const response = await fetch(
+      `/api/clients?id=${encodeURIComponent(id)}&action=permanent`,
+      { method: "DELETE" }
+    )
+
+    const { ok, error } = await parseApiResponse(response, "permanentDelete")
+    if (!ok || error) {
+      throw new Error(error || "Failed to permanently delete client")
+    }
   },
 }
 
