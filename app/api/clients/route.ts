@@ -67,6 +67,9 @@ const mockClients = [
 
 export async function PUT(request: Request) {
   console.log("[v0] API /api/clients PUT called")
+  console.log("[v0] Request method:", request.method)
+  console.log("[v0] Request URL:", request.url)
+  console.log("[v0] Request headers:", Object.fromEntries(request.headers))
 
   if (!hasServerAccess()) {
     console.log("[v0] No service role key - cannot update")
@@ -151,6 +154,7 @@ export async function PUT(request: Request) {
     })
   } catch (error: any) {
     console.error("[v0] Exception in PUT /api/clients:", error)
+    console.error("[v0] Error details:", error.message, error.stack)
     return NextResponse.json({
       success: false,
       error: error.message,
