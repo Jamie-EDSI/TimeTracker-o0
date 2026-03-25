@@ -68,17 +68,61 @@ const mockClients = [
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { action, id, ...updates } = body
+    const { action, id, ...data } = body
+
+    if (!hasServerAccess()) {
+      return NextResponse.json({
+        success: false,
+        error: "Database not configured",
+      }, { status: 503 })
+    }
+
+    // Handle insert (create new client)
+    if (action === "insert") {
+      // Clean the data
+      const { case_notes, caseNotes, ...cleanData } = data
+      
+      // Handle date fields
+      const dateFields = ['date_of_birth', 'enrollment_date', 'last_contact']
+      dateFields.forEach(field => {
+        const val = cleanData[field]
+        if (!val || (typeof val === 'string' && val.trim() === '')) {
+          cleanData[field] = null
+        }
+      })
+      
+      // Handle numeric fields
+      const numericFields = ['required_hours', 'graduation_year', 'gpa']
+      numericFields.forEach(field => {
+        if (cleanData[field] === '' || cleanData[field] === undefined) {
+          cleanData[field] = null
+        } else if (typeof cleanData[field] === 'string') {
+          const parsed = parseFloat(cleanData[field])
+          cleanData[field] = isNaN(parsed) ? null : parsed
+        }
+      })
+
+      const { data: newClient, error } = await supabaseServer!
+        .from("clients")
+        .insert([cleanData])
+        .select()
+        .single()
+
+      if (error) {
+        return NextResponse.json({
+          success: false,
+          error: error.message,
+        }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: newClient,
+      })
+    }
 
     // Handle update action
     if (action === "update" || id) {
-      if (!hasServerAccess()) {
-        return NextResponse.json({
-          success: false,
-          error: "Database not configured - cannot update clients",
-        }, { status: 503 })
-      }
-
       if (!id) {
         return NextResponse.json({
           success: false,
@@ -87,7 +131,7 @@ export async function POST(request: Request) {
       }
 
       // Remove any fields that shouldn't be sent to the database
-      const { case_notes, caseNotes, ...cleanUpdates } = updates
+      const { case_notes, caseNotes, ...cleanUpdates } = data
       
       // Handle date fields - convert empty strings/undefined to null
       const dateFields = ['date_of_birth', 'enrollment_date', 'last_contact']
@@ -115,7 +159,7 @@ export async function POST(request: Request) {
         modified_by: cleanUpdates.modified_by || "Current User",
       }
 
-      const { data, error } = await supabaseServer!
+      const { data: updatedClient, error } = await supabaseServer!
         .from("clients")
         .update(updateData)
         .eq("id", id)
@@ -131,14 +175,14 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         success: true,
-        data: data,
+        data: updatedClient,
       })
     }
 
     // If no action specified, return error
     return NextResponse.json({
       success: false,
-      error: "Invalid request - action or id required",
+      error: "Invalid request - action (insert/update) required",
     }, { status: 400 })
   } catch (error: any) {
     return NextResponse.json({
