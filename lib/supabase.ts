@@ -778,30 +778,34 @@ export const clientsApi = {
   },
 
   async restore(id: string): Promise<Client> {
-    if (!supabase || configError || !databaseReady) {
-      throw new Error("Restore not available in demo mode")
-    }
+    console.log("[v0] clientsApi.restore() - restoring client via API:", id)
 
-    return SupabaseDebugger.logOperation("RESTORE", "clients", { id }, async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .update({
-          deleted_at: null,
-          deleted_by: null,
-          last_modified: new Date().toISOString(),
-          modified_by: "Current User",
-        })
-        .eq("id", id)
-        .select()
-        .single()
+    try {
+      const response = await fetch("/api/clients", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "restore", id }),
+      })
 
-      if (error) {
-        const errorMsg = extractErrorMessage(error)
-        throw new Error(`Database error: ${errorMsg}`)
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(`Server error (${response.status}): ${response.statusText}`)
       }
-      console.log("✅ Client restored:", id)
-      return data
-    })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to restore client")
+      }
+
+      console.log("[v0] Client restored:", result.data.id)
+      return result.data
+    } catch (error: any) {
+      console.error("[v0] Exception in restore:", error.message)
+      throw error
+    }
   },
 
   async permanentDelete(id: string): Promise<void> {

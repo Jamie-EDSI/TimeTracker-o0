@@ -121,6 +121,40 @@ export async function POST(request: Request) {
       })
     }
 
+    // Handle restore action (restore from recycle bin)
+    if (action === "restore") {
+      if (!id) {
+        return NextResponse.json({
+          success: false,
+          error: "Client ID is required for restore",
+        }, { status: 400 })
+      }
+
+      const { data: restoredClient, error } = await supabaseServer!
+        .from("clients")
+        .update({
+          deleted_at: null,
+          deleted_by: null,
+          last_modified: new Date().toISOString(),
+          modified_by: "Current User",
+        })
+        .eq("id", id)
+        .select()
+        .single()
+
+      if (error) {
+        return NextResponse.json({
+          success: false,
+          error: error.message,
+        }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: restoredClient,
+      })
+    }
+
     // Handle update action
     if (action === "update" || id) {
       if (!id) {
